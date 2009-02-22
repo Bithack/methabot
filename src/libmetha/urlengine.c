@@ -366,12 +366,22 @@ ue_set_hostent(uehandle_t *h, struct host_ent *ent)
  * Pick a next target URL. Return a pointer to the string, and
  * set the current url of the handle to a pointer to the 
  * url_t.
+ *
+ * This function will set up a ulist where all urls sent to
+ * ue_add will be added.
  **/
 const char*
 ue_next(uehandle_t *h)
 {
     ulist_t *top;
     url_t   *url;
+
+    if (h->depth_limit) {
+        while (h->depth_counter >= h->depth_limit) {
+            lm_utable_dec(&h->primary);
+            h->depth_counter --;
+        }
+    }
 
     if (!(top = lm_utable_top(&h->primary)))
         return 0;
@@ -385,12 +395,19 @@ ue_next(uehandle_t *h)
 
         if (h->depth_counter)
             h->depth_counter --;
-        else if (h->is_peeking) {
+
+        if (!h->depth_counter && h->is_peeking) {
             /* reset counter if we are in an external peek */
             h->depth_counter = h->depth_counter_bk;
             h->depth_limit   = h->depth_limit_bk;
             h->is_peeking    = 0;
             ue_set_host(h, h->host_ent_bk->str, h->host_ent_bk->len);
+
+            if (h->depth_counter >= h->depth_limit) {
+                if (lm_utable_dec(&h->primary) != M_OK || !(top = lm_utable_top(&h->primary))) {
+                    return 0;
+                }
+            }
         }
     }
 

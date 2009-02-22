@@ -243,15 +243,6 @@ lm_worker_main(void *in)
     ue_set_state_info(w->ue_h, w->crawler);
 
     do {
-        /* check depth limit first, since this session might be a continuation from 
-         * a call to lmetha_exec_once() */
-        if (w->ue_h->depth_limit && w->ue_h->depth_counter >= w->ue_h->depth_limit) {
-#ifdef DEBUG
-            fprintf(stderr, "* worker:(%p) depth limit (%d) reached\n", w, w->ue_h->depth_limit);
-#endif
-            lm_utable_dec(&w->ue_h->primary);
-        }
-
         if (!(url = ue_next(w->ue_h))) {
             /* out of internal URLs, we'll see if we have any external URLs if external mode is 
              * enabled */
@@ -696,12 +687,13 @@ lm_worker_bind_url(worker_t *w, url_t *url,
                      * is done */
                     ue_h->depth_counter_bk = ue_h->depth_counter;
                     ue_h->depth_limit_bk = ue_h->depth_limit;
+                    ue_h->host_ent_bk = ue_h->host_ent;
 
                     ue_h->depth_counter = 0;
                     ue_h->depth_limit = cr->peek_limit;
                     ue_h->is_peeking = 1;
                 }
-                url_t *tmp = lm_ulist_inc(peek_list);
+                url_t *tmp = lm_ulist_inc(*peek_list);
                 /* swap this URL with an empty URL from the new list */
                 lm_url_swap(url, tmp);
             }

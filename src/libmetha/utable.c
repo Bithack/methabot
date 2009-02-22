@@ -75,6 +75,7 @@ lm_utable_dec(utable_t *tb)
 {
     if (tb->sz == 0)
         return M_FAILED;
+    tb->row[tb->sz-1].sz = 0;
     tb->sz--;
     return M_OK;
 }

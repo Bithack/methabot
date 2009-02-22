@@ -1,0 +1,63 @@
+<html>
+  <head>
+    <meta name="GENERATOR" content="Microsoft Internet Assistant for Microsoft PowerPoint 97"/>
+    <title>HTML Example</title>
+  </head>
+  <body>
+    <center>
+      <table width="100%">
+        <tr>
+          <td width="100%" align="CENTER">
+            <br/>
+            <br/>
+            <br/>
+            <br/>
+            <br/>
+            <br/>
+            <br/>
+            <br/>
+            <br/>
+            <br/>
+            <br/>
+            <br/>
+            <p/>
+            <em>
+              <strong/>
+            </em>
+            <p>
+              <p/>
+              <a href="sld001.htm">
+                <img src="first.gif" border="0"/>
+              </a>
+              <a href="sld071.htm">
+                <img src="prev.gif" border="0"/>
+              </a>
+              <a href="sld073.htm">
+                <img src="next.gif" border="0"/>
+              </a>
+              <a href="sld073.htm">
+                <img src="last.gif" border="0"/>
+              </a>
+              <img src="space.gif" border="0"/>
+              <a href="index.htm">
+                <img src="info.gif" border="0" alt="Index"/>
+              </a>
+              <a href="blah">
+                <img src="home.gif" border="0" alt="Hej"/>
+              </a>
+              <a href="tsld072.htm">
+                <img src="text.gif" border="0" alt="Text"/>
+              </a>
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td width="100%" align="CENTER">
+            <img src="img072.jpg" usemap="#Objmap" width="640" height="480" border="0"/>
+          </td>
+        </tr>
+      </table>
+      <p>Bild 72 av 73</p>
+    </center>
+  </body>
+</html>

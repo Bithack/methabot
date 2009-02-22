@@ -1,0 +1,3 @@
+REQUIRE="httpd"
+RUN="mb :image -D 0 http://127.0.0.1:9999/index.html"
+INFO="Default HTML parser, no javascript"

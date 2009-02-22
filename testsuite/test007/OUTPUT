@@ -1,0 +1,65 @@
+[I] URL: http://127.0.0.1:9999/
+test1:
+<html>
+  <!-- invalid XML should be converted to valid XML at step 3 (xmlconv) in the chain,
+       -->
+  <BODY>
+    <p>
+       remove_me2
+    </P>
+    <dIv id="target">
+      <a href="target1.png"></a>
+      <a href=target2.png></a>
+      <a href='target3.png'></a>
+    </DIV>
+    <a href="not_a_target_url1.png"></a>
+    <a href="not_a_target_url2.png"></a>
+    <div >
+      <a href=not_a_target_url3.png></a>
+      <a href=not_a_target_url4.png></a>
+    </div>
+    <div>
+      <a href="not_a_target_url5.png"></a>
+      <a href="not_a_target_url6.png"></a>
+    </div>
+  </body >
+</html>
+
+
+test2:
+<html>
+  <!-- invalid XML should be converted to valid XML at step 3 (xmlconv) in the chain,
+       -->
+  <BODY>
+    <p>
+       
+    </P>
+    <dIv id="target">
+      <a href="target1.png"></a>
+      <a href=target2.png></a>
+      <a href='target3.png'></a>
+    </DIV>
+    <a href="not_a_target_url1.png"></a>
+    <a href="not_a_target_url2.png"></a>
+    <div >
+      <a href=not_a_target_url3.png></a>
+      <a href=not_a_target_url4.png></a>
+    </div>
+    <div>
+      <a href="not_a_target_url5.png"></a>
+      <a href="not_a_target_url6.png"></a>
+    </div>
+  </body >
+</html>
+
+
+test3:
+<div id="target">
+  <a href="target1.png"/>
+  <a href="target2.png"/>
+  <a href="target3.png"/>
+</div>
+
+[-] http://127.0.0.1:9999/target1.png
+[-] http://127.0.0.1:9999/target3.png
+[-] http://127.0.0.1:9999/target2.png

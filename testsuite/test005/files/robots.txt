@@ -1,0 +1,6 @@
+# testing comments
+User-agent: *
+Disallow: /1/2/
+Disallow: /nobotsplease.html
+Allow: /1/2/3/allow.html
+# hello

@@ -1,0 +1,4 @@
+
+SUBDIRS = \
+		libmetha \
+		methabot

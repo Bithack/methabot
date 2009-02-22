@@ -428,6 +428,26 @@ ue_set_state_info(uehandle_t *h, void *info)
 }
 
 /** 
+ * Start an epeek, back up depth limit/counter
+ * values so that we can continue when the epeek 
+ * is stopped.
+ **/
+M_CODE
+ue_start_epeek(uehandle_t *h)
+{
+    return M_OK;
+}
+
+/** 
+ * Stop the epeek, restore backed up values.
+ **/
+M_CODE
+ue_stop_epeek(uehandle_t *h)
+{
+    return M_OK;
+}
+
+/** 
  * Move the given URL to a secondary cache. A secondary
  * cache is a cache that does not apply to the current 
  * host name of the URL being crawled.

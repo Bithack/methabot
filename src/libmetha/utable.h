@@ -56,5 +56,9 @@ void   lm_ulist_uninit(ulist_t *ul);
 url_t *lm_ulist_pop(ulist_t *ul);
 url_t *lm_ulist_inc(ulist_t *ul);
 
+#define lm_ulist_row(l, x) (&((l)->row[x]))
+#define lm_ulist_dec(l) (l)->sz--
+#define lm_ulist_top(l) &((l)->row[((l)->sz-1)])
+
 #endif
 

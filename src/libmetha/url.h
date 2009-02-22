@@ -73,4 +73,6 @@ int    lm_url_hostcmp(url_t *u1, url_t *u2);
 void   lm_url_nullify(url_t *url);
 void   lm_url_swap(url_t *u1, url_t *u2);
 
+#define lm_url_bind(url, ft) (url)->bind = (ft)
+
 #endif

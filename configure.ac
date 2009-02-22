@@ -1,4 +1,4 @@
-AC_INIT(methabot, 1.6.0, http://bithack.se/projects/methabot/)
+AC_INIT(methabot, 1.6.0.99, http://bithack.se/projects/methabot/)
 
 AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
 

@@ -34,6 +34,8 @@
  *   terminating all other workers.
  **/
 
+#define inl_ static inline
+
 static M_CODE lm_worker_init(worker_t *w);
 static M_CODE lm_worker_init_e4x(worker_t *w);
 static void   lm_worker_jserror(JSContext *cx, const char *message, JSErrorReport *report);
@@ -43,6 +45,7 @@ static M_CODE lm_worker_call_crawler_init(worker_t *w);
 static M_CODE lm_worker_get_robotstxt(worker_t *w, struct host_ent *ent);
 static int    lm_worker_wait(worker_t *w);
 static M_CODE __lm_worker_default_crawler_init(uehandle_t *h, int argc, const char **argv);
+inl_ int lm_worker_bind_url(worker_t *w, url_t *url, filetype_t *ft, int epeek, ulist_t **peek_list);
 
 #ifdef DEBUG
 static const char *worker_state_str[] = {
@@ -527,6 +530,7 @@ lm_fork_worker(metha_t *m, crawler_t *c,
     return M_OK;
 }
 
+#if 0
 /** 
  * Sort URLs, bind them to parsers and so on
  **/
@@ -718,6 +722,190 @@ lm_worker_sort(worker_t *w)
         }
     }
     return M_OK;
+}
+#endif
+
+/** 
+ * Discard or sort URLs into filetypes depending 
+ * on the current crawler's list of filetypes 
+ * and rules.
+ *
+ * Returns M_OK unless an error occured.
+ **/
+static M_CODE
+lm_worker_sort(worker_t *w)
+{
+    int        x, epeek;
+    ulist_t    *list, *peek_list = 0;
+    crawler_t  *cr;
+    int        match, lookup;
+    int        syn;
+    uehandle_t *ue_h = w->ue_h;
+    filetype_t *ft;
+    url_t      *url;
+    const char *mime;
+    char       *c;
+
+    /* get the current list of URLs */
+    if (!(list = lm_utable_top(&ue_h->primary)))
+        return M_FAILED;
+
+    cr     = w->crawler;
+    epeek  = (lm_crawler_flag_isset(cr, LM_CRFLAG_EPEEK) && !ue_h->is_peeking)
+              ? 1 : 0;
+    syn    = w->io_h->io->synchronous;
+    lookup = 0;
+
+    for (x=0; x<list->sz; ) {
+        url   = lm_ulist_row(list, x);
+        match = 0;
+
+        /* first we try to match the URL by looking at the string */
+        if ((ft = lm_ftindex_match_by_url(&cr->ftindex, url))) {
+            if (ft == LM_FTINDEX_POSSIBLE_MATCH) {
+                if (!syn) {
+                    if (lm_multipeek_add(w->io_h, url, x) == M_OK) {
+                        match = 1;
+                        lookup ++;
+                    }
+                } else {
+                    lm_io_head(w->io_h, url);
+                    char *mime = w->io_h->transfer.headers.content_type;
+                    if (mime) {
+                        if ((c = strchr(mime, ';')))
+                            *c = '\0';
+
+                        if ((ft = lm_ftindex_match_by_mime(&cr->ftindex, mime))
+                                && lm_worker_bind_url(w, url, ft, epeek, &peek_list) == 0)
+                            match = 1;
+                    }
+                }
+            } else if (lm_worker_bind_url(w, url, ft, epeek, &peek_list) == 0)
+                match = 1;
+        }
+
+        if (!match) {
+            /* if match is set to 0, we will discard this URL
+             * and move the top-most URL to replace its position
+             * in the list */
+            lm_url_nullify(url);
+            lm_url_swap(url, lm_ulist_top(list));
+            lm_ulist_dec(list);
+        } else
+            x++;
+    }
+
+    if (!lookup)
+        return M_OK;
+
+    ioprivate_t *info;
+    CURL        *h;
+
+#ifdef DEBUG
+    if (!syn)
+        fprintf(stderr, "* worker:(%p) waiting for %d HTTP HEAD requests...\n", w, lookup);
+#endif
+
+    while ((info = lm_multipeek_wait(w->io_h))) {
+        h   = info->handle;
+        url = lm_ulist_row(list, info->identifier);
+        match = 0;
+
+        curl_easy_getinfo(h, CURLINFO_CONTENT_TYPE, &mime);
+
+        if (mime) {
+            if ((c = strchr(mime, ';')))
+                *c = '\0';
+
+            if ((ft = lm_ftindex_match_by_mime(&cr->ftindex, mime))
+                    && lm_worker_bind_url(w, url, ft, epeek, &peek_list) == 0)
+                match = 1;
+        }
+
+        curl_easy_cleanup(h);
+
+        if (!match)
+            lm_url_nullify(url);
+    }
+
+    /* remove nullified urls from the list */
+    x = list->sz-1;
+    while (x >= 0 && !(lm_ulist_row(list, x)->sz))
+        x--;
+
+    list->sz = x+1;
+
+    for (x=0; x<list->sz; ) {
+        if (!(lm_ulist_row(list, x)->sz)) {
+            lm_url_swap(lm_ulist_row(list, x), lm_ulist_top(list));
+            lm_ulist_dec(list);
+        } else
+            x++;
+    }
+
+    return M_OK;
+}
+
+/** 
+ * Bind the given URL with the given filetype. Called
+ * by lm_worker_sort when a URL matches a filetype.
+ *
+ * epeek     - 1 or 0 whether epeeking is enabled and allowed
+ *             in this case.
+ * peek_list - a pointer to a pointer to a ulist_t, this is 
+ *             the list of urls where all epeek urls should 
+ *             be added. If this list is unset and a url is
+ *             to be added to the list, the list should be 
+ *             set by this function.
+ *
+ * Returns 1 if the URL should be nullified
+ **/
+inl_ int
+lm_worker_bind_url(worker_t *w, url_t *url,
+                   filetype_t *ft, int epeek,
+                   ulist_t **peek_list)
+{
+    uehandle_t *ue_h = w->ue_h;
+    crawler_t  *cr = w->crawler;
+
+    if (FT_FLAG_ISSET(ft, FT_FLAG_HAS_PARSER)
+          || FT_FLAG_ISSET(ft, FT_FLAG_HAS_HANDLER)) {
+        lm_url_bind(url, ft->id);
+        if (LM_URL_ISSET(url, LM_URL_EXTERNAL)) {
+            if (!epeek) {
+                if (lm_crawler_flag_isset(cr, LM_CRFLAG_EXTERNAL))
+                    ue_move_to_secondary(ue_h, url);
+            } else {
+                /* add this URL to the epeek list */
+                if (!*peek_list) {
+                    /* the epeek list is not set up, so this is
+                     * probably the first URL that should be 
+                     * added to the epeek list, and we must create
+                     * an epeek list before we add it */
+                    if (lm_utable_inc(&ue_h->primary) != M_OK)
+                        return M_OUT_OF_MEM;
+                    *peek_list = lm_utable_top(&ue_h->primary);
+
+                    /* now back up our depth counter/limit values
+                     * so that we may continue after the epeek
+                     * is done */
+                    ue_h->depth_counter_bk = ue_h->depth_counter;
+                    ue_h->depth_limit_bk = ue_h->depth_limit;
+
+                    ue_h->depth_counter = 0;
+                    ue_h->depth_limit = cr->peek_limit;
+                    ue_h->is_peeking = 1;
+                }
+                url_t *tmp = lm_ulist_inc(peek_list);
+                /* swap this URL with an empty URL from the new list */
+                lm_url_swap(url, tmp);
+            }
+        } else 
+            return 0;
+    } else
+        w->m->handler(w->m->private, url);
+
+    return 1;
 }
 
 /** 

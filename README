@@ -1,7 +1,7 @@
 Readme - The Methabot Project
 
-  Thank you for downloading  Methabot. If got your copy from the 
-subversion  repository,  don't  forget  to  invoke  ./autogen.sh
+  Thank you for downloading  Methabot. If got your copy from git 
+or the subversion repository,  don't forget to invoke autogen.sh
 from the command line before attempting to configure and install
 this package.
 

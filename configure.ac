@@ -107,6 +107,7 @@ AC_RUN_IFELSE([[
 [
     AC_MSG_RESULT([yes])
     CFLAGS="${CFLAGS} -DMOZILLA_1_8_BRANCH"
+    BUILD_FLAGS_EXTRA="-DMOZILLA_1_8_BRANCH"
 ],
     ,AC_MSG_RESULT([unknown]))
 
@@ -132,19 +133,14 @@ LIBS="${PTHREAD_LIBS} ${LIBS} ${SPIDERMONKEY_LIBS}"
 AC_CHECK_FUNCS([strdup realloc strncasecmp memmem])
 AC_CHECK_HEADERS([pthread.h stdint.h])
 
-# Methabot specific checks
-if test "$build_cli" = "true"; then
-    IF_CLI=src/methabot/Makefile
-
-    AC_CHECK_HEADERS([getopt.h])
-else
-    IF_CLI=""
-fi
+AC_DEFINE_UNQUOTED(BUILD_LIBS, "${LIBS}", [used by modules to link the same libraries as libmetha])
+AC_DEFINE_UNQUOTED(BUILD_CFLAGS, "${JS_INCLUDE_PATH} -D_GNU_SOURCE -DJS_THREADSAFE -DXP_UNIX ${BUILD_FLAGS_EXTRA}", [used by modules to build with the same flags at libmetha])
 
 AC_OUTPUT([
 src/Makefile
 src/libmetha/Makefile
 src/methabot/Makefile
+src/metha-config/Makefile
 Makefile
 ])
 

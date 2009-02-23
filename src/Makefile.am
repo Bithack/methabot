@@ -1,4 +1,5 @@
 
 SUBDIRS = \
 		libmetha \
-		methabot
+		methabot \
+		metha-config

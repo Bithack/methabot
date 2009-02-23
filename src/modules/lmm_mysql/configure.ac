@@ -1,4 +1,4 @@
-AC_INIT(lmm_mysql, 0.2.0, http://bithack.se/projects/methabot/docs/modules/lmm_mysql/)
+AC_INIT(lmm_mysql, 1.0.0, http://bithack.se/projects/methabot/docs/modules/lmm_mysql/)
 
 AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
 

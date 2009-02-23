@@ -27,10 +27,7 @@ scripts_DATA = \
 		scripts/validate.js \
 		scripts/wikipedia.js
 
-EXTRA_DIST = $(conf_DATA) $(scripts_DATA) \
-			 src/modules/lmm_mysql/js.c \
-			 src/modules/lmm_mysql/lmm_mysql.c \
-			 src/modules/lmm_mysql/js.h
+EXTRA_DIST = $(conf_DATA) $(scripts_DATA)
 
 SUBDIRS = \
 	src

@@ -15,10 +15,7 @@ EXTRA_DIST = \
 	libev/ev_vars.h \
 	libev/ev_win32.c \
 	libev/ev_wrap.h \
-	libev/LICENSE \
-	include/filter.grep \
-	include/functions.grep \
-	include/metha.h.in
+	libev/LICENSE
 
 libmetha_la_SOURCES = \
 	default.h    \

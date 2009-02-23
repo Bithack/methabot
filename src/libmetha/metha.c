@@ -355,6 +355,7 @@ lmetha_destroy(metha_t *m)
     if (m->num_functions) {
         for (x=0; x<m->num_functions; x++) {
             /* XXX: proper cleanup */
+            free(m->functions[x]->name);
             free(m->functions[x]);
         }
         free(m->functions);
@@ -583,6 +584,8 @@ lmetha_exec(metha_t *m, int argc, const char **argv)
         pthread_join(m->workers[x]->thr, 0);
     }
 
+    free(m->waiting_queue);
+    ev_loop_destroy(m->ev.loop);
     return M_OK;
 }
 
@@ -838,6 +841,7 @@ lm_prepare_crawlers(metha_t *m)
                 int found = 0;
                 for (z=0; z<m->num_filetypes; z++) {
                     if (strcmp(value+1, m->filetypes[z]->name) == 0) {
+                        free(value);
                         *friends[y] = m->filetypes[z];
                         found = 1;
                         break;
@@ -850,11 +854,13 @@ lm_prepare_crawlers(metha_t *m)
                 }
             } else {
                 /* either "lookup" or "discard" */
-                if (strcmp(value, "lookup") == 0)
+                if (strcmp(value, "lookup") == 0) {
+                    free(value);
                     *(friends[y]) = 0;
-                else if (strcmp(value, "discard") == 0)
+                } else if (strcmp(value, "discard") == 0) {
+                    free(value);
                     *(friends[y]) = 1;
-                else {
+                } else {
                     /* The variable was set to something not recognized,
                      * not a filetype and neither 'lookup' nor 'discard'
                      * i guess we should do nothing but bail out with an 

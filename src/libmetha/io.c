@@ -130,6 +130,8 @@ lm_uninit_io(io_t *io)
             curl_share_cleanup(io->share_h);
         if (io->queue.pos)
             free(io->queue.pos);
+        if (io->ev_p)
+            ev_loop_destroy(io->ev_p);
 
         pthread_mutex_destroy(&io->queue_mtx);
         pthread_rwlock_destroy(&io->cookies_mtx);

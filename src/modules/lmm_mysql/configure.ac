@@ -56,7 +56,7 @@ fi
 
 AC_CHECK_FUNCS([strdup realloc strncasecmp memmem])
 AC_CHECK_HEADERS([stdint.h])
-AC_CHECK_HEADER([metha/module.h])
+AC_CHECK_HEADER([metha/metha.h])
 
 libdir=$libdir/metha/modules
 

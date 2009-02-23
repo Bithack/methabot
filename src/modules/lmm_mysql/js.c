@@ -226,7 +226,7 @@ lmm_mysql_real_escape_string(JSContext *cx, JSObject *this, uintN argc, jsval *a
 
     len = JS_GetStringLength(JSVAL_TO_STRING(*argv));
 
-    if (!(to = malloc(len+1)))
+    if (!(to = malloc((len*2)+1)))
         return JS_FALSE;
 
     from = JS_GetStringBytes(JSVAL_TO_STRING(*argv));

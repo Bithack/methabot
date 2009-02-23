@@ -68,6 +68,7 @@ include_HEADERS = \
 	errors.h	\
 	include/metha.h \
 	module.h    \
+	lmopt.h  \
 	url.h \
 	wfunction.h    \
 	../config.h

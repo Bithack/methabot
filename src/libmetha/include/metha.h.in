@@ -1,6 +1,7 @@
 #include "errors.h"
 #include "config.h"
 #include "module.h"
+#include "lmopt.h"
 
 struct metha;
 struct filetype;

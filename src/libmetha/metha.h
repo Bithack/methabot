@@ -33,29 +33,7 @@
 #include "url.h"
 #include "wfunction.h"
 #include "events.h"
-
-typedef enum {
-    LMOPT_MODE,
-    LMOPT_NUM_THREADS,
-    LMOPT_INITIAL_CRAWLER,
-    LMOPT_ENABLE_BUILTIN_PARSERS,
-    LMOPT_IO_VERBOSE,
-    LMOPT_USERAGENT,
-    LMOPT_PRIMARY_SCRIPT_DIR,
-    LMOPT_SECONDARY_SCRIPT_DIR,
-    LMOPT_PRIMARY_CONF_DIR,
-    LMOPT_SECONDARY_CONF_DIR,
-    LMOPT_FILE_HANDLER,
-    LMOPT_PROXY,
-    LMOPT_ENABLE_COOKIES,
-    LMOPT_MODULE_DIR,
-} LMOPT;
-
-typedef enum {
-    LMOPT_GLOBAL_MESSAGE_FUNC,
-    LMOPT_GLOBAL_WARNING_FUNC,
-    LMOPT_GLOBAL_ERROR_FUNC,
-} LMOPT_GLOBAL;
+#include "lmopt.h"
 
 struct observer_pool {
     unsigned int     count;

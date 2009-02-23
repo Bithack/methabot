@@ -10,6 +10,7 @@ AC_PROG_CC
 AM_PROG_CC_STDC
 AC_HEADER_STDC
 
+LT_INIT([disable-static])
 AC_PROG_LIBTOOL
 
 AC_ARG_ENABLE(debug,
@@ -52,7 +53,6 @@ if test -f "${METHA_CONFIG}"; then
 else
     AC_MSG_ERROR([metha-config not found])
 fi
-
 
 AC_CHECK_FUNCS([strdup realloc strncasecmp memmem])
 AC_CHECK_HEADERS([stdint.h])

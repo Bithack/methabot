@@ -1,4 +1,4 @@
-AC_INIT(methabot, 1.6.0.99, http://bithack.se/projects/methabot/)
+AC_INIT(methabot, 1.6.0.1, http://bithack.se/projects/methabot/)
 
 AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
 
@@ -139,7 +139,10 @@ AC_DEFINE_UNQUOTED(BUILD_CFLAGS, "${JS_INCLUDE_PATH} -D_GNU_SOURCE -DJS_THREADSA
 echo -n "generating metha.h installation header... "
 metha_h_success="no"
 pwd_backup=`pwd`
-cd src/libmetha/ &&
+cd $srcdir/src/libmetha/;
+if [ test -f "include/metha.h" ]; then
+    chmod u+w include/metha.h 
+fi
 echo "#ifndef _METHA__H_" > include/metha.h &&
 echo "#define _METHA__H_" >> include/metha.h &&
 echo "/**" >> include/metha.h &&

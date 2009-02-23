@@ -15,54 +15,61 @@ EXTRA_DIST = \
 	libev/ev_vars.h \
 	libev/ev_win32.c \
 	libev/ev_wrap.h \
-	libev/LICENSE
+	libev/LICENSE \
+	include/filter.grep \
+	include/functions.grep \
+	include/metha.h.in
 
 libmetha_la_SOURCES = \
 	default.h    \
 	filetype.c   \
-	filetype.h   \
-	io.h \
 	io.c		 \
 	html.c	  \
-	metha.h   \
 	metha.c	 \
-	url.h \
 	url.c        \
-	errors.h	\
 	errors.c    \
 	mime.c      \
-	mime.h      \
-	ftindex.h   \
 	ftindex.c   \
 	crawler.c   \
-	crawler.h  \
-	urlengine.h \
 	urlengine.c \
 	worker.c    \
-	worker.h    \
 	js.c        \
-	js.h        \
 	utable.c    \
-	utable.h    \
-	wfunction.h    \
-	mtrie.h     \
 	mtrie.c     \
 	umex.c      \
-	umex.h      \
 	builtin.c   \
-	builtin.h   \
-	ftpparse.h  \
 	ftpparse.c  \
-	events.h    \
 	events.c    \
-	str.h       \
 	str.c       \
 	mod.c       \
-	mod.h       \
-	module.h    \
-	filter.h    \
 	filter.c    \
+	conf.c      \
 	conf.h      \
-	conf.c
+	mod.h       \
+	str.h       \
+	events.h    \
+	umex.h      \
+	utable.h    \
+	crawler.h  \
+	mime.h      \
+	filetype.h   \
+	io.h \
+	metha.h   \
+	ftindex.h   \
+	urlengine.h \
+	worker.h    \
+	js.h        \
+	mtrie.h     \
+	builtin.h   \
+	ftpparse.h  \
+	filter.h
+
+include_HEADERS = \
+	errors.h	\
+	include/metha.h \
+	module.h    \
+	url.h \
+	wfunction.h    \
+	../config.h
 
 AM_CFLAGS = -Wall

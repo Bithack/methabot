@@ -1,0 +1,20 @@
+#include "errors.h"
+#include "config.h"
+#include "module.h"
+
+struct metha;
+struct filetype;
+struct crawler;
+struct io;
+
+typedef struct metha metha_t;
+typedef struct crawler crawler_t;
+typedef struct filetype filetype_t;
+typedef struct io io_t;
+
+typedef struct iobuf {
+    char  *ptr;
+    size_t sz;
+    size_t cap;
+} iobuf_t;
+

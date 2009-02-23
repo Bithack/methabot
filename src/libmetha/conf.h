@@ -24,31 +24,7 @@
 
 #include "errors.h"
 #include "metha.h"
-
-struct lm_scope_opt {
-    const char       *name;
-    int               type;
-    union {
-        M_CODE     (*set)(void*, const char *);
-        M_CODE     (*array_set)(void*, char **, int);
-        ptrdiff_t    offs;
-        int          flag;
-    } value;
-};
-
-typedef struct lm_scope {
-    const char         *name;
-    struct lm_scope_opt *opts;
-    int           num_opts;
-} lm_scope_t;
-
-enum {
-    LM_VAL_T_UINT,
-    LM_VAL_T_ARRAY,
-    LM_VAL_T_STRING,
-    LM_VAL_T_EXTRA,
-    LM_VAL_T_FLAG,
-};
+#include "module.h"
 
 M_CODE lmetha_load_config(metha_t *m, const char *filename);
 M_CODE lmetha_register_scope(metha_t *m, const char *name, struct lm_scope_opt *opts, int num_opts);

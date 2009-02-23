@@ -24,7 +24,7 @@
  **/
 
 #include "js.h"
-#include "../../libmetha/module.h"
+#include <metha/metha.h>
 
 char    *host = 0;
 uint32_t port = 0;
@@ -40,7 +40,7 @@ static M_CODE lmm_mysql_prepare(metha_t *m);
 lm_mod_properties =
 {
     .name      = "lmm_mysql",
-    .version   = "0.1.0",
+    .version   = VERSION,
     .init      = &lmm_mysql_init,
     .uninit    = &lmm_mysql_uninit,
     .prepare   = &lmm_mysql_prepare,

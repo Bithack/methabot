@@ -1,0 +1,8 @@
+lmetha_setopt
+lmetha_create
+lmetha_destroy
+lmetha_load_module
+lmetha_load_config
+lmetha_register_scope
+lmetha_init_jsclass
+lmetha_register_worker_object

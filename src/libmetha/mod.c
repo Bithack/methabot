@@ -19,6 +19,7 @@
  * http://bithack.se/projects/methabot/
  */
 
+#include "metha.h"
 #include "mod.h"
 
 #include <stdio.h>
@@ -31,7 +32,7 @@
  * can be found in the module dir (default /usr/lib/metha/modules/)
  **/
 M_CODE
-lmetha_load_module(metha_t *m, const char *name)
+lmetha_load_module(struct metha *m, const char *name)
 {
     char *path;
     lm_mod_t *n;
@@ -60,7 +61,7 @@ lmetha_load_module(metha_t *m, const char *name)
 }
 
 lm_mod_t*
-lm_mod_load(metha_t *m, const char *file)
+lm_mod_load(struct metha *m, const char *file)
 {
     lm_mod_t *ret = malloc(sizeof(lm_mod_t));
 
@@ -89,7 +90,7 @@ lm_mod_load(metha_t *m, const char *file)
 }
 
 void
-lm_mod_unload(metha_t *m, lm_mod_t *mm)
+lm_mod_unload(struct metha *m, lm_mod_t *mm)
 {
     if (mm->props->uninit) {
         mm->props->uninit(m);

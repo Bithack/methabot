@@ -21,9 +21,10 @@
 
 #include <stdint.h>
 #include <pthread.h>
+#include <string.h>
 #include <mysql.h>
+#include <metha/metha.h>
 #include "js.h"
-#include "../../libmetha/module.h"
 
 /*pthread_mutex_t lmm_query_lock;*/
 

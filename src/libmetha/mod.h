@@ -25,13 +25,13 @@
 #include "module.h"
 
 typedef struct lm_mod {
-    void *handle;
+    void                *handle;
     lm_mod_properties_t *props;
 } lm_mod_t;
 
-lm_mod_t* lm_mod_load(metha_t *m, const char *file);
-void      lm_mod_unload(metha_t *m, lm_mod_t *mm);
-M_CODE    lmetha_load_module(metha_t *m, const char *name);
+lm_mod_t* lm_mod_load(struct metha *m, const char *file);
+void      lm_mod_unload(struct metha *m, lm_mod_t *mm);
+M_CODE    lmetha_load_module(struct metha *m, const char *name);
 
 #endif
 

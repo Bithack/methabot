@@ -7,10 +7,13 @@
 #include <errno.h>
 
 #include "master.h"
+#include "conn.h"
+#include "../libmetha/libev/ev.c"
 
 int mbm_load_config();
 int mbm_main();
 int mbm_cleanup();
+static void mbm_ev_sigint(EV_P_ ev_signal *w, int revents);
 
 struct master srv;
 
@@ -34,7 +37,6 @@ main(int argc, char **argv)
     if (sid < 0)
         exit(EXIT_FAILURE);
         */
-
 
     openlog("mb-masterd", 0, 0);
     syslog(LOG_INFO, "started");
@@ -70,7 +72,7 @@ main(int argc, char **argv)
     } else
         srv.config_sz = 0;
 
-    mbm_main();
+    mbm_start();
 
     /*
     if (mkfifo("/var/run/mb-masterd/mb-masterd.sock", 770) != 0) {
@@ -91,16 +93,16 @@ error:
     return 1;
 }
 
-int
-mbm_main()
+int mbm_start()
 {
+    struct ev_loop *loop;
     int sock;
-    int i_sock;
-    struct sockaddr_in i_addr;
-    socklen_t sin_sz;
 
-    memset(&i_addr, 0, sizeof(struct sockaddr_in));
-    sin_sz = sizeof(struct sockaddr_in);
+    ev_io     io_listen;
+    ev_signal sigint_listen;
+    
+    if (!(loop = ev_default_loop(EVFLAG_AUTO)))
+        return 1;
 
     srv.addr.sin_family = AF_INET;
     sock = socket(PF_INET, SOCK_STREAM, 0);
@@ -117,21 +119,39 @@ mbm_main()
 
     syslog(LOG_INFO, "listening on %s:%hd", inet_ntoa(srv.addr.sin_addr), ntohs(srv.addr.sin_port));
 
-    do {
-        if ((i_sock = accept(sock, (struct sockaddr *)&i_addr, &sin_sz)) == -1) {
-            syslog(LOG_ERR, "fatal: accept() failed: %s", strerror(errno));
-            return 1;
-        }
-        syslog(LOG_INFO, "accepted connection from %s", inet_ntoa(i_addr.sin_addr));
+    ev_signal_init(&sigint_listen, &mbm_ev_sigint, SIGINT);
+    ev_io_init(&io_listen, &mbm_ev_conn_accept, sock, EV_READ);
 
-        pthread_t thr;
-        if (pthread_create(&thr, 0, &mbm_conn_main, (void*)i_sock) != 0) {
-            syslog(LOG_ERR, "fatal: pthread_create() failed");
-            return 1;
-        }
-    } while (1);
+    /* catch SIGINT */
+
+    ev_signal_start(loop, &sigint_listen);
+    ev_io_start(loop, &io_listen);
+
+    ev_loop(loop, 0);
 
     return 0;
+}
+
+/** 
+ * Called when sigint is recevied
+ **/
+static void
+mbm_ev_sigint(EV_P_ ev_signal *w, int revents)
+{
+    int x;
+
+    syslog(LOG_INFO, "SIGINT received\n");
+
+    if (srv.num_conns) {
+        for (x=0; x<srv.num_conns; x++) {
+            close(srv.pool[x]->sock);
+            free(srv.pool[x]);
+        }
+
+        free(srv.pool);
+    }
+
+    ev_unloop(EV_A_ EVUNLOOP_ALL);
 }
 
 int
@@ -150,7 +170,7 @@ mbm_load_config()
     char *s;
     int len;
 
-    if (!(fp = fopen("/home/sdac/svn/methabot/trunk/src/mb-masterd/mb-masterd.conf", "r"))) {
+    if (!(fp = fopen("mb-masterd.conf", "r"))) {
         syslog(LOG_ERR, "could not open configuration file");
         return 1;
     }
@@ -168,8 +188,7 @@ mbm_load_config()
             switch (len) {
                 case 6:
                     if (strncmp(in, "listen", 6) == 0) {
-                        s = strchr(p, ':');
-                        if (s) {
+                        if ((s = strchr(p, ':'))) {
                             srv.addr.sin_port = htons(atoi(s+1));
                             *s = '\0';
                         } else

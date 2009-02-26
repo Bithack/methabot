@@ -4,6 +4,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include "conn.h"
+
 #define MBM_DEFAULT_PORT 5304
 
 struct master {
@@ -11,6 +13,9 @@ struct master {
     char *config_file;
     char *config_buf;
     int   config_sz;
+
+    struct conn **pool;
+    unsigned num_conns;
 };
 
 extern struct master srv;

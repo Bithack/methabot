@@ -41,9 +41,9 @@ main(int argc, char **argv)
     openlog("mb-masterd", 0, 0);
     syslog(LOG_INFO, "started");
 
-    close(stdin);
-    close(stdout);
-    close(stderr);
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
 
     if (mbm_load_config() != 0)
         goto error;
@@ -69,11 +69,12 @@ main(int argc, char **argv)
             syslog(LOG_ERR, "read error");
             goto error;
         }
-    } else
-        srv.config_sz = 0;
 
-    mbm_start();
-
+        mbm_start();
+    } else {
+        syslog(LOG_ERR, "no configuration file, exiting");
+        goto error;
+    }
     /*
     if (mkfifo("/var/run/mb-masterd/mb-masterd.sock", 770) != 0) {
         fprintf("error: unable to create mb-masterd.sock\n");
@@ -82,11 +83,11 @@ main(int argc, char **argv)
     */
 
     mbm_cleanup();
-
     closelog();
     return 0;
 
 error:
+    mbm_cleanup();
     if (fp)
         fclose(fp);
     closelog();
@@ -108,12 +109,16 @@ int mbm_start()
     sock = socket(PF_INET, SOCK_STREAM, 0);
 
     if (bind(sock, (struct sockaddr*)&srv.addr, sizeof srv.addr) == -1) {
-        syslog(LOG_ERR, "could not bind to %s:%hd", inet_ntoa(srv.addr.sin_addr), ntohs(srv.addr.sin_port));
+        syslog(LOG_ERR, "could not bind to %s:%hd",
+                inet_ntoa(srv.addr.sin_addr),
+                ntohs(srv.addr.sin_port));
         return 1;
     }
 
     if (listen(sock, 1024) == -1) {
-        syslog(LOG_ERR, "could not listen on %s:%hd", inet_ntoa(srv.addr.sin_addr), ntohs(srv.addr.sin_port));
+        syslog(LOG_ERR, "could not listen on %s:%hd",
+                inet_ntoa(srv.addr.sin_addr),
+                ntohs(srv.addr.sin_port));
         return 1;
     }
 
@@ -123,11 +128,12 @@ int mbm_start()
     ev_io_init(&io_listen, &mbm_ev_conn_accept, sock, EV_READ);
 
     /* catch SIGINT */
-
     ev_signal_start(loop, &sigint_listen);
     ev_io_start(loop, &io_listen);
 
     ev_loop(loop, 0);
+
+    ev_default_destroy();
 
     return 0;
 }
@@ -139,6 +145,8 @@ static void
 mbm_ev_sigint(EV_P_ ev_signal *w, int revents)
 {
     int x;
+
+    ev_signal_stop(EV_A_ w);
 
     syslog(LOG_INFO, "SIGINT received\n");
 
@@ -157,6 +165,8 @@ mbm_ev_sigint(EV_P_ ev_signal *w, int revents)
 int
 mbm_cleanup()
 {
+    if (srv.config_file)
+        free(srv.config_file);
     if (srv.config_sz)
         free(srv.config_buf);
 }
@@ -175,16 +185,23 @@ mbm_load_config()
         return 1;
     }
 
+    /** 
+     * TODO: better syntax error handling 
+     **/
     while (fgets(in, 256, fp)) {
         if (in[0] == '#')
             continue;
-        if (p = strchr(in, '=')) {
+        p = in;
+        in[strlen(in)-1] = '\0';
+        while (isspace(*p))
+            p++;
+        if (p = strchr(p, '=')) {
             len = p-in;
             while (isspace(in[len-1]))
                 len--;
-            do p++;
-            while (isspace(*p));
+            do p++; while (isspace(*p));
 
+            int unknown = 1;
             switch (len) {
                 case 6:
                     if (strncmp(in, "listen", 6) == 0) {
@@ -194,21 +211,33 @@ mbm_load_config()
                         } else
                             srv.addr.sin_port = htons(MBM_DEFAULT_PORT);
                         srv.addr.sin_addr.s_addr = inet_addr(p);
+
+                        unknown = 0;
+                    } else if (strncmp(in, "config", 6) == 0) {
+                        srv.config_file = strdup(p);
+                        unknown = 0;
                     }
                     break;
-
-                default:
-                    for (s=in; isalnum(*s) || *s == '_'; s++)
-                        ;
-                    *s = '\0';
-                    syslog(LOG_ERR, "unknown option '%s'", in);
-                    break;
             }
+
+            if (unknown) {
+                for (s=in; isalnum(*s) || *s == '_'; s++)
+                    ;
+                *s = '\0';
+                syslog(LOG_ERR, "unknown option '%s'", in);
+                goto error;
+            }
+        } else {
+            syslog(LOG_ERR, "missing argument for '%s'", in);
+            goto error;
         }
     }
 
     fclose(fp);
-
     return 0;
+
+error:
+    fclose(fp);
+    return 1;
 }
 

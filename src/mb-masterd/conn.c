@@ -132,16 +132,15 @@ mbm_ev_conn_read(EV_P_ ev_io *w, int revents)
                 switch (auth) {
                     case MBM_AUTH_TYPE_CLIENT:
                         send(sock, "101 OK\n", 7, MSG_NOSIGNAL);
-                        send(sock, "SLAVE a792bf5f-a23b-1,127.0.0.1:5001\n", strlen("SLAVE a792bf5f-a23b-1,127.0.0.1:5001\n"), MSG_NOSIGNAL);
                         break;
 
                     case MBM_AUTH_TYPE_SLAVE:
-                        send(sock, "100 OK\n", 7, MSG_NOSIGNAL);
-                        send(sock, "CLIENT a792bf5f-a23b-1,127.0.0.1:5001\n", strlen("CLIENT a792bf5f-a23b-1,127.0.0.1:5001\n"), MSG_NOSIGNAL);
+                        send(sock, "101 OK\n", 7, MSG_NOSIGNAL);
+                        send(sock, srv.config_buf, srv.config_sz, MSG_NOSIGNAL);
                         break;
 
                     default:
-                        send(sock, "202 Login type not supported\n", strlen("202 Login type not supported\n"), MSG_NOSIGNAL);
+                        send(sock, "202 Login type unavailable\n", sizeof("202 Login type unavailable\n")-1, MSG_NOSIGNAL);
                         goto close;
                 }
             } else {

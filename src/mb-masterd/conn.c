@@ -23,7 +23,6 @@
 #include "master.h"
 
 #include <syslog.h>
-#include <pthread.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -96,6 +95,8 @@ mbm_ev_conn_read(EV_P_ ev_io *w, int revents)
 
     if ((sz = recv(sock, buf, 255, MSG_NOSIGNAL)) == -1)
         return;
+    else if (sz == 0)
+        goto close;
 
     buf[sz] = '\0';
     char *p = buf;

@@ -24,9 +24,29 @@
 
 #include "../libmetha/libev/ev.h"
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 enum {
     CONN_ACTION_NONE,
     CONN_ACTION_SEND_CONFIG,
+};
+
+enum {
+    WAIT_NONE,
+    WAIT_TOKEN,
+};
+
+struct conn;
+
+struct slave {
+    int state;
+    struct conn *conn;
+
+    int wait;
+    /* client conn will be set if we are waiting for
+     * a TOKEN for the given client */
+    struct conn *client_conn;
 };
 
 struct conn {
@@ -34,6 +54,10 @@ struct conn {
     int   auth;
     int   authenticated;
     int   action;
+    /* if this is connection to a slave, the slave
+     * "id" will be set here */
+    int   slave_n;
+    struct sockaddr_in addr;
     ev_io fd_ev;
 };
 

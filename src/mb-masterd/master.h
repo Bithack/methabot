@@ -16,6 +16,9 @@ struct master {
 
     struct conn **pool;
     unsigned num_conns;
+
+    struct slave *slaves;
+    unsigned num_slaves;
 };
 
 extern struct master srv;

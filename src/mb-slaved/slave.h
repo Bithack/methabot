@@ -9,12 +9,12 @@
 #define MBS_DEFAULT_PORT 5305
 
 enum {
-    SLAVE_STATE_IDLE,
-    SLAVE_STATE_RECV_CONF,
+    SLAVE_MSTATE_COMMAND,
+    SLAVE_MSTATE_RECV_CONF,
 };
 
 struct slave {
-    int state;
+    int mstate;
 
     struct sockaddr_in addr;
     struct sockaddr_in master;

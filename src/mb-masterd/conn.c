@@ -37,6 +37,7 @@ const char *auth_types[] = {
 
 static void mbm_ev_conn_read(EV_P_ ev_io *w, int revents);
 static void mbm_conn_close(struct conn *conn);
+static int sock_getline(int fd, char *buf, int max);
 
 /** 
  * Accept a connection and set up a conn struct
@@ -45,20 +46,12 @@ void
 mbm_ev_conn_accept(EV_P_ ev_io *w, int revents)
 {
     int sock;
-    struct sockaddr_in addr;
     socklen_t sin_sz;
 
-    memset(&addr, 0, sizeof(struct sockaddr_in));
-    sin_sz = sizeof(struct sockaddr_in);
-
-    if ((sock = accept(w->fd, (struct sockaddr *)&addr, &sin_sz)) == -1) {
-        syslog(LOG_ERR, "fatal: accept() failed: %s", strerror(errno));
-        abort();
-    }
-
-    syslog(LOG_INFO, "accepted connection from %s", inet_ntoa(addr.sin_addr));
-
     struct conn *c = malloc(sizeof(struct conn));
+
+    memset(&c->addr, 0, sizeof(struct sockaddr_in));
+    sin_sz = sizeof(struct sockaddr_in);
 
     if (!c || !(srv.pool = realloc(srv.pool, sizeof(struct conn)*(srv.num_conns+1)))) {
         syslog(LOG_ERR, "fatal: out of mem");
@@ -67,6 +60,13 @@ mbm_ev_conn_accept(EV_P_ ev_io *w, int revents)
 
     srv.pool[srv.num_conns] = c;
     srv.num_conns ++;
+
+    if ((sock = accept(w->fd, (struct sockaddr *)&c->addr, &sin_sz)) == -1) {
+        syslog(LOG_ERR, "fatal: accept() failed: %s", strerror(errno));
+        abort();
+    }
+
+    syslog(LOG_INFO, "accepted connection from %s", inet_ntoa(c->addr.sin_addr));
 
     c->sock = sock;
     c->auth = 0;
@@ -79,6 +79,22 @@ mbm_ev_conn_accept(EV_P_ ev_io *w, int revents)
     c->fd_ev.data = c;
 }
 
+static int
+sock_getline(int fd, char *buf, int max)
+{
+    int sz;
+    char *nl;
+
+    if ((sz = recv(fd, buf, max, MSG_PEEK)) <= 0)
+        return -1;
+    if (!(nl = memchr(buf, '\n', sz)))
+        return 0;
+    if ((sz = read(fd, buf, nl-buf+1)) == -1)
+        return -1;
+
+    return sz;
+}
+
 static void
 mbm_ev_conn_read(EV_P_ ev_io *w, int revents)
 {
@@ -88,28 +104,53 @@ mbm_ev_conn_read(EV_P_ ev_io *w, int revents)
     char user[16];
     char pwd[16];
     char type[16];
-    int auth;
     int x;
 
     struct conn* conn = w->data;
+    struct slave *sl;
 
-    if ((sz = recv(sock, buf, 255, MSG_NOSIGNAL)) == -1)
-        return;
-    else if (sz == 0)
+    if ((sz = sock_getline(sock, buf, 255)) <= 0)
         goto close;
 
     buf[sz] = '\0';
     char *p = buf;
 
     if (conn->authenticated) {
-        switch (auth) {
+        switch (conn->auth) {
             case MBM_AUTH_TYPE_SLAVE:
+                sl = &srv.slaves[conn->slave_n];
+                switch (sl->wait) {
+                    case WAIT_NONE:
+                        /* receive commands, such as STATUS here */
+                        break;
+                    case WAIT_TOKEN:
+                        if ((x = atoi(p)) == 100) {
+                            /* ok we have a token */
+                            
+                            char *token = malloc(24);
+                            if (!token) {
+                                syslog(LOG_ERR, "out of mem");
+                                abort();
+                            }
+                            strncpy(token, buf+4, 23);
+                            sz = sprintf(buf, "TOKEN %s-%s:%hd\n", token,
+                                    inet_ntoa(conn->addr.sin_addr),
+                                    ntohs(srv.addr.sin_port));
+                            struct conn *client = sl->client_conn;
+                            send(client->sock, buf, sz, 0);
+
+                            free(token);
+                        }
+                        break;
+
+                }
+                sl->wait = WAIT_NONE;
+                break;
             case MBM_AUTH_TYPE_STATUS:
             case MBM_AUTH_TYPE_OPERATOR:
                 break;
             default:
-                send(sock, "300 Internal Error\n", 19, MSG_NOSIGNAL);
-                goto close;
+                goto invalid;
         }
     } else {
         if (memcmp(buf, "AUTH", 4) == 0) {
@@ -119,7 +160,7 @@ mbm_ev_conn_read(EV_P_ ev_io *w, int revents)
             int auth_found = 0;
             for (x=0; x<NUM_AUTH_TYPES; x++) {
                 if (strcmp(type, auth_types[x]) == 0) {
-                    auth = x;
+                    conn->auth = x;
                     auth_found = 1;
                     break;
                 }
@@ -130,9 +171,19 @@ mbm_ev_conn_read(EV_P_ ev_io *w, int revents)
                 syslog(LOG_INFO, "AUTH type=%s,user=%s OK from #%d", type, user, sock);
                 conn->authenticated = 1;
 
-                switch (auth) {
+                switch (conn->auth) {
                     case MBM_AUTH_TYPE_CLIENT:
                         send(sock, "101 OK\n", 7, MSG_NOSIGNAL);
+
+                        /* give this client to a slave */
+                        if (!srv.num_slaves) {
+                            /* add to pending list */
+                        } else {
+                            sz = sprintf(buf, "CLIENT %s\n", inet_ntoa(conn->addr.sin_addr));
+                            send(srv.slaves[0].conn->sock, buf, sz, 0);
+                            srv.slaves[0].wait = WAIT_TOKEN;
+                            srv.slaves[0].client_conn = conn;
+                        }
                         break;
 
                     case MBM_AUTH_TYPE_SLAVE:
@@ -140,12 +191,21 @@ mbm_ev_conn_read(EV_P_ ev_io *w, int revents)
                         sprintf(buf, "CONFIG %d\n", srv.config_sz);
                         send(sock, buf, strlen(buf), MSG_NOSIGNAL);
                         send(sock, srv.config_buf, srv.config_sz, MSG_NOSIGNAL);
+
+                        /* Add this slave to the list of slaves */
+                        if (!(srv.slaves = realloc(srv.slaves, (srv.num_slaves+1)*sizeof(struct slave)))) {
+                            syslog(LOG_ERR, "out of mem");
+                            abort();
+                        }
+                        srv.slaves[srv.num_slaves].state = 0;
+                        srv.slaves[srv.num_slaves].conn = conn;
+                        srv.num_slaves ++;
                         break;
 
                     default:
                         send(sock, "202 Login type unavailable\n", sizeof("202 Login type unavailable\n")-1, MSG_NOSIGNAL);
                         goto close;
-                }
+                };
             } else {
                 send(sock, "200 DENIED\n", 11, MSG_NOSIGNAL);
                 goto close;

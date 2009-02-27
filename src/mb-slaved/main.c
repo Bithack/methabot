@@ -56,6 +56,8 @@ main(int argc, char **argv)
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
 
+    signal(SIGPIPE, SIG_IGN);
+
     do {
         if ((r = mbs_load_config()) != 0)
             break;
@@ -171,20 +173,20 @@ mbs_ev_master(EV_P_ ev_io *w, int revents)
     char *e, *p;
     int sz;
 
-    switch (srv.state) {
-        case SLAVE_STATE_RECV_CONF:
-            if ((sz = recv(w->fd, srv.config_buf, srv.config_cap-srv.config_sz, MSG_NOSIGNAL)) == -1)
+    switch (srv.mstate) {
+        case SLAVE_MSTATE_RECV_CONF:
+            if ((sz = recv(w->fd, srv.config_buf, srv.config_cap-srv.config_sz, 0)) == -1)
                 return;
             if (!sz)
                 goto closed;
             srv.config_sz+=sz;
             if (srv.config_sz == srv.config_cap) {
                 syslog(LOG_INFO, "read config from master");
-                srv.state = SLAVE_STATE_IDLE;
+                srv.mstate = SLAVE_MSTATE_COMMAND;
             }
             break;
 
-        default:
+        case SLAVE_MSTATE_COMMAND:
             if ((sz = sock_getline(w->fd, buf, 255)) <= 0)
                 goto closed;
 
@@ -195,7 +197,33 @@ mbs_ev_master(EV_P_ ev_io *w, int revents)
                 }
 
                 srv.config_cap = atoi(buf+6);
-                srv.state = SLAVE_STATE_RECV_CONF;
+                srv.mstate = SLAVE_MSTATE_RECV_CONF;
+            } else if (strncmp(buf, "CLIENT", 6) == 0) {
+                /** 
+                 * We received a client from the server. We should generate a 
+                 * token and send it back.
+                 *
+                 * Just do some random stuff to make it as random as possible
+                 **/
+                int a = sz-7, x;
+                char t[25];
+                p = t+4;
+                time_t now = time(0);
+                memcpy(t, "100 ", 4);
+                for (x=0;x<18;) {
+                    if (x%5 == 4) {
+                        *(p+x) = '-';
+                        x++;
+                    } else {
+                        srand((long)(time(0)+(&buf)+x));
+                        char c = (((*(buf+7+(x%a))) << rand()%8) ^ now ^ (long)&buf) >> rand()%8;
+                        *(p+x) = ((c >> 4) & 15) + 'a';
+                        *(p+x+1) = ((c & 0x0F) & 15) + 'a' + rand()%8;
+                        x+=2;
+                    }
+                }
+                t[24] = '\n';
+                send(w->fd, t, 25, 0);
             } else
                 goto data_error;
             break;

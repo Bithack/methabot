@@ -28,19 +28,21 @@
 #include <errno.h>
 
 #include "slave.h"
-#include "conn.h"
-#include "../libmetha/libev/ev.c"
 
 int mbs_main();
 int mbs_cleanup();
 static void mbs_ev_sigint(EV_P_ ev_signal *w, int revents);
 static int mbs_load_config();
-
-struct slave srv;
 static int mbs_master_login();
 static int mbs_master_connect();
 static void mbs_ev_master(EV_P_ ev_io *w, int revents);
 static void mbs_ev_conn_accept(EV_P_ ev_io *w, int revents);
+static void mbs_ev_master_timer(EV_P_ ev_io *w, int revents);
+static int sock_getline(int fd, char *buf, int max);
+
+struct slave srv;
+
+#include "../libmetha/libev/ev.c"
 
 int
 main(int argc, char **argv)
@@ -102,11 +104,12 @@ int mbs_main()
 
     ev_signal_init(&sigint_listen, &mbs_ev_sigint, SIGINT);
     ev_io_init(&io_listen, &mbs_ev_conn_accept, sock, EV_READ);
-    ev_io_init(&master_io, &mbs_ev_master, srv.master_sock, EV_READ);
+    ev_io_init(&srv.master_io, &mbs_ev_master, srv.master_sock, EV_READ);
 
     /* catch SIGINT so we can close connections and clean up properly */
     ev_signal_start(loop, &sigint_listen);
     ev_io_start(loop, &io_listen);
+    ev_io_start(loop, &srv.master_io);
 
     /** 
      * This loop will listen for new connections and data from
@@ -118,13 +121,38 @@ int mbs_main()
 
     return 0;
 }
+
 /** 
  * Called when we have a new incoming connection
+ *
+ * For each connection we'll launch a new thread 
+ * that will handle that specific connect. Only
+ * clients will be able to connect to the slaves,
+ * and the client must report a valid token.
  **/
 static void
 mbs_ev_conn_accept(EV_P_ ev_io *w, int revents)
 {
+    
+}
 
+/** 
+ * Read one line from the given file descriptor
+ **/
+static int
+sock_getline(int fd, char *buf, int max)
+{
+    int sz;
+    char *nl;
+
+    if ((sz = recv(fd, buf, max, MSG_PEEK)) <= 0)
+        return -1;
+    if (!(nl = memchr(buf, '\n', sz)))
+        return 0;
+    if ((sz = read(fd, buf, nl-buf+1)) == -1)
+        return -1;
+
+    return sz;
 }
 
 /** 
@@ -133,11 +161,68 @@ mbs_ev_conn_accept(EV_P_ ev_io *w, int revents)
 static void
 mbs_ev_master(EV_P_ ev_io *w, int revents)
 {
-    if (revents | EV_ERROR) {
+/*    if (revents | EV_ERROR) {
         ev_io_stop(EV_A_ w);
         ev_timer_init(&srv.master_timer, &mbs_ev_master_timer, 20.0f, 0.f);
         ev_timer_start(EV_A_ &srv.master_timer);
+    }*/
+
+    char buf[256];
+    char *e, *p;
+    int sz;
+
+    switch (srv.state) {
+        case SLAVE_STATE_RECV_CONF:
+            if ((sz = recv(w->fd, srv.config_buf, srv.config_cap-srv.config_sz, MSG_NOSIGNAL)) == -1)
+                return;
+            if (!sz)
+                goto closed;
+            srv.config_sz+=sz;
+            if (srv.config_sz == srv.config_cap) {
+                syslog(LOG_INFO, "read config from master");
+                srv.state = SLAVE_STATE_IDLE;
+            }
+            break;
+
+        default:
+            if ((sz = sock_getline(w->fd, buf, 255)) <= 0)
+                goto closed;
+
+            if (strncmp(buf, "CONFIG", 6) == 0) {
+                if (!(srv.config_buf = malloc(atoi(buf+6)))) {
+                    syslog(LOG_ERR, "out of mem");
+                    abort();
+                }
+
+                srv.config_cap = atoi(buf+6);
+                srv.state = SLAVE_STATE_RECV_CONF;
+            } else
+                goto data_error;
+            break;
     }
+
+    return;
+
+closed:
+    syslog(LOG_WARNING, "master has gone away");
+    ev_io_stop(EV_A_ w);
+    return;
+
+data_error:
+    syslog(LOG_ERR, "weird data from master");
+    abort();
+}
+
+static void
+mbs_ev_master_timer(EV_P_ ev_io *w, int revents)
+{
+
+}
+
+static void
+mbs_ev_sigint(EV_P_ ev_signal *w, int revents)
+{
+    ev_unloop(EV_A_ EVUNLOOP_ALL);
 }
 
 /** 
@@ -154,7 +239,7 @@ mbs_master_connect()
     srv.master.sin_family = AF_INET;
 
     if (connect(srv.master_sock, &srv.master, sizeof(struct sockaddr_in)) != 0) {
-        syslog(SYS_ERR, "could not connect to master: %s\n", strerror(errno));
+        syslog(LOG_ERR, "could not connect to master: %s\n", strerror(errno));
         return 1;
     }
 
@@ -170,22 +255,24 @@ static int
 mbs_master_login()
 {
     int len;
+    int n;
     char str[128];
+    char *p;
     if (strlen("AUTH slave ")+strlen(srv.user)
             +strlen(srv.pass)+3 >= 128) {
-        syslog(SYS_ERR, "buffer exceeded");
+
+        syslog(LOG_ERR, "buffer exceeded");
         abort();
     }
     len = sprintf(str, "AUTH slave %s %s\n", srv.user, srv.pass);
     if (send(srv.master_sock, str, len, MSG_NOSIGNAL) == -1)
         return 1;
-
-    len = recv(srv.master_sock, str, 127, MSG_NOSIGNAL);
-
-    if (len != 0 && len != -1 && atoi(str) == 201) {
-        syslog(SYS_INFO, "logged in to master");
-        return 0
-    }
+    if ((len = sock_getline(srv.master_sock, str, 127)) > 0
+            && atoi(str) == 101) {
+        syslog(LOG_INFO, "logged in to master");
+        return 0;
+    } else
+        syslog(LOG_WARNING, "master returned code %d", atoi(str));
 
     return 1;
 }
@@ -235,6 +322,7 @@ mbs_load_config()
                         *s = '\0';
                         srv.user = strdup(p);
                         srv.pass = strdup(s+1);
+                        unknown = 0;
                     }
                     break;
                 case 6:

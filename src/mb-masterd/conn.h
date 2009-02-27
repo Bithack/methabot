@@ -24,10 +24,16 @@
 
 #include "../libmetha/libev/ev.h"
 
+enum {
+    CONN_ACTION_NONE,
+    CONN_ACTION_SEND_CONFIG,
+};
+
 struct conn {
     int   sock;
     int   auth;
     int   authenticated;
+    int   action;
     ev_io fd_ev;
 };
 

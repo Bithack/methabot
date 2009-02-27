@@ -137,6 +137,8 @@ mbm_ev_conn_read(EV_P_ ev_io *w, int revents)
 
                     case MBM_AUTH_TYPE_SLAVE:
                         send(sock, "101 OK\n", 7, MSG_NOSIGNAL);
+                        sprintf(buf, "CONFIG %d\n", srv.config_sz);
+                        send(sock, buf, strlen(buf), MSG_NOSIGNAL);
                         send(sock, srv.config_buf, srv.config_sz, MSG_NOSIGNAL);
                         break;
 

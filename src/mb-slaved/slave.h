@@ -4,16 +4,24 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include "conn.h"
+#include "../libmetha/libev/ev.h"
 
 #define MBS_DEFAULT_PORT 5305
 
+enum {
+    SLAVE_STATE_IDLE,
+    SLAVE_STATE_RECV_CONF,
+};
+
 struct slave {
+    int state;
+
     struct sockaddr_in addr;
     struct sockaddr_in master;
 
     char *config_buf;
-    int   config_sz;
+    unsigned int   config_sz;
+    unsigned int   config_cap;
 
     char *user;
     char *pass;

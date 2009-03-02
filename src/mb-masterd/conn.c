@@ -135,7 +135,7 @@ mbm_ev_conn_read(EV_P_ ev_io *w, int revents)
                             strncpy(token, buf+4, 19);
                             sz = sprintf(buf, "TOKEN %s-%s:%hd\n", token,
                                     inet_ntoa(conn->addr.sin_addr),
-                                    ntohs(srv.addr.sin_port));
+                                    5305);
                             struct conn *client = sl->client_conn;
                             send(client->sock, buf, sz, 0);
                             free(token);

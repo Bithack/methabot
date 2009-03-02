@@ -1,0 +1,10 @@
+Package Release
+===============
+* Update NEWS file
+* make distcheck
+* git tag vx.y.z.n
+* Add a release on sourceforge, upload the tarball
+* Add a news entry on sourceforge
+* Update the wiki front page, at "Latest Release"
+* Update the wiki download page
+* Update documentation!

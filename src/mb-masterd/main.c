@@ -153,6 +153,8 @@ int mbm_start()
 
     ev_loop(loop, 0);
 
+    close(sock);
+
     ev_default_destroy();
 
     return 0;

@@ -127,19 +127,21 @@ mbm_ev_conn_read(EV_P_ ev_io *w, int revents)
                         if ((x = atoi(p)) == 100) {
                             /* ok we have a token */
                             
-                            char *token = malloc(24);
+                            char *token = malloc(20);
                             if (!token) {
                                 syslog(LOG_ERR, "out of mem");
                                 abort();
                             }
-                            strncpy(token, buf+4, 23);
+                            strncpy(token, buf+4, 19);
                             sz = sprintf(buf, "TOKEN %s-%s:%hd\n", token,
                                     inet_ntoa(conn->addr.sin_addr),
                                     ntohs(srv.addr.sin_port));
                             struct conn *client = sl->client_conn;
                             send(client->sock, buf, sz, 0);
-
                             free(token);
+
+                            ev_io_stop(EV_A_ &client->fd_ev);
+                            mbm_conn_close(client);
                         }
                         break;
 
@@ -236,7 +238,7 @@ mbm_conn_close(struct conn *conn)
 
     for (x=0; x<srv.num_conns; x++) {
         if (srv.pool[x] == conn) {
-            srv.pool[x] = srv.pool[srv.num_conns];
+            srv.pool[x] = srv.pool[srv.num_conns-1];
             break;
         }
     }

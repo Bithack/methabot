@@ -27,6 +27,7 @@
 #include <pthread.h>
 #include <errno.h>
 
+#include "client.h"
 #include "slave.h"
 
 int mbs_main();
@@ -38,9 +39,9 @@ static int mbs_master_connect();
 static void mbs_ev_master(EV_P_ ev_io *w, int revents);
 static void mbs_ev_conn_accept(EV_P_ ev_io *w, int revents);
 static void mbs_ev_master_timer(EV_P_ ev_io *w, int revents);
-static int sock_getline(int fd, char *buf, int max);
 
-struct slave srv;
+struct slave srv = {
+};
 
 #include "../libmetha/libev/ev.c"
 
@@ -59,6 +60,8 @@ main(int argc, char **argv)
     signal(SIGPIPE, SIG_IGN);
 
     do {
+        pthread_mutex_init(&srv.pending_lk, 0);
+
         if ((r = mbs_load_config()) != 0)
             break;
         if ((r = mbs_master_connect()) != 0)
@@ -118,6 +121,7 @@ int mbs_main()
      * the master.
      **/
     ev_loop(loop, 0);
+    close(sock);
 
     ev_default_destroy();
 
@@ -135,13 +139,44 @@ int mbs_main()
 static void
 mbs_ev_conn_accept(EV_P_ ev_io *w, int revents)
 {
-    
+    struct client *cl;
+    struct sockaddr_in addr;
+    int       sock;
+    int       x;
+    socklen_t sin_sz;
+
+    if (!(cl = malloc(sizeof(struct client)))) {
+        syslog(LOG_ERR, "out of mem");
+        abort();
+    }
+
+    sin_sz = sizeof(struct sockaddr_in);
+    if ((sock = accept(w->fd, &addr, &sin_sz)) == -1) {
+        syslog(LOG_ERR, "accept() failed: %s", strerror(errno));
+    }
+
+    if (!srv.num_pending)
+        close(sock);
+    else {
+        for (x=0;; x++) {
+            if (x == srv.num_pending) {
+                close(sock);
+                break;
+            }
+            if (addr.sin_addr.s_addr == srv.pending[x]->addr.s_addr) {
+                pthread_t thr;
+                if (pthread_create(&thr, 0, mbs_client_init, (void*)sock) != 0)
+                    abort();
+                break;
+            }
+        }
+    }
 }
 
 /** 
  * Read one line from the given file descriptor
  **/
-static int
+int
 sock_getline(int fd, char *buf, int max)
 {
     int sz;
@@ -176,7 +211,7 @@ mbs_ev_master(EV_P_ ev_io *w, int revents)
     switch (srv.mstate) {
         case SLAVE_MSTATE_RECV_CONF:
             if ((sz = recv(w->fd, srv.config_buf, srv.config_cap-srv.config_sz, 0)) == -1)
-                return;
+                goto closed;
             if (!sz)
                 goto closed;
             srv.config_sz+=sz;
@@ -199,31 +234,32 @@ mbs_ev_master(EV_P_ ev_io *w, int revents)
                 srv.config_cap = atoi(buf+6);
                 srv.mstate = SLAVE_MSTATE_RECV_CONF;
             } else if (strncmp(buf, "CLIENT", 6) == 0) {
-                /** 
-                 * We received a client from the server. We should generate a 
-                 * token and send it back.
-                 *
-                 * Just do some random stuff to make it as random as possible
-                 **/
-                int a = sz-7, x;
-                char t[25];
-                p = t+4;
-                time_t now = time(0);
-                memcpy(t, "100 ", 4);
-                for (x=0;x<18;) {
-                    if (x%5 == 4) {
-                        *(p+x) = '-';
-                        x++;
-                    } else {
-                        srand((long)(time(0)+(&buf)+x));
-                        char c = (((*(buf+7+(x%a))) << rand()%8) ^ now ^ (long)&buf) >> rand()%8;
-                        *(p+x) = ((c >> 4) & 15) + 'a';
-                        *(p+x+1) = ((c & 0x0F) & 15) + 'a' + rand()%8;
-                        x+=2;
+                char out[TOKEN_SIZE+5];
+                struct client *cl = mbs_client_create(buf+7);
+                int ok = 0;
+
+                pthread_mutex_lock(&srv.pending_lk);
+                if (cl && srv.num_pending < MAX_NUM_PENDING) {
+                    ok = 1;
+
+                    /* add this client to the pending list */
+                    if (!(srv.pending = realloc(srv.pending, (srv.num_pending+1)*sizeof(struct client*)))) {
+                        syslog(LOG_ERR, "out of mem");
+                        abort();
                     }
+
+                    srv.pending[srv.num_pending] = cl;
+                    srv.num_pending ++;
                 }
-                t[24] = '\n';
-                send(w->fd, t, 25, 0);
+                pthread_mutex_unlock(&srv.pending_lk);
+
+                if (!ok) {
+                    send(w->fd, "400\n", 3, 0);
+                    mbs_client_free(cl);
+                } else {
+                    sz = sprintf(out, "100 %19s\n", cl->token);
+                    send(w->fd, out, sz, 0);
+                }
             } else
                 goto data_error;
             break;
@@ -308,6 +344,7 @@ mbs_master_login()
 int
 mbs_cleanup()
 {
+    pthread_mutex_destroy(&srv.pending_lk);
     if (srv.user) free(srv.user);
     if (srv.pass) free(srv.pass);
 }
@@ -333,6 +370,7 @@ mbs_load_config()
         in[strlen(in)-1] = '\0';
         while (isspace(*p))
             p++;
+        s = p;
         if (p = strchr(p, '=')) {
             len = p-in;
             while (isspace(in[len-1]))
@@ -383,7 +421,7 @@ mbs_load_config()
                 syslog(LOG_ERR, "unknown option '%s'", in);
                 goto error;
             }
-        } else {
+        } else if (strlen(s)) {
             syslog(LOG_ERR, "missing argument for '%s'", in);
             goto error;
         }

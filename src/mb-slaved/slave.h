@@ -3,10 +3,12 @@
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 #include "../libmetha/libev/ev.h"
 
 #define MBS_DEFAULT_PORT 5305
+#define MAX_NUM_PENDING  128
 
 enum {
     SLAVE_MSTATE_COMMAND,
@@ -30,8 +32,16 @@ struct slave {
     ev_io     master_io;
     /* timer for reconnecting to the master if the connection is lost */
     ev_timer  master_timer;
+
+    struct client  **pending;
+    int              num_pending;
+    pthread_mutex_t  pending_lk;
+    struct client **clients;
+    int             num_clients;
 };
 
 extern struct slave srv;
+
+int sock_getline(int fd, char *buf, int max);
 
 #endif

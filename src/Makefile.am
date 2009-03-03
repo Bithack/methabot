@@ -2,4 +2,4 @@
 SUBDIRS = \
 		libmetha \
 		methabot \
-		metha-config
+		metha-config $(SUBDIRS_EXTRA)

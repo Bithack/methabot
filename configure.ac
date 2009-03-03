@@ -1,4 +1,4 @@
-AC_INIT(methabot, 1.6.0.1, http://bithack.se/projects/methabot/)
+AC_INIT(methabot, 1.7.0, http://bithack.se/projects/methabot/)
 
 AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
 
@@ -16,30 +16,28 @@ AC_PROG_LIBTOOL
 AC_ARG_ENABLE(debug,
 [  --enable-debug           Enable debug output for libmetha],
 	debug=true, debug=false)
-if test "$debug" = "true"; then
-  CFLAGS="${CFLAGS} -DDEBUG -g -O0"
-fi
-
 AC_ARG_ENABLE(io-debug,
 [  --enable-io-debug        Enable I/O debug output for libmetha],
 	io_debug=true, io_debug=false)
-if test "$io_debug" = "true"; then
-  CFLAGS="${CFLAGS} -DIO_DEBUG -g"
-fi
-
-build_cli=true
-
 AC_ARG_ENABLE(cli,
 [  --disable-cli            Don't compile/install the command line tool],
     build_cli=false, build_cli=true)
-
 AC_ARG_ENABLE(slave,
 [  --enable-slave           Build the slave server daemon],
     build_slave=true, build_slave=false)
-
 AC_ARG_ENABLE(master,
 [  --enable-master          Build the master server daemon],
     build_master=true, build_master=false)
+AC_ARG_ENABLE(client,
+[  --enable-client          Build the client daemon],
+    build_client=true, build_client=false)
+
+if test "$debug" = "true"; then
+  CFLAGS="${CFLAGS} -DDEBUG -g -O0"
+fi
+if test "$io_debug" = "true"; then
+  CFLAGS="${CFLAGS} -DIO_DEBUG -g"
+fi
 
 AC_PATH_PROG(CURL_CONFIG, curl-config)
 if test -f "${CURL_CONFIG}"; then
@@ -138,11 +136,28 @@ AC_DEFINE_UNQUOTED(BUILD_CFLAGS, "${JS_INCLUDE_PATH} -D_GNU_SOURCE -DJS_THREADSA
 
 includedir=$includedir/metha
 
+SUBDIRS_EXTRA=""
+
+if test "x$build_slave" = "xtrue"; then
+    SUBDIRS_EXTRA="mb-slaved"
+fi
+if test "x$build_master" = "xtrue"; then
+    SUBDIRS_EXTRA="${SUBDIRS_EXTRA} mb-masterd"
+fi
+if test "x$build_client" = "xtrue"; then
+    SUBDIRS_EXTRA="${SUBDIRS_EXTRA} mb-clientd"
+fi
+
+AC_SUBST(SUBDIRS_EXTRA)
+
 AC_OUTPUT([
 src/Makefile
 src/libmetha/Makefile
 src/methabot/Makefile
 src/metha-config/Makefile
+src/mb-masterd/Makefile
+src/mb-slaved/Makefile
+src/mb-clientd/Makefile
 Makefile
 ])
 

@@ -25,14 +25,6 @@
 #include <stdio.h>
 #include <string.h>
 
-static void __lm_error(const char *s, ...);
-static void __lm_message(const char *s, ...);
-static void __lm_warning(const char *s, ...);
-
-void (*lm_error)(const char *s, ...) = &__lm_error;
-void (*lm_message)(const char *s, ...) = &__lm_message;
-void (*lm_warning)(const char *s, ...) = &__lm_warning;
-
 const char *
 lm_strerror(M_CODE c)
 {
@@ -69,8 +61,8 @@ lm_strerror(M_CODE c)
  * these are the default ones, printing to stdout and
  * stderr directly.
  **/
-static void
-__lm_error(const char *s, ...)
+void
+lm_default_error_reporter(metha_t *m, const char *s, ...)
 {
     int len;
     char *p;
@@ -93,19 +85,20 @@ __lm_error(const char *s, ...)
     va_end(va);
 }
 
-static void
-__lm_message(const char *s, ...)
+void
+lm_default_target_reporter(metha_t *m, worker_t *w, url_t *url, filetype_t *ft)
 {
-    va_list va;
-    va_start(va, s);
-
-    vfprintf(stdout, s, va);
-
-    va_end(va);
+    printf("target: %s\n", url->str);
 }
 
-static void
-__lm_warning(const char *s, ...)
+void
+lm_default_status_reporter(metha_t *m, worker_t *w, url_t *url)
+{
+    printf("url: %s\n", url->str);
+}
+
+void
+lm_default_warning_reporter(metha_t *m, const char *s, ...)
 {
     int len;
     char *p;

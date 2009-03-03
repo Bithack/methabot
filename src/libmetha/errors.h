@@ -22,6 +22,8 @@
 #ifndef _LM_ERRORS__H_
 #define _LM_ERRORS__H_
 
+#define M_FAILED M_ERROR
+
 typedef enum {
     M_OK = 0,
     M_OUT_OF_MEM,
@@ -46,16 +48,10 @@ typedef enum {
     M_ERROR,
 } M_CODE;
 
-#define M_FAILED M_ERROR
-
-struct metha;
-
-/* errors.c */
-extern void (*lm_error)(const char *s, ...);
-extern void (*lm_message)(const char *s, ...);
-extern void (*lm_warning)(const char *s, ...);
-
 const char *lm_strerror(M_CODE c);
+
+#define LM_ERROR(m, ...) ((m)->error_cb((m), __VA_ARGS__))
+#define LM_WARNING(m, ...) ((m)->warning_cb((m), __VA_ARGS__))
 
 #endif
 

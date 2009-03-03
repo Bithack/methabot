@@ -127,6 +127,11 @@ typedef struct metha {
     M_CODE (*handler)(void *, const url_t *);
     void    *private;
 
+    void   (*status_cb)(metha_t *, worker_t *, url_t *);
+    void   (*target_cb)(metha_t *, worker_t *, url_t *, filetype_t *);
+    void   (*error_cb)(metha_t *, const char *s, ...);
+    void   (*warning_cb)(metha_t *, const char *s, ...);
+
     int builtin_parsers;
     int num_threads;
 
@@ -135,7 +140,6 @@ typedef struct metha {
 } metha_t;
 
 /* metha.c */
-M_CODE   lmetha_global_setopt(LMOPT_GLOBAL opt, ...);
 metha_t *lmetha_create(void);
 void     lmetha_destroy(metha_t *m);
 M_CODE   lmetha_prepare(metha_t *m);
@@ -148,8 +152,10 @@ filetype_t* lmetha_get_filetype(metha_t *m, const char *name);
 crawler_t*  lmetha_get_crawler(metha_t *m, const char *name);
 M_CODE   lmetha_register_worker_object(metha_t *m, const char *name, JSClass *class);
 M_CODE   lmetha_init_jsclass(metha_t *m, JSClass *class, JSNative constructor, uintN nargs, JSPropertySpec *ps, JSFunctionSpec *fs, JSPropertySpec *static_ps, JSFunctionSpec *static_fs);
+M_CODE   lmetha_signal(metha_t *m, int sig);
+M_CODE   lmetha_start(metha_t *m);
 
-    /* io.c */
+/* io.c */
 M_CODE lm_iothr_launch(io_t *io);
 M_CODE lm_init_io(io_t *io, metha_t *m);
 void   lm_uninit_io(io_t *io);
@@ -157,6 +163,12 @@ M_CODE lm_get(struct crawler *c, url_t *url, iostat_t *stat);
 M_CODE lm_peek(struct crawler *c, url_t *url, iostat_t *stat);
 M_CODE lm_multipeek_add(iohandle_t *ioh, url_t *url, int id);
 ioprivate_t* lm_multipeek_wait(iohandle_t *ioh);
+
+/* errors.c */
+void lm_default_status_reporter(metha_t *, worker_t *, url_t *);
+void lm_default_target_reporter(metha_t *, worker_t *, url_t *, filetype_t *);
+void lm_default_error_reporter(metha_t *, const char *s, ...);
+void lm_default_warning_reporter(metha_t *, const char *s, ...);
 
 #endif
 

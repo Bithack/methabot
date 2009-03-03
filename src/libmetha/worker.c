@@ -72,7 +72,7 @@ M_CODE
 lm_worker_run_once(worker_t *w)
 {
     if (lm_worker_init(w) != M_OK) {
-        lm_error("worker initialization failed\n");
+        LM_ERROR(w->m, "worker initialization failed");
         return M_FAILED;
     }
 
@@ -148,11 +148,11 @@ lm_worker_call_crawler_init(worker_t *w)
 
                 return M_OK;
             } else
-                lm_error("could not call init function \"%s\"\n", w->crawler->init);
+                LM_ERROR(w->m, "could not call init function \"%s\"\n", w->crawler->init);
 
             JS_EndRequest(w->e4x_cx);
         } else {
-            lm_error("init function for crawler \"%s\" is not a javascript function\n", w->crawler->name);
+            LM_ERROR(w->m, "init function for crawler \"%s\" is not a javascript function\n", w->crawler->name);
         }
     }
 
@@ -227,7 +227,7 @@ lm_worker_main(void *in)
 #endif
 
     if (lm_worker_init(w) != M_OK) {
-        lm_error("worker initialization failed\n");
+        w->m->error_cb(w->m, "worker initialization failed");
         return 0;
     }
 
@@ -699,7 +699,9 @@ lm_worker_bind_url(worker_t *w, url_t *url,
             }
         } else 
             return 0;
-    } else
+    } else {
+
+    }
         w->m->handler(w->m->private, url);
 
     return 1;
@@ -734,7 +736,7 @@ lm_worker_perform(worker_t *w)
 #ifdef DEBUG
     fprintf(stderr, "* worker:(%p) URL: %s\n", w, w->ue_h->current->str);
 #endif
-    lm_message("URL: %s\n", w->ue_h->current->str);
+    w->m->status_cb(w->m, w, w->ue_h->current);
 
     if (ft->switch_to.ptr)
         lm_worker_set_crawler(w, ft->switch_to.ptr);
@@ -787,7 +789,7 @@ lm_worker_perform(worker_t *w)
 #endif
             w->redirects++;
             if (w->redirects >= 20) {
-                lm_warning("breaking out of possible redirect loop\n");
+                LM_WARNING(w->m, "breaking out of possible redirect loop");
                 w->redirects = 0;
                 return M_OK;
             }
@@ -855,7 +857,7 @@ lm_worker_perform(worker_t *w)
                 }
 
                 if (JS_CallFunction(w->e4x_cx, w->e4x_this, p->fn.javascript, 0, 0, &ret) != JS_TRUE) {
-                    lm_error("calling javascript parser failed\n");
+                    w->m->error_cb(w->m, "calling javascript parser failed");
                 } else
                     lm_jsval_foreach(w->e4x_cx, ret, &ue_add, w->ue_h);
 
@@ -883,7 +885,7 @@ lm_worker_init_e4x(worker_t *w)
      * Set up the spidermonkey context for this worker thread.
      **/
     if (!(w->e4x_cx = JS_NewContext(w->m->e4x_rt, 8192))) {
-        lm_error("could not create a new JS context");
+        LM_ERROR(w->m, "could not create a new JS context");
         return M_FAILED;
     }
 #ifdef DEBUG
@@ -898,12 +900,12 @@ lm_worker_init_e4x(worker_t *w)
 
     /* set up functions */
     if (JS_DefineFunctions(w->e4x_cx, w->m->e4x_global, &lm_js_allfunctions) == JS_FALSE) {
-        lm_error("fatal: defining native javascript functions failed\n");
+        LM_ERROR(w->m, "fatal: defining native javascript functions failed");
         return M_FAILED;
     }
 
     if (JS_InitStandardClasses(w->e4x_cx, w->m->e4x_global) == JS_FALSE) {
-        lm_error("fatal: initializing javascript standard classes failed\n");
+        LM_ERROR(w->m, "fatal: initializing javascript standard classes failed");
         return M_FAILED;
     }
 

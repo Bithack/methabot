@@ -75,6 +75,25 @@ main(int argc, char **argv)
     return 0;
 }
 
+/** 
+ * Callback from libmetha when a new url has been crawled
+ **/
+void
+mbc_lm_status_cb(metha_t *m, worker_t *w, url_t *url)
+{
+
+}
+
+/** 
+ * Callback from libmetha when a target has been found
+ **/
+void
+mbc_lm_target_cb(metha_t *m, worker_t *w,
+                 url_t *url, filetype_t *ft)
+{
+
+}
+
 void
 mbc_ev_timer(EV_P_ ev_timer *w, int revents)
 {

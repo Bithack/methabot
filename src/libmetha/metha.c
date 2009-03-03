@@ -39,6 +39,7 @@ static M_CODE lm_exec_once(metha_t *m, iohandle_t *io_h, uehandle_t *ue_h);
 static M_CODE lm_call_init(metha_t *m, uehandle_t *h, int argc, const char **argv);
 static struct script_desc* lm_load_script(metha_t *m, const char *file);
 static wfunction_t *lm_str_to_wfunction(metha_t *m, const char *name, uint8_t purpose);
+static void* lm_start(void* in);
 
 static JSClass global_jsclass = {
     "global", JSCLASS_GLOBAL_FLAGS,
@@ -86,31 +87,6 @@ m_builtin_parsers[] = {
         .fn.native_parser = &lm_parser_css
     },
 };
-
-/** 
- * This function allows setting the global error/message/warning reporting functions.
- **/
-M_CODE
-lmetha_global_setopt(LMOPT_GLOBAL opt, ...)
-{
-    va_list ap;
-    va_start(ap, opt);
-
-    switch (opt) {
-        case LMOPT_GLOBAL_MESSAGE_FUNC:
-            lm_message = va_arg(ap, void*);
-            break;
-        case LMOPT_GLOBAL_WARNING_FUNC:
-            lm_warning = va_arg(ap, void*);
-            break;
-        case LMOPT_GLOBAL_ERROR_FUNC:
-            lm_error = va_arg(ap, void*);
-            break;
-    }
-
-    va_end(ap);
-    return M_OK;
-}
 
 /** 
  * LMOPTs are defined in metha.h
@@ -161,7 +137,7 @@ lmetha_setopt(metha_t *m, LMOPT opt, ...)
             break;
 #endif
             if (!(m->num_threads = va_arg(ap, int))) {
-                lm_error("thread count must be 1 or greater\n");
+                LM_ERROR(m, "thread count must be 1 or greater");
                 goto badarg;
             }
             break;
@@ -174,7 +150,7 @@ lmetha_setopt(metha_t *m, LMOPT opt, ...)
                     goto success;
                 }
             }
-            lm_error("could not find crawler '%s'\n", arg);
+            LM_ERROR(m, "could not find crawler '%s'", arg);
             goto fail;
 
         case LMOPT_USERAGENT:
@@ -215,8 +191,23 @@ lmetha_setopt(metha_t *m, LMOPT opt, ...)
             m->io.cookies = va_arg(ap, int);
             break;
 
+            /** 
+             * The status function will be called whenever a worker
+             * crawls a new URL.
+             **/
+        case LMOPT_STATUS_FUNCTION:
+            m->status_cb = va_arg(ap, void*);
+            break;
+
+            /** 
+             * Target function is invoked when a target file is found
+             **/
+        case LMOPT_TARGET_FUNCTION:
+            m->target_cb = va_arg(ap, void*);
+            break;
+
         default:
-            lm_error("unknown option (%d)\n", opt);
+            LM_ERROR(m, "unknown option (%d)", opt);
             goto badopt;
     }
 
@@ -243,11 +234,15 @@ badarg:
 metha_t *
 lmetha_create(void)
 {
-    metha_t *m = calloc(1, sizeof(metha_t));
+    metha_t *m;
+    
+    if (!(m = calloc(1, sizeof(metha_t))))
+        return 0;
 
-#ifdef WIN32
-    lm_warning("running on win32, asynchronous mode disabled\n");
-#endif
+    m->error_cb = lm_default_error_reporter;
+    m->warning_cb = lm_default_error_reporter;
+    m->error_cb = lm_default_error_reporter;
+    m->error_cb = lm_default_error_reporter;
 
     /** 
      * Initialize all pthread mutexes and conditions
@@ -275,14 +270,14 @@ lmetha_create(void)
      * garbage collection and loading scripts.
      **/
     if (!(m->e4x_cx = JS_NewContext(m->e4x_rt, 8192))) {
-        lm_error("could not create a javascript context");
+        lmetha_destroy(m);
         return 0;
     }
 
     JS_SetErrorReporter(m->e4x_cx, &lm_jserror);
 
     if (!(m->e4x_global = JS_NewObject(m->e4x_cx, &global_jsclass, 0, 0))) {
-        lm_error("could not create the global javascript object");
+        lmetha_destroy(m);
         return 0;
     }
 
@@ -508,6 +503,31 @@ lm_exec_once(metha_t *m, iohandle_t *io_h, uehandle_t *ue_h)
 }
 
 /** 
+ * Start the crawling session in a new thread, the
+ * program can signal the metha_t object using 
+ * lmetha_signal() to control it.
+ **/
+M_CODE
+lmetha_start(metha_t *m)
+{
+    pthread_t thr;
+
+    if (pthread_create(&thr, 0, lm_start, (void*)m) != 0)
+        return M_FAILED;
+
+    return M_OK;
+}
+
+static void*
+lm_start(void* in)
+{
+    metha_t *m = in;
+    lmetha_exec(m, 0, 0);
+
+    return 0;
+}
+
+/** 
  * Start crawling session. The array of char-pointers at m->urls 
  * will be converted to URLs and used as initial urls.
  **/
@@ -628,6 +648,7 @@ lmetha_register_worker_object(metha_t *m, const char *name, JSClass *class)
 
 /** 
  * Prepare for execution:
+ * - Make sure status, target, error and warning reporting functions are set
  * - Set up crawlers and their respective filetypes.
  * - TODO: Report warnings about unused filetypes.
  * - Make sure multiple filetypes don't share the same name.
@@ -644,6 +665,15 @@ lmetha_prepare(metha_t *m)
 #endif
     M_CODE ret;
 
+    if (!m->status_cb)
+        m->status_cb = lm_default_status_reporter;
+    if (!m->target_cb)
+        m->target_cb = lm_default_target_reporter;
+    if (!m->error_cb)
+        m->error_cb = lm_default_error_reporter;
+    if (!m->warning_cb)
+        m->warning_cb = lm_default_warning_reporter;
+
     /* start up the IO-thread */
     if (lm_init_io(&m->io, m) != M_OK)
         return M_FAILED;
@@ -658,7 +688,7 @@ lmetha_prepare(metha_t *m)
     /* Make sure no more than 1 worker thread is launched if running synchronously */
     if (m->io.synchronous) {
         if (m->num_threads != 1)
-            lm_warning("worker count must be 1 when running with timer\n");
+            LM_WARNING(m, "worker count must be 1 when running with timer");
         m->num_threads = 1;
     }
 
@@ -706,7 +736,7 @@ lm_prepare_crawlers(metha_t *m)
     for (x=0; x<m->num_crawlers; x++) {
         for (y=x+1; y<m->num_crawlers; y++) {
             if (strcmp(m->crawlers[x]->name, m->crawlers[y]->name) == 0) {
-                lm_error("multiple definitions of crawler '%s'\n", m->crawlers[x]->name);
+                LM_ERROR(m, "multiple definitions of crawler '%s'", m->crawlers[x]->name);
                 return M_CR_MULTIDEF;
             }
         }
@@ -778,7 +808,7 @@ lm_prepare_crawlers(metha_t *m)
          * so it might require a javascript file to be loaded */
         if (cr->init) {
             if (!(p = strchr(cr->init, '/'))) {
-                lm_error("module init functions are currently disabled\n");
+                LM_ERROR(m, "module init functions are currently disabled");
             } else {
                 *p = '\0';
                 for (y=0;; y++) {
@@ -798,7 +828,7 @@ lm_prepare_crawlers(metha_t *m)
         if (cr->initial_filetype.name) {
             for (y=0;; y++) {
                 if (y == m->num_filetypes) {
-                    lm_error("could not find filetype '%s' set as initial type for crawler '%s'\n",
+                    LM_ERROR(m, "could not find filetype '%s' set as initial type for crawler '%s'",
                                 cr->initial_filetype.name, cr->name);
                     return M_UNKNOWN_FILETYPE;
                 }
@@ -848,7 +878,7 @@ lm_prepare_crawlers(metha_t *m)
                     }
                 }
                 if (!found) {
-                    lm_error("could not find filetype '%s' requested by '%s' in crawler '%s'\n",
+                    LM_ERROR(m, "could not find filetype '%s' requested by '%s' in crawler '%s'",
                                 value+1, fnames[y], cr->name);
                     return M_UNKNOWN_FILETYPE;
                 }
@@ -865,7 +895,7 @@ lm_prepare_crawlers(metha_t *m)
                      * not a filetype and neither 'lookup' nor 'discard'
                      * i guess we should do nothing but bail out with an 
                      * error */
-                    lm_error("unrecognized value '%s' set for '%s' in crawler '%s'\n",
+                    LM_ERROR(m, "unrecognized value '%s' set for '%s' in crawler '%s'",
                                 value, fnames[y], cr->name);
                     return M_FAILED;
                 }
@@ -893,7 +923,7 @@ lm_prepare_filetypes(metha_t *m)
         /* Make sure no other filetype uses the same name */
         for (y=x+1; y<m->num_filetypes; y++) {
             if (strcmp(ft->name, m->filetypes[y]->name) == 0) {
-                lm_error("multiple definitions of filetype '%s'\n", ft->name);
+                LM_ERROR(m, "multiple definitions of filetype '%s'", ft->name);
                 return M_FT_MULTIDEF;
             }
         }
@@ -908,7 +938,7 @@ lm_prepare_filetypes(metha_t *m)
                 }
             }
             if (!ft->switch_to.ptr) {
-                lm_error("unknown crawler '%s' requested by filetype '%s'\n", n, ft->name);
+                LM_ERROR(m, "unknown crawler '%s' requested by filetype '%s'", n, ft->name);
                 free(n);
                 return M_UNKNOWN_CRAWLER;
             }
@@ -1001,12 +1031,12 @@ lm_str_to_wfunction(metha_t *m, const char *name, uint8_t purpose)
                         return m->functions[m->num_functions-1];
                     } else {
                         *s = '/';
-                        lm_error("type mismatch, parser '%s' is not a function\n", p);
+                        LM_ERROR(m, "type mismatch, parser '%s' is not a function", p);
                     }
                 } else
-                    lm_error("could not load javascript file '%s'\n", p);
+                    LM_ERROR(m, "could not load javascript file '%s'", p);
             } else
-                lm_error("could not find parser '%s'\n",p );
+                LM_ERROR(m, "could not find parser '%s'",p );
 
             return 0;
         }
@@ -1015,7 +1045,7 @@ lm_str_to_wfunction(metha_t *m, const char *name, uint8_t purpose)
         if (strcmp(wf->name, p) == 0) {
             /* found a matching wfunction */
             if (wf->purpose != purpose) {
-                lm_error("parser/handler incompatibility\n");
+                LM_ERROR(m, "parser/handler incompatibility");
                 return 0;
             }
             return wf;
@@ -1147,7 +1177,7 @@ lm_load_script(metha_t *m, const char *file)
                 }
             }
             free(full);
-            lm_error("could not find file '%s'\n", file);
+            LM_ERROR(m, "could not find file '%s'", file);
             return 0;
         } while (0);
     }
@@ -1195,5 +1225,16 @@ static M_CODE
 lm_default_handler(void *unused, const url_t *url)
 {
     printf("[-] %s\n", url->str);
+}
+
+/** 
+ * Signal a running libmetha session. The session
+ * must have been started using lmetha_start()
+ **/
+M_CODE
+lmetha_signal(metha_t *m, int sig)
+{
+
+    return M_OK;
 }
 

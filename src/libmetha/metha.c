@@ -520,6 +520,9 @@ lmetha_start(metha_t *m)
 {
     pthread_t thr;
 
+    if (!m->prepared)
+        return M_NOT_READY;
+
     if (pthread_create(&thr, 0, lm_start, (void*)m) != 0)
         return M_FAILED;
 
@@ -698,6 +701,9 @@ lmetha_prepare(metha_t *m)
         if (m->num_threads != 1)
             LM_WARNING(m, "worker count must be 1 when running with timer");
         m->num_threads = 1;
+    } else {
+        if (!m->num_threads)
+            m->num_threads = 1;
     }
 
     if (!m->io.user_agent)

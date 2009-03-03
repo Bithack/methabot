@@ -40,8 +40,10 @@ enum {
 
 struct mbc {
     metha_t            *m;
+    struct ev_loop     *loop;
     ev_io              sock_ev;
     ev_timer           timer_ev;
+    ev_async           idle_ev;
     int                state;
     int                sock;
     struct sockaddr_in addr;

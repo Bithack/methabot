@@ -43,6 +43,7 @@ void mbc_ev_master(EV_P_ ev_io *w, int revents);
 static int mbc_master_send_login();
 void mbc_ev_timer(EV_P_ ev_timer *w, int revents);
 void mbc_set_active(EV_P_ int which);
+void mbc_ev_idle(EV_P_ ev_async *w, int revents);
 
 static void mbc_lm_status_cb(metha_t *m, worker_t *w, url_t *url);
 static void mbc_lm_target_cb(metha_t *m, worker_t *w, url_t *url, filetype_t *ft);
@@ -66,7 +67,8 @@ main(int argc, char **argv)
      * 2. Wait for slave token
      * 3. Connect to slave
      **/
-    struct ev_loop *loop;
+    M_CODE          r;
+
     signal(SIGPIPE, SIG_IGN);
     openlog("mb-clientd", 0, 0);
 
@@ -78,25 +80,38 @@ main(int argc, char **argv)
     lmetha_setopt(mbc.m, LMOPT_ERROR_FUNCTION, mbc_lm_error_cb);
     lmetha_setopt(mbc.m, LMOPT_WARNING_FUNCTION, mbc_lm_warning_cb);
     lmetha_setopt(mbc.m, LMOPT_EV_FUNCTION, mbc_lm_ev_cb);
+    lmetha_setopt(mbc.m, LMOPT_PRIMARY_CONF_DIR, "/usr/share/metha");
+    lmetha_setopt(mbc.m, LMOPT_ENABLE_BUILTIN_PARSERS, 1);
 
-    lmetha_start(mbc.m);
+    lmetha_load_config(mbc.m, "default.conf");
 
-    loop = ev_default_loop(0);
+    if ((r = lmetha_prepare(mbc.m)) != M_OK) {
+        syslog(LOG_ERR, "preparing libmetha object failed: %s", lm_strerror(r));
+        exit(1);
+    }
+    if ((r = lmetha_start(mbc.m)) != M_OK) {
+        syslog(LOG_ERR, "start libmetha session failed: %s", lm_strerror(r));
+        exit(1);
+    }
+
+    mbc.loop = ev_default_loop(0);
 
     ev_io_init(&mbc.sock_ev, mbc_ev_master, mbc.sock, EV_READ);
     ev_timer_init(&mbc.timer_ev, mbc_ev_timer, TIMER_WAIT, .0f);
     mbc.timer_ev.repeat = TIMER_WAIT;
+    ev_async_init(&mbc.idle_ev, mbc_ev_idle);
 
     if (mbc_master_connect() == 0) {
         mbc_master_send_login();
         mbc.state = MBC_STATE_WAIT_LOGIN;
-        mbc_set_active(loop, MBC_MASTER);
+        mbc_set_active(mbc.loop, MBC_MASTER);
     } else {
-        ev_timer_start(loop, &mbc.timer_ev);
+        ev_timer_start(mbc.loop, &mbc.timer_ev);
         syslog(LOG_INFO, "master is away, retrying in 10 secs");
     }
 
-    ev_loop(loop, 0);
+    ev_async_start(mbc.loop, &mbc.idle_ev);
+    ev_loop(mbc.loop, 0);
 
     ev_default_destroy();
     return 0;
@@ -136,7 +151,15 @@ mbc_lm_warning_cb(metha_t *m, const char *s, ...)
 static void
 mbc_lm_ev_cb(metha_t *m, int ev)
 {
-
+    switch (ev) {
+        case LM_EV_IDLE:
+            /**
+             * The crawling session is idle, we signal our own event handler
+             * to request a new URL from the slave.
+             **/
+            ev_async_send(mbc.loop, &mbc.idle_ev);
+            break;
+    }
 }
 
 /** 
@@ -189,6 +212,11 @@ mbc_ev_timer(EV_P_ ev_timer *w, int revents)
             ev_timer_again(EV_A_ &mbc.timer_ev);
             break;
     }
+}
+
+void
+mbc_ev_idle(EV_P_ ev_async *w, int revents)
+{
 }
 
 void

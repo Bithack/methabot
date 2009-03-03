@@ -58,7 +58,11 @@ mbs_client_create(const char *addr)
             }
         }
 
-        cl->addr.s_addr = inet_addr(addr);
+        if ((cl->addr.s_addr = inet_addr(addr)) == (in_addr_t)-1) {
+            syslog(LOG_ERR, "invalid address");
+            free(cl);
+            return 0;
+        }
     }
 
     return cl;
@@ -92,7 +96,7 @@ mbs_client_init(void *in)
 
         pthread_mutex_lock(&srv.pending_lk);
         for (x=0; x<srv.num_pending; x++) {
-            if (memcmp(srv.pending[x]->token, buf+5, 23) == 0) {
+            if (memcmp(srv.pending[x]->token, buf+5, TOKEN_SIZE) == 0) {
                 this = srv.pending[x];
                 if (x != srv.num_pending-1)
                     srv.pending[x] = srv.pending[srv.num_pending-1];

@@ -145,6 +145,8 @@ mbs_ev_conn_accept(EV_P_ ev_io *w, int revents)
     int       x;
     socklen_t sin_sz;
 
+    addr.sin_family = AF_INET;
+
     if (!(cl = malloc(sizeof(struct client)))) {
         syslog(LOG_ERR, "out of mem");
         abort();
@@ -155,11 +157,13 @@ mbs_ev_conn_accept(EV_P_ ev_io *w, int revents)
         syslog(LOG_ERR, "accept() failed: %s", strerror(errno));
     }
 
-    if (!srv.num_pending)
+    if (!srv.num_pending) {
+        send(sock, "200 Denied\n", 11, 0);
         close(sock);
-    else {
+    } else {
         for (x=0;; x++) {
             if (x == srv.num_pending) {
+                send(sock, "200 Denied\n", 11, 0);
                 close(sock);
                 break;
             }

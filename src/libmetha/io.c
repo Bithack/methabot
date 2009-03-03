@@ -69,9 +69,9 @@ static M_CODE (*__perform[])(iohandle_t *, url_t *) = {
 M_CODE
 lm_init_io(io_t *io, metha_t *m)
 {
-
+    io->m = m;
     if (curl_global_init(CURL_GLOBAL_ALL) != 0) {
-        lm_error("libcurl initialization failed");
+        LM_ERROR(m, "libcurl initialization failed");
         return M_FAILED;
     }
 #ifdef WIN32
@@ -80,16 +80,16 @@ lm_init_io(io_t *io, metha_t *m)
 
     if (!io->synchronous) {
         if (!(io->multi_h = curl_multi_init())) {
-            lm_error("could not create CURL multi interface\n");
+            LM_ERROR(m, "could not create CURL multi interface");
             return M_FAILED;
         }
         if (!(io->share_h = curl_share_init())) {
-            lm_error("could not create CURL share interface\n");
+            LM_ERROR(m, "could not create CURL share interface");
             return M_ERROR;
         }
 
         if (!(io->ev_p = ev_loop_new(EVFLAG_AUTO)))
-            lm_error("could not create i/o event loop\n");
+            LM_ERROR(m, "could not create i/o event loop");
 
         pthread_mutex_init(&io->queue_mtx, 0);
         pthread_rwlock_init(&io->cookies_mtx, 0);
@@ -234,13 +234,13 @@ lm_iothr_lock_shared_cb(CURL *h,
         case CURL_LOCK_DATA_SHARE:    m = &io->share_mtx; break;
         case CURL_LOCK_DATA_DNS:      m = &io->dns_mtx; break;
         case CURL_LOCK_DATA_COOKIE:   m = &io->cookies_mtx; break;
-        default:                      lm_warning("something borked! :(\n"); return;
+        default:                      LM_WARNING(io->m, "something borked! :("); return;
     }
 
     switch (access) {
         case CURL_LOCK_ACCESS_SINGLE: pthread_rwlock_wrlock(m); return;
         case CURL_LOCK_ACCESS_SHARED: pthread_rwlock_rdlock(m); return;
-        default:                      lm_warning("something borked! :(\n"); return;
+        default:                      LM_WARNING(io->m, "something borked! :("); return;
     }
 
     return;
@@ -260,7 +260,7 @@ lm_iothr_unlock_shared_cb(CURL *h,
         case CURL_LOCK_DATA_SHARE:    pthread_rwlock_unlock(&io->share_mtx); return;
         case CURL_LOCK_DATA_DNS:      pthread_rwlock_unlock(&io->dns_mtx); return;
         case CURL_LOCK_DATA_COOKIE:   pthread_rwlock_unlock(&io->cookies_mtx); return;
-        default:                      lm_warning("something borked! :(\n"); return;
+        default:                      LM_WARNING(io->m, "something borked! :("); return;
     }
 
     return;
@@ -368,7 +368,6 @@ lm_io_get(iohandle_t *h, url_t *url)
 static M_CODE
 lm_io_no_perform(iohandle_t *h, url_t *url)
 {
-    lm_warning("unsupported protocol (%s)\n", url);
     return M_FAILED;
 }
 
@@ -396,13 +395,13 @@ lm_io_perform_ftp(iohandle_t *h, url_t *url)
             case CURLE_GOT_NOTHING:
                 if (retries < LM_IO_MAX_RETRIES) {
                     retries ++;
-                    lm_warning("retry %d of %d (%s)\n", retries, LM_IO_MAX_RETRIES, url->str);
+                    LM_WARNING(h->io->m, "retry %d of %d (%s)", retries, LM_IO_MAX_RETRIES, url->str);
                     done = 0;
                     break;
                 }
 
             default:
-                lm_warning("%s (%s)\n", curl_easy_strerror(c), url->str);
+                LM_WARNING(h->io->m, "%s (%s)", curl_easy_strerror(c), url->str);
                 done = 1;
                 return M_FAILED;
         }
@@ -457,13 +456,13 @@ lm_io_perform_http(iohandle_t *h, url_t *url)
             case CURLE_GOT_NOTHING:
                 if (retries < LM_IO_MAX_RETRIES) {
                     retries ++;
-                    lm_warning("retry %d of %d (%s)\n", retries, LM_IO_MAX_RETRIES, url->str);
+                    LM_WARNING(h->io->m, "retry %d of %d (%s)", retries, LM_IO_MAX_RETRIES, url->str);
                     done = 0;
                     break;
                 }
 
             default:
-                lm_warning("%s (%s)\n", curl_easy_strerror(c), url->str);
+                LM_WARNING(h->io->m, "%s (%s)", curl_easy_strerror(c), url->str);
                 return M_FAILED;
         }
     } while (!done);
@@ -677,7 +676,7 @@ lm_iothr_check_completed(io_t *io)
                 if (ioh->done.count+1 >= ioh->done.allocsz) {
                     ioh->done.allocsz *= 2;
                     if (!(ioh->done.list = realloc(ioh->done.list, ioh->done.allocsz*sizeof(ioprivate_t*)))) {
-                        lm_error("out of mem\n");
+                        LM_ERROR(ioh->io->m, "out of mem");
                         abort();
                     }
                 }

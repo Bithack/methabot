@@ -21,6 +21,7 @@
 
 #include "errors.h"
 #include "metha.h"
+#include "worker.h"
 
 #include <stdio.h>
 #include <string.h>

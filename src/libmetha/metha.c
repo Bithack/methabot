@@ -34,7 +34,6 @@
 
 static M_CODE lm_prepare_filetypes(metha_t *m);
 static M_CODE lm_prepare_crawlers(metha_t *m);
-static M_CODE lm_default_handler(void *unused, const url_t *url);
 static M_CODE lm_exec_once(metha_t *m, iohandle_t *io_h, uehandle_t *ue_h);
 static M_CODE lm_call_init(metha_t *m, uehandle_t *h, int argc, const char **argv);
 static struct script_desc* lm_load_script(metha_t *m, const char *file);
@@ -181,10 +180,6 @@ lmetha_setopt(metha_t *m, LMOPT opt, ...)
 
         case LMOPT_SECONDARY_CONF_DIR:
             m->conf_dir2 = strdup(va_arg(ap, char*));
-            break;
-
-        case LMOPT_FILE_HANDLER:
-            m->handler = va_arg(ap, void*);
             break;
 
         case LMOPT_ENABLE_COOKIES:
@@ -694,9 +689,6 @@ lmetha_prepare(metha_t *m)
 
     if (!m->io.user_agent)
         m->io.user_agent = LM_DEFAULT_USERAGENT;
-
-    if (!m->handler)
-        m->handler = &lm_default_handler;
 
     if ((ret = lm_prepare_filetypes(m)) != M_OK)
         return ret;
@@ -1219,12 +1211,6 @@ error:
     if (full)
         free(full);
     return 0;
-}
-
-static M_CODE
-lm_default_handler(void *unused, const url_t *url)
-{
-    printf("[-] %s\n", url->str);
 }
 
 /** 

@@ -55,9 +55,9 @@ lm_jserror(JSContext *cx, const char *message, JSErrorReport *report)
         else 
             p++;
 
-        lm_error("<%s:%u>: %s\n", p, (unsigned)report->lineno, message);
+        fprintf(stderr, "<%s:%u>: %s\n", p, (unsigned)report->lineno, message);
     } else 
-        lm_error("<?:%d>: %s\n", report->lineno, message);
+        fprintf(stderr, "<?:%d>: %s\n", report->lineno, message);
 }
 
 /** 
@@ -181,7 +181,7 @@ __lm_js_get(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
 
     if ((c = curl_easy_perform(h)) != CURLE_OK) {
         *ret = JSVAL_FALSE;
-        lm_error("%s\n", curl_easy_strerror(c));
+        fprintf(stderr, "%s\n", curl_easy_strerror(c));
     } else {
         tmp = JS_NewStringCopyN(cx, b.ptr, b.sz);
         *ret = STRING_TO_JSVAL(tmp);
@@ -224,7 +224,7 @@ __lm_js_http_post(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval 
     curl_easy_setopt(h_post, CURLOPT_WRITEDATA, &b);
 
     if ((c = curl_easy_perform(h_post)) != CURLE_OK)
-        lm_error("%s\n", curl_easy_strerror(c));
+        fprintf(stderr, "%s\n", curl_easy_strerror(c));
 
     tmp = JS_NewStringCopyN(cx, b.ptr, b.sz);
     *ret = STRING_TO_JSVAL(tmp);
@@ -254,7 +254,7 @@ __lm_js_filesize(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *
     fh = fopen(filename, "r");
 
     if (fh == NULL) {
-        lm_error("error opening file %s\n", filename);
+        fprintf(stderr, "error opening file %s\n", filename);
         return JS_FALSE;
     }
 

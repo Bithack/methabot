@@ -134,7 +134,7 @@ lm_parser_ftp(worker_t *w, iobuf_t *buf, uehandle_t *ue_h, url_t *url)
             if (p-prev) {
                 if (ftpparse(&info, prev, p-prev)) {
                     if (info.namelen >= 126) {
-                        lm_warning("file name too long\n");
+                        LM_WARNING(w->m, "file name too long");
                         continue;
                     }
                     if (info.flagtrycwd) {

@@ -124,13 +124,10 @@ typedef struct metha {
     struct worker_object *worker_objs;
     int                   num_worker_objs;
 
-    M_CODE (*handler)(void *, const url_t *);
-    void    *private;
-
-    void   (*status_cb)(metha_t *, worker_t *, url_t *);
-    void   (*target_cb)(metha_t *, worker_t *, url_t *, filetype_t *);
-    void   (*error_cb)(metha_t *, const char *s, ...);
-    void   (*warning_cb)(metha_t *, const char *s, ...);
+    void   (*status_cb)(struct metha *, struct worker *, url_t *);
+    void   (*target_cb)(struct metha *, struct worker *, url_t *, filetype_t *);
+    void   (*error_cb)(struct metha *, const char *s, ...);
+    void   (*warning_cb)(struct metha *, const char *s, ...);
 
     int builtin_parsers;
     int num_threads;
@@ -165,8 +162,8 @@ M_CODE lm_multipeek_add(iohandle_t *ioh, url_t *url, int id);
 ioprivate_t* lm_multipeek_wait(iohandle_t *ioh);
 
 /* errors.c */
-void lm_default_status_reporter(metha_t *, worker_t *, url_t *);
-void lm_default_target_reporter(metha_t *, worker_t *, url_t *, filetype_t *);
+void lm_default_status_reporter(metha_t *, struct worker *, url_t *);
+void lm_default_target_reporter(metha_t *, struct worker *, url_t *, filetype_t *);
 void lm_default_error_reporter(metha_t *, const char *s, ...);
 void lm_default_warning_reporter(metha_t *, const char *s, ...);
 

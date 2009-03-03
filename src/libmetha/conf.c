@@ -347,7 +347,7 @@ lmetha_load_config(metha_t *m, const char *filename)
                 if (y == 6 && strncmp(p, "extend", 6) == 0) {
                     p+=6;
                     if (*p != ':') {
-                        lm_error("<%s:%d>: expected ':' after extend keyword\n", filename, lm_getline(buf, p));
+                        LM_ERROR(m, "<%s:%d>: expected ':' after extend keyword", filename, lm_getline(buf, p));
                         goto error;
                     }
 
@@ -357,7 +357,7 @@ lmetha_load_config(metha_t *m, const char *filename)
                 if (y == 8 && strncmp(p, "override", 8) == 0) {
                     p+=8;
                     if (*p != ':') {
-                        lm_error("<%s:%d>: expected ':' after override keyword\n", filename, lm_getline(buf, p));
+                        LM_ERROR(m, "<%s:%d>: expected ':' after override keyword", filename, lm_getline(buf, p));
                         goto error;
                     }
 
@@ -416,20 +416,20 @@ lmetha_load_config(metha_t *m, const char *filename)
                     p++;
                     t = p+strcspn(p, "\"\n");
                     if (!*t || *t == '\n') {
-                        lm_error("<%s:%d>: unterminated string constant\n", filename, lm_getline(buf, p));
+                        LM_ERROR(m, "<%s:%d>: unterminated string constant", filename, lm_getline(buf, p));
                         goto error;
                     }
 
                     *t = '\0';
 
                     if ((status = curr_directive->callback(m, p)) != M_OK) {
-                        lm_error("<%s:%d>: %s \"%s\" failed: %s\n", filename, lm_getline(buf, p), curr_directive->name, p, lm_strerror(status));
+                        LM_ERROR(m, "<%s:%d>: %s \"%s\" failed: %s\n", filename, lm_getline(buf, p), curr_directive->name, p, lm_strerror(status));
                         goto error;
                     }
 
                     p = t;
                 } else {
-                    lm_error("<%s:%d>: expected a quoted argument for directive '%s', found '%c'\n", filename, lm_getline(buf, p), curr_directive->name, *p);
+                    LM_ERROR(m, "<%s:%d>: expected a quoted argument for directive '%s', found '%c'\n", filename, lm_getline(buf, p), curr_directive->name, *p);
                     goto error;
                 }
                 state = STATE_ROOT;
@@ -437,7 +437,7 @@ lmetha_load_config(metha_t *m, const char *filename)
 
             case STATE_PRE_NAME:
                 if (*p != '[') {
-                    lm_error("<%s:%d>: expected '[', found '%c'\n", filename, lm_getline(buf, p), *p);
+                    LM_ERROR(m, "<%s:%d>: expected '[', found '%c'", filename, lm_getline(buf, p), *p);
                     goto error;
                 }
                 state = STATE_NAME;
@@ -464,14 +464,14 @@ lmetha_load_config(metha_t *m, const char *filename)
                     p++;
                     t = p+strcspn(p, "\"\n");
                     if (!*t || *t == '\n') {
-                        lm_error("<%s:%d>: unterminated string constant\n", filename, lm_getline(buf, p));
+                        LM_ERROR(m, "<%s:%d>: unterminated string constant", filename, lm_getline(buf, p));
                         goto error;
                     }
 
                     *t = '\0';
 
                     if (!(t-p)) {
-                        lm_error("<%s:%d>: empty %s name\n", filename, lm_getline(buf, p), curr->name);
+                        LM_ERROR(m, "<%s:%d>: empty %s name", filename, lm_getline(buf, p), curr->name);
                         goto error;
                     }
 
@@ -485,7 +485,7 @@ lmetha_load_config(metha_t *m, const char *filename)
                              /* if 'extend' is set to 1, then we are extending an already 
                               * defined object, so we must look it up and modify it. */
                             if (!(o = curr->find(m, p))) {
-                                lm_error("<%s:%d>: undefined %s '%s'\n", filename, lm_getline(buf, p), curr->name, p);
+                                LM_ERROR(m, "<%s:%d>: undefined %s '%s'", filename, lm_getline(buf, p), curr->name, p);
                                 goto error;
                             }
                             /* override might also be set, and if so then we should
@@ -500,14 +500,14 @@ lmetha_load_config(metha_t *m, const char *filename)
                          * after the 'copy' keyword */
                         void *cp;
                         if (!(cp = curr->find(m, p))) {
-                            lm_error("<%s:%d>: undefined %s '%s'\n", filename, lm_getline(buf, p), curr->name, p);
+                            LM_ERROR(m, "<%s:%d>: undefined %s '%s'", filename, lm_getline(buf, p), curr->name, p);
                             goto error;
                         }
 #ifdef DEBUG
                         fprintf(stderr, "* metha:(%p) copy %s '%s' to '%s'\n", m, curr->name, p, ((filetype_t*)o)->name);
 #endif
                         if (curr->copy(o, cp) != M_OK) {
-                            lm_error("<%s:%d>: internal error while copying %s '%s' to '%s'\n", filename, lm_getline(buf, p), curr->name, p, ((filetype_t*)o)->name);
+                            LM_ERROR(m, "<%s:%d>: internal error while copying %s '%s' to '%s'", filename, lm_getline(buf, p), curr->name, p, ((filetype_t*)o)->name);
                             goto error;
                         }
 
@@ -517,7 +517,7 @@ lmetha_load_config(metha_t *m, const char *filename)
 
                     p = t;
                 } else {
-                    lm_error("<%s:%d>: expected quoted %s name, found '%c'\n", filename, lm_getline(buf, p), curr->name, *p);
+                    LM_ERROR(m, "<%s:%d>: expected quoted %s name, found '%c'", filename, lm_getline(buf, p), curr->name, *p);
                     goto error;
                 }
                 continue;
@@ -530,7 +530,7 @@ lmetha_load_config(metha_t *m, const char *filename)
                     state = STATE_ROOT;
                     continue;
                 }
-                lm_error("<%s:%d>: expected '{' or ';', found '%c'\n", filename, lm_getline(buf, p), *p);
+                LM_ERROR(m, "<%s:%d>: expected '{' or ';', found '%c'", filename, lm_getline(buf, p), *p);
                 goto error;
 
             case STATE_OBJ:
@@ -589,7 +589,7 @@ lmetha_load_config(metha_t *m, const char *filename)
                 if (!found) {
                     *(p+x) = '\0';
                     if (isalnum(*p)) {
-                        lm_error("<%s:%d>: unknown option '%s'\n", filename, lm_getline(buf, p), p);
+                        LM_ERROR(m, "<%s:%d>: unknown option '%s'", filename, lm_getline(buf, p), p);
                         goto error;
                     }
                     goto uc;
@@ -600,7 +600,7 @@ lmetha_load_config(metha_t *m, const char *filename)
 
             case STATE_PRE_VAL:
                 if (*p != '=') {
-                    lm_error("<%s:%d>: expected '=', found '%c'\n", filename, lm_getline(buf, p), *p);
+                    LM_ERROR(m, "<%s:%d>: expected '=', found '%c'", filename, lm_getline(buf, p), *p);
                     goto error;
                 }
                 state = STATE_VAL;
@@ -612,13 +612,13 @@ lmetha_load_config(metha_t *m, const char *filename)
                  * arrays. */
                 if (*p == '{') {
                     if (scope) {
-                        lm_error("<%s:%d>: arrays not supported by scopes\n", filename, lm_getline(buf, p));
+                        LM_ERROR(m, "<%s:%d>: arrays not supported by scopes", filename, lm_getline(buf, p));
                         goto error;
                     } else if (curr_opt->type == LM_VAL_T_ARRAY) {
                         state = STATE_ARRAY_VAL;
                         continue;
                     } else {
-                        lm_error("<%s:%d>: option '%s' expects a value of type %s\n", filename, lm_getline(buf, p), curr_opt->name, val_str[curr_opt->type]);
+                        LM_ERROR(m, "<%s:%d>: option '%s' expects a value of type %s", filename, lm_getline(buf, p), curr_opt->name, val_str[curr_opt->type]);
                         goto error;
                     }
                 } else if (*p == '"') {
@@ -628,7 +628,7 @@ lmetha_load_config(metha_t *m, const char *filename)
 
                         t = p+strcspn(p, "\"\n");
                         if (!*t || *t == '\n') {
-                            lm_error("<%s:%d>: unterminated string constant\n", filename, lm_getline(buf, p));
+                            LM_ERROR(m, "<%s:%d>: unterminated string constant", filename, lm_getline(buf, p));
                             goto error;
                         }
 
@@ -640,7 +640,7 @@ lmetha_load_config(metha_t *m, const char *filename)
 
                         p = t;
                     } else {
-                        lm_error("<%s:%d>: option '%s' expects a value of type %s\n", filename, lm_getline(buf, p), curr_opt->name, val_str[curr_opt->type]);
+                        LM_ERROR(m, "<%s:%d>: option '%s' expects a value of type %s", filename, lm_getline(buf, p), curr_opt->name, val_str[curr_opt->type]);
                         goto error;
                     }
                 } else if (isdigit(*p)) {
@@ -648,20 +648,20 @@ lmetha_load_config(metha_t *m, const char *filename)
                         *(unsigned int*)((char *)o+curr_opt->value.offs) = atoi(p);
                     } else if (curr_opt->type == LM_VAL_T_FLAG) {
                         if (scope) {
-                            lm_error("<%s:%d>: flags not supported by scopes\n", filename, lm_getline(buf, p));
+                            LM_ERROR(m, "<%s:%d>: flags not supported by scopes", filename, lm_getline(buf, p));
                             goto error;
                         }
                         if (atoi(p))
                             *(uint8_t*)((char *)o+curr->flags_offs) |= (1 << curr_opt->value.flag);
                     } else {
-                        lm_error("<%s:%d>: option '%s' expects a value of type %s\n", filename, lm_getline(buf, p), curr_opt->name, val_str[curr_opt->type]);
+                        LM_ERROR(m, "<%s:%d>: option '%s' expects a value of type %s", filename, lm_getline(buf, p), curr_opt->name, val_str[curr_opt->type]);
                         goto error;
                     }
                     do p++; while (isdigit(*p));
                 } else {
                     if (curr_opt->type == LM_VAL_T_FLAG) {
                         if (scope) {
-                            lm_error("<%s:%d>: flags not supported by scopes\n", filename, lm_getline(buf, p));
+                            LM_ERROR(m, "<%s:%d>: flags not supported by scopes", filename, lm_getline(buf, p));
                             goto error;
                         }
                         if (strncasecmp(p, "true", 4) == 0) {
@@ -670,11 +670,11 @@ lmetha_load_config(metha_t *m, const char *filename)
                         } else if (strncasecmp(p, "false", 5) == 0) {
                             p+=5;
                         } else {
-                            lm_error("<%s:%d>: expected %s, found '%c'\n", filename, lm_getline(buf, p), val_str[curr_opt->type], *p);
+                            LM_ERROR(m, "<%s:%d>: expected %s, found '%c'", filename, lm_getline(buf, p), val_str[curr_opt->type], *p);
                             goto error;
                         }
                     } else {
-                        lm_error("<%s:%d>: expected %s, found '%c'\n", filename, lm_getline(buf, p), val_str[curr_opt->type], *p);
+                        LM_ERROR(m, "<%s:%d>: expected %s, found '%c'", filename, lm_getline(buf, p), val_str[curr_opt->type], *p);
                         goto error;
                     }
                 }
@@ -683,7 +683,7 @@ lmetha_load_config(metha_t *m, const char *filename)
 
             case STATE_POST_VAL:
                 if (*p != ';') {
-                    lm_error("<%s:%d>: expected ';', found '%c'\n", filename, lm_getline(buf, p), *p);
+                    LM_ERROR(m, "<%s:%d>: expected ';', found '%c'", filename, lm_getline(buf, p), *p);
                     goto error;
                 }
                 state = STATE_OBJ;
@@ -714,7 +714,7 @@ lmetha_load_config(metha_t *m, const char *filename)
                 p++;
                 t = p+strcspn(p, "\"\n");
                 if (!*t || *t == '\n') {
-                    lm_error("<%s:%d>: unterminated string constant\n", filename, lm_getline(buf, p));
+                    LM_ERROR(m, "<%s:%d>: unterminated string constant", filename, lm_getline(buf, p));
                     goto error;
                 }
 
@@ -741,7 +741,7 @@ lmetha_load_config(metha_t *m, const char *filename)
     }
 
     if (state != STATE_ROOT) {
-        lm_error("<%s>: unexpected end of file\n", filename);
+        LM_ERROR(m, "<%s>: unexpected end of file", filename);
         goto error;
     }
 
@@ -751,7 +751,7 @@ lmetha_load_config(metha_t *m, const char *filename)
     return M_OK;
 
 uc:
-    lm_error("<%s:%d>: unexpected char '%c'\n", filename, lm_getline(buf, p), *p);
+    LM_ERROR(m, "<%s:%d>: unexpected char '%c'", filename, lm_getline(buf, p), *p);
 
 error:
     if (array) free(array);

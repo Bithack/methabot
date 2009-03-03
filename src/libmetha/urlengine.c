@@ -260,7 +260,7 @@ ue_set_host(uehandle_t *h, const char *host, uint16_t host_sz)
     h->host_ent = ue_get_hostent(h, host, host_sz, 0);
 
     if (!h->host_ent) {
-        lm_error("internal: find/create host entry '%s' failed, file a bug report\n", host);
+        /*lm_error("internal: find/create host entry '%s' failed, file a bug report\n", host);*/
         abort();
     }
 
@@ -354,7 +354,7 @@ ue_set_hostent(uehandle_t *h, struct host_ent *ent)
 
         lm_ulist_uninit(&ent->list);
     } else {
-        lm_error("increasing primary utable failed, file a bug report\n");
+        /*lm_error("increasing primary utable failed, file a bug report\n");*/
         abort();
     }
 

@@ -249,10 +249,8 @@ lm_filetype_set_mimetypes(filetype_t *ft, char **mimetypes, int num_mimetypes)
 M_CODE
 lm_filetype_set_expr(filetype_t *ft, const char *expr)
 {
-    if (ft->expr) {
-        lm_warning("'expr' for filetype '%s' set twice", ft->name);
+    if (ft->expr)
         umex_free(ft->expr);
-    }
 
     ft->expr = umex_compile(expr);
 

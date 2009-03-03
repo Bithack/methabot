@@ -114,6 +114,8 @@ typedef struct io {
     CURLSH    *share_h;
     pthread_t  thr;
 
+    struct metha *m;
+
     struct ev_loop *ev_p;
     /* events */
     struct {

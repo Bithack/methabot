@@ -132,10 +132,10 @@ void mb_uninit(void);
 static M_CODE mb_configure_filetype(void);
 static M_CODE mb_configure_crawler(void);
 M_CODE mb_downloader_cb(void *private, const url_t *url);
-static void mb_message_silent_cb(const char *s, ...);
-static void mb_message_cb(const char *s, ...);
-static void mb_error_cb(const char *s, ...);
-static void mb_warning_cb(const char *s, ...);
+static void mb_warning_cb(metha_t *m, const char *s, ...);
+static void mb_error_cb(metha_t *m, const char *s, ...);
+static void mb_status_cb(metha_t *m, struct worker *w, url_t *url);
+static void mb_status_silent_cb(metha_t *m, struct worker *w, url_t *url);
 
 extern char *optarg;
 extern int   opterr;
@@ -242,19 +242,16 @@ main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
-    /** 
-     * Before creating the metha_t object, we should call lmetha_global_setopt()
-     * to set up our own error, message and warning reporters.
-     **/
-    if (silent)
-        lmetha_global_setopt(LMOPT_GLOBAL_MESSAGE_FUNC, &mb_message_silent_cb);
-    else
-        lmetha_global_setopt(LMOPT_GLOBAL_MESSAGE_FUNC, &mb_message_cb);
-    lmetha_global_setopt(LMOPT_GLOBAL_ERROR_FUNC, &mb_error_cb);
-    lmetha_global_setopt(LMOPT_GLOBAL_WARNING_FUNC, &mb_warning_cb);
-
     if (!(m = lmetha_create()))
         goto outofmem;
+
+    if (silent)
+        lmetha_setopt(m, LMOPT_STATUS_FUNCTION, &mb_status_silent_cb);
+    else
+        lmetha_setopt(m, LMOPT_STATUS_FUNCTION, &mb_status_cb);
+    lmetha_setopt(m, LMOPT_ERROR_FUNCTION, &mb_error_cb);
+    lmetha_setopt(m, LMOPT_WARNING_FUNCTION, &mb_warning_cb);
+
 
     /* set up the default configuration file and script directories */
 
@@ -324,10 +321,13 @@ main(int argc, char **argv)
         }
     }
 
+    /* TODO: --download */
+    /*
     if (download) {
         if ((status = lmetha_setopt(m, LMOPT_FILE_HANDLER, &mb_downloader_cb)) != M_OK)
             goto error;
     }
+    */
 
     if (mode) {
         if ((status = lmetha_setopt(m, LMOPT_MODE, mode)) != M_OK)
@@ -596,7 +596,7 @@ mb_downloader_cb(void *private, const url_t *url)
                 printf("could not download because of the proxy\n");
             }
         } else {
-            lm_error("download of '%s' failed\n", name);
+            /*LM_ERROR(m, "download of '%s' failed\n", name);*/
         }
     }
 
@@ -695,35 +695,19 @@ mb_init(void)
 }
 
 static void
-mb_message_silent_cb(const char *s, ...)
+mb_status_silent_cb(metha_t *m, struct worker *w, url_t *url)
 {
     return;
 }
 
 static void
-mb_message_cb(const char *s, ...)
+mb_status_cb(metha_t *m, struct worker *w, url_t *url)
 {
-    char *s2 = 0;
-    int sz;
-
-    va_list va;
-    va_start(va, s);
-
-    sz = strlen(s)+4;
-    if (!(s2 = malloc(sz+1)))
-        return;
-
-    memcpy(s2, "[I] ", 4);
-    strcpy(s2+4, s);
-
-    vfprintf(stdout, s2, va);
-    free(s2);
-
-    va_end(va);
+    printf("[I] URL: %s\n", url->str);
 }
 
 static void
-mb_error_cb(const char *s, ...)
+mb_error_cb(metha_t *m, const char *s, ...)
 {
     char *s2 = 0;
     int sz;
@@ -731,12 +715,14 @@ mb_error_cb(const char *s, ...)
     va_list va;
     va_start(va, s);
 
-    sz = strlen(s)+4;
+    sz = strlen(s)+5;
     if (!(s2 = malloc(sz+1)))
         return;
 
     memcpy(s2, "[E] ", 4);
     strcpy(s2+4, s);
+    *(s2+strlen(s2)) = '\n';
+    *(s2+strlen(s2)+1) = '\0';
 
     vfprintf(stderr, s2, va);
     free(s2);
@@ -745,7 +731,7 @@ mb_error_cb(const char *s, ...)
 }
 
 static void
-mb_warning_cb(const char *s, ...)
+mb_warning_cb(metha_t *m, const char *s, ...)
 {
     char *s2 = 0;
     int sz;
@@ -753,12 +739,14 @@ mb_warning_cb(const char *s, ...)
     va_list va;
     va_start(va, s);
 
-    sz = strlen(s)+4;
+    sz = strlen(s)+5;
     if (!(s2 = malloc(sz+1)))
         return;
 
     memcpy(s2, "[W] ", 4);
     strcpy(s2+4, s);
+    *(s2+strlen(s2)) = '\n';
+    *(s2+strlen(s2)+1) = '\0';
 
     vfprintf(stderr, s2, va);
     free(s2);

@@ -699,10 +699,8 @@ lm_worker_bind_url(worker_t *w, url_t *url,
             }
         } else 
             return 0;
-    } else {
-
-    }
-        w->m->handler(w->m->private, url);
+    } else
+        w->m->target_cb(w->m, w, url, ft);
 
     return 1;
 }

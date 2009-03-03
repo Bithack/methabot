@@ -32,6 +32,11 @@ void mbc_ev_master(EV_P_ ev_io *w, int revents);
 static int mbc_master_login();
 void mbc_ev_timer(EV_P_ ev_timer *w, int revents);
 
+static void mbc_lm_status_cb(metha_t *m, worker_t *w, url_t *url);
+static void mbc_lm_target_cb(metha_t *m, worker_t *w, url_t *url, filetype_t *ft);
+static void mbc_lm_error_cb(metha_t *m, const char *s, ...);
+static void mbc_lm_warning_cb(metha_t *m, const char *s, ...);
+
 struct mbc mbc = {
     .state = MBC_STATE_DISCONNECTED,
 };
@@ -51,6 +56,17 @@ main(int argc, char **argv)
     struct ev_loop *loop;
     signal(SIGPIPE, SIG_IGN);
     openlog("mb-clientd", 0, 0);
+
+    if (!(mbc.m = lmetha_create()))
+        exit(1);
+
+    lmetha_setopt(m, LMOPT_TARGET_FUNCTION, mbc_lm_target_cb);
+    lmetha_setopt(m, LMOPT_STATUS_FUNCTION, mbc_lm_status_cb);
+    lmetha_setopt(m, LMOPT_ERROR_FUNCTION, mbc_lm_error_cb);
+    lmetha_setopt(m, LMOPT_WARNING_FUNCTION, mbc_lm_warning_cb);
+    lmetha_setopt(m, LMOPT_EV_FUNCTION, mbc_lm_ev_cb);
+
+    lmetha_start(m);
 
     if ((mbc.sock = socket(AF_INET, SOCK_STREAM, 0)) <= 0) {
         syslog(LOG_ERR, "socket() failed: %s\n", strerror(errno));
@@ -78,7 +94,7 @@ main(int argc, char **argv)
 /** 
  * Callback from libmetha when a new url has been crawled
  **/
-void
+static void
 mbc_lm_status_cb(metha_t *m, worker_t *w, url_t *url)
 {
 
@@ -87,9 +103,27 @@ mbc_lm_status_cb(metha_t *m, worker_t *w, url_t *url)
 /** 
  * Callback from libmetha when a target has been found
  **/
-void
+static void
 mbc_lm_target_cb(metha_t *m, worker_t *w,
                  url_t *url, filetype_t *ft)
+{
+
+}
+
+static void
+mbc_lm_error_cb(metha_t *m, const char *s, ...)
+{
+
+}
+
+static void
+mbc_lm_warning_cb(metha_t *m, const char *s, ...)
+{
+
+}
+
+static void
+mbc_lm_ev_cb()
 {
 
 }

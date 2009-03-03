@@ -201,6 +201,18 @@ lmetha_setopt(metha_t *m, LMOPT opt, ...)
             m->target_cb = va_arg(ap, void*);
             break;
 
+        case LMOPT_ERROR_FUNCTION:
+            m->error_cb = va_arg(ap, void*);
+            break;
+
+        case LMOPT_WARNING_FUNCTION:
+            m->warning_cb = va_arg(ap, void*);
+            break;
+
+        case LMOPT_EV_FUNCTION:
+            m->event_cb = va_arg(ap, void*);
+            break;
+
         default:
             LM_ERROR(m, "unknown option (%d)", opt);
             goto badopt;
@@ -236,8 +248,9 @@ lmetha_create(void)
 
     m->error_cb = lm_default_error_reporter;
     m->warning_cb = lm_default_error_reporter;
-    m->error_cb = lm_default_error_reporter;
-    m->error_cb = lm_default_error_reporter;
+    m->status_cb = lm_default_status_reporter;
+    m->target_cb = lm_default_target_reporter;
+    m->event_cb = lm_default_event_handler;
 
     /** 
      * Initialize all pthread mutexes and conditions
@@ -546,9 +559,9 @@ lmetha_exec(metha_t *m, int argc, const char **argv)
     fprintf(stderr, "* metha:(%p) starting with crawler '%s'\n", m, m->crawlers[m->crawler]->name);
 #endif
 
-    ev_async_init(&m->ev.all_empty, &lm_event_workers_all_empty);
-    m->ev.all_empty.data = m;
-    ev_async_start(m->ev.loop, &m->ev.all_empty);
+    ev_async_init(&m->ev.exit, &lm_ev_exit);
+    m->ev.exit.data = m;
+    ev_async_start(m->ev.loop, &m->ev.exit);
 
     /* Spread the initial urls (from m->urls), one to each worker. 
      * If there are less workers than there are initial URLs, then 
@@ -1220,7 +1233,11 @@ error:
 M_CODE
 lmetha_signal(metha_t *m, int sig)
 {
-
+    switch (sig) {
+        case LM_SIGNAL_EXIT:
+            ev_async_send(m->ev.loop, &m->ev.exit);
+            break;
+    }
     return M_OK;
 }
 

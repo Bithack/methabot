@@ -431,9 +431,8 @@ lm_worker_wait(worker_t *w)
 #endif
     pthread_mutex_lock(&w->lock);
 
-    if (w->m->w_num_waiting >= w->m->num_threads) {
-        ev_async_send(w->m->ev.loop, &w->m->ev.all_empty);
-    }
+    if (w->m->w_num_waiting >= w->m->num_threads)
+        lm_notify(w->m, LM_EV_IDLE);
 
     w->state = LM_WORKER_STATE_WAITING;
     pthread_rwlock_unlock(&w->m->w_lk_num_waiting);

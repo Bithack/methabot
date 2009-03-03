@@ -27,9 +27,11 @@
  * Notify all observers of the given event
  **/
 M_CODE
-lm_notify(metha_t *m, unsigned int ev)
+lm_notify(metha_t *m, unsigned ev)
 {
     int x;
+
+    m->event_cb(m, ev);
 
     if (ev < LM_EV_COUNT)
         for (x=0; x<m->observer_pool[ev].count; x++)
@@ -73,16 +75,22 @@ lmetha_detach_observer(struct metha *m, int type,
 }
 
 /** 
- * Event occurs when all workers are out of URLs
+ * Default event handler. May be overridden using LMOPT_EV_FUNCTION.
  **/
 void
-lm_event_workers_all_empty(EV_P_ ev_async *w, int revents)
+lm_default_event_handler(metha_t *m, unsigned ev)
+{
+    switch (ev) {
+        case LM_EV_IDLE:
+            lmetha_signal(m, LM_SIGNAL_EXIT);
+            break;
+    }
+}
+
+void
+lm_ev_exit(EV_P_ ev_io *w, int revents)
 {
     metha_t *m = w->data;
-
-#ifdef DEBUG
-    fprintf(stderr, "* metha:(%p) all workers waiting\n", m);
-#endif
 
     ev_unloop(EV_A_ EVUNLOOP_ALL);
 }

@@ -35,6 +35,13 @@
 #include "events.h"
 #include "lmopt.h"
 
+enum {
+    LM_SIGNAL_EXIT,
+    LM_SIGNAL_STOP,
+    LM_SIGNAL_PAUSE,
+    LM_SIGNAL_CONTINUE,
+};
+
 struct observer_pool {
     unsigned int     count;
     struct observer *o;
@@ -65,7 +72,7 @@ typedef struct metha {
      **/
     struct {
         struct ev_loop  *loop;
-        struct ev_async all_empty;
+        struct ev_async exit;
     } ev;
 
     /* lmetha_exec_once() and lmetha_exec_provided() will save 
@@ -128,6 +135,7 @@ typedef struct metha {
     void   (*target_cb)(struct metha *, struct worker *, url_t *, filetype_t *);
     void   (*error_cb)(struct metha *, const char *s, ...);
     void   (*warning_cb)(struct metha *, const char *s, ...);
+    void   (*event_cb)(struct metha *, int ev);
 
     int builtin_parsers;
     int num_threads;
@@ -166,6 +174,12 @@ void lm_default_status_reporter(metha_t *, struct worker *, url_t *);
 void lm_default_target_reporter(metha_t *, struct worker *, url_t *, filetype_t *);
 void lm_default_error_reporter(metha_t *, const char *s, ...);
 void lm_default_warning_reporter(metha_t *, const char *s, ...);
+
+/* internal events, events.c */
+void lm_ev_exit(EV_P_ ev_io *w, int revents);
+
+/* events.c */
+void lm_default_event_handler(metha_t *m, unsigned ev);
 
 #endif
 

@@ -27,14 +27,14 @@
 enum {
     LM_EV_THREAD_READY,
     LM_EV_THREAD_DESTROY,
+    LM_EV_IDLE,
 
     LM_EV_COUNT,
 };
 
-void lm_event_workers_all_empty(EV_P_ ev_async *w, int revents);
 M_CODE lmetha_attach_observer(struct metha *m, int type, M_CODE (*callback)(void *, void *), void *private);
 M_CODE lmetha_detach_observer(struct metha *m, int type, M_CODE (*callback)(void *, void *));
-M_CODE lm_notify(struct metha *m, unsigned int ev);
+M_CODE lm_notify(struct metha *m, unsigned ev);
 
 #endif
 

@@ -135,6 +135,7 @@ M_CODE mb_downloader_cb(void *private, const url_t *url);
 static void mb_warning_cb(metha_t *m, const char *s, ...);
 static void mb_error_cb(metha_t *m, const char *s, ...);
 static void mb_status_cb(metha_t *m, struct worker *w, url_t *url);
+static void mb_target_cb(metha_t *m, struct worker *w, url_t *url, filetype_t *ft);
 static void mb_status_silent_cb(metha_t *m, struct worker *w, url_t *url);
 
 extern char *optarg;
@@ -250,6 +251,7 @@ main(int argc, char **argv)
     else
         lmetha_setopt(m, LMOPT_STATUS_FUNCTION, &mb_status_cb);
     lmetha_setopt(m, LMOPT_ERROR_FUNCTION, &mb_error_cb);
+    lmetha_setopt(m, LMOPT_TARGET_FUNCTION, &mb_target_cb);
     lmetha_setopt(m, LMOPT_WARNING_FUNCTION, &mb_warning_cb);
 
 
@@ -698,6 +700,12 @@ static void
 mb_status_silent_cb(metha_t *m, struct worker *w, url_t *url)
 {
     return;
+}
+
+static void
+mb_target_cb(metha_t *m, struct worker *w, url_t *url, filetype_t *ft)
+{
+    printf("[-] %s\n", url->str);
 }
 
 static void

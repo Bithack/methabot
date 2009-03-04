@@ -703,7 +703,8 @@ mb_status_silent_cb(metha_t *m, struct worker *w, url_t *url)
 }
 
 static void
-mb_target_cb(metha_t *m, struct worker *w, url_t *url, filetype_t *ft)
+mb_target_cb(metha_t *m, struct worker *w, url_t *url,
+             attribute_list_t *attributes, filetype_t *ft)
 {
     printf("[-] %s\n", url->str);
 }

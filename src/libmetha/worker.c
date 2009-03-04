@@ -121,7 +121,9 @@ lm_worker_call_crawler_init(worker_t *w)
     if (w->crawler->init) {
         const char *init_name = w->crawler->init;
 #ifdef DEBUG
-        fprintf(stderr, "* worker:(%p) calling init function \"%s\"\n", w, w->crawler->init);
+        fprintf(stderr, "* worker:(%p) calling init function \"%s\"\n",
+                w,
+                w->crawler->init);
 #endif
 
         if ((init_name = strchr(init_name, '/'))) {
@@ -148,11 +150,13 @@ lm_worker_call_crawler_init(worker_t *w)
 
                 return M_OK;
             } else
-                LM_ERROR(w->m, "could not call init function \"%s\"\n", w->crawler->init);
+                LM_ERROR(w->m, "could not call init function \"%s\"\n",
+                                w->crawler->init);
 
             JS_EndRequest(w->e4x_cx);
         } else {
-            LM_ERROR(w->m, "init function for crawler \"%s\" is not a javascript function\n", w->crawler->name);
+            LM_ERROR(w->m, "init function for crawler \"%s\" is not a javascript function\n",
+                            w->crawler->name);
         }
     }
 
@@ -499,7 +503,7 @@ lm_fork_worker(metha_t *m, crawler_t *c,
     if (!(m->workers = realloc(m->workers, (m->nworkers+1)*sizeof(worker_t*))))
         return M_OUT_OF_MEM;
 
-    if (!(w = malloc(sizeof(worker_t))))
+    if (!(w = calloc(1, sizeof(worker_t))))
         return M_OUT_OF_MEM;
 
     w->m = m;
@@ -699,7 +703,7 @@ lm_worker_bind_url(worker_t *w, url_t *url,
         } else 
             return 0;
     } else
-        w->m->target_cb(w->m, w, url, ft);
+        w->m->target_cb(w->m, w, url, 0, ft);
 
     return 1;
 }
@@ -737,15 +741,20 @@ lm_worker_perform(worker_t *w)
 
     if (ft->switch_to.ptr)
         lm_worker_set_crawler(w, ft->switch_to.ptr);
+    
+    /* prepare the attributes list for this filetype, so
+     * that our parsers can fill in values specifically for this
+     * url */
+    lm_attrlist_prepare(&w->attributes, ft->attributes, ft->num_attributes);
 
     /** 
-     * Call the handler for this filetype, the handler should download
+     * call the handler for this filetype, the handler should download
      * the data before we go to the parser chain. If this filetype does
      * not have a handler set, then the default handler for the active
      * crawler is used.
      *
      * TODO: clear all values in 'this' before a javascript handler is
-     * called?
+     *       called?
      **/
     wfunction_t *wf = 
         (ft->handler.wf?ft->handler.wf:
@@ -760,8 +769,14 @@ lm_worker_perform(worker_t *w)
                 break;
             case LM_WFUNCTION_TYPE_JAVASCRIPT:
                 JS_BeginRequest(w->e4x_cx);
-                jsval url = STRING_TO_JSVAL(JS_NewStringCopyN(w->e4x_cx, w->ue_h->current->str, w->ue_h->current->sz));
-                r = ((JS_CallFunction(w->e4x_cx, w->e4x_this, wf->fn.javascript, 1, &url, &ret) == JS_TRUE)?M_OK:M_FAILED);
+                jsval url = STRING_TO_JSVAL(
+                        JS_NewStringCopyN(w->e4x_cx, w->ue_h->current->str,
+                            w->ue_h->current->sz)
+                        );
+                r = ((JS_CallFunction(w->e4x_cx, w->e4x_this,
+                                      wf->fn.javascript, 1,
+                                      &url, &ret)
+                        == JS_TRUE) ? M_OK : M_FAILED);
                 JS_EndRequest(w->e4x_cx);
             default:
                 return M_ERROR;
@@ -776,7 +791,8 @@ lm_worker_perform(worker_t *w)
      * Handler is done, time to do our own logic. If the transfer was over HTTP and we got a 
      * redirect, we will add the URL given by the "Location" header to the URL engine.
      **/
-    if (w->io_h->transfer.status_code >= 300 && w->io_h->transfer.status_code < 400) {
+    if (w->io_h->transfer.status_code >= 300
+            && w->io_h->transfer.status_code < 400) {
         if (w->io_h->transfer.headers.location) {
 #ifdef DEBUG
             fprintf(stderr, "* worker:(%p) %d redirect to '%s'\n",
@@ -790,7 +806,8 @@ lm_worker_perform(worker_t *w)
                 w->redirects = 0;
                 return M_OK;
             }
-            ue_revert(w->ue_h, w->io_h->transfer.headers.location, strlen(w->io_h->transfer.headers.location));
+            ue_revert(w->ue_h, w->io_h->transfer.headers.location,
+                      strlen(w->io_h->transfer.headers.location));
             return M_OK;
         }
     }
@@ -845,7 +862,8 @@ lm_worker_perform(worker_t *w)
                     ret = STRING_TO_JSVAL(tmp);
                     JS_SetProperty(w->e4x_cx, w->e4x_this, "data", &ret);
 
-                    tmp = JS_NewStringCopyN(w->e4x_cx, w->io_h->transfer.headers.content_type, strlen(w->io_h->transfer.headers.content_type));
+                    tmp = JS_NewStringCopyN(w->e4x_cx, w->io_h->transfer.headers.content_type,
+                                            strlen(w->io_h->transfer.headers.content_type));
                     ret = STRING_TO_JSVAL(tmp);
                     JS_SetProperty(w->e4x_cx, w->e4x_this, "content_type", &ret);
 
@@ -867,6 +885,12 @@ lm_worker_perform(worker_t *w)
 
         last = p->type;
     }
+
+    /* parsing is done. if a parser set any of the filetype attributes
+     * using lm_attribute_set, then this file is considered a match, 
+     * so we send it to the LMOPT_TARGET_FUNCTION callback */
+    if (w->attributes.changed)
+        w->m->target_cb(w->m, w, url, &w->attributes, ft);
 
     return M_OK;
 }
@@ -924,7 +948,8 @@ lm_worker_init_e4x(worker_t *w)
         JSObject *o;
         if (o = JS_ConstructObject(w->e4x_cx, w->m->worker_objs[x].class, 0, 0)) {
             v = OBJECT_TO_JSVAL(o);
-            JS_DefineProperty(w->e4x_cx, w->e4x_this, w->m->worker_objs[x].name, v, 0, 0, 0);
+            JS_DefineProperty(w->e4x_cx, w->e4x_this, w->m->worker_objs[x].name,
+                              v, 0, 0, 0);
         }
     }
 
@@ -1003,7 +1028,8 @@ lm_worker_get_robotstxt(worker_t *w, struct host_ent *ent)
                     fprintf(stderr, "* worker:(%p) Disallow '%s' for '%s'\n", w, val_s, ent->str);
                     *val_e = tmp;
 #endif
-                    lm_filter_add_rule(&ent->filter, LM_FILTER_DENY, umex_explicit_strstart(val_s, val_e-val_s));
+                    lm_filter_add_rule(&ent->filter, LM_FILTER_DENY,
+                                       umex_explicit_strstart(val_s, val_e-val_s));
                 } else if (len == 5 && memcmp(opt_s, "Allow", len) == 0) {
 #ifdef DEBUG
                     char tmp = *val_e;
@@ -1011,7 +1037,8 @@ lm_worker_get_robotstxt(worker_t *w, struct host_ent *ent)
                     fprintf(stderr, "* worker:(%p) Allow '%s' for '%s'\n", w, val_s, ent->str);
                     *val_e = tmp;
 #endif
-                    lm_filter_add_rule(&ent->filter, LM_FILTER_ALLOW, umex_explicit_strstart(val_s, val_e-val_s));
+                    lm_filter_add_rule(&ent->filter, LM_FILTER_ALLOW,
+                                       umex_explicit_strstart(val_s, val_e-val_s));
                 }
             }
 

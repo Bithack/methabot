@@ -24,6 +24,7 @@
 
 #include "metha.h"
 #include "crawler.h"
+#include "attr.h"
 #include "filetype.h"
 #include "urlengine.h"
 #include "io.h"
@@ -70,6 +71,9 @@ typedef struct worker {
     int          state;
     int          message;
     int          redirects;
+
+    /* attribute list used for all urls matching a filetype */
+    attr_list_t attributes;
 
     pthread_t       thr;
     pthread_mutex_t lock; /* lock access to 'state' and 'message' */

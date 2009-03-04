@@ -131,7 +131,8 @@ mbc_lm_status_cb(metha_t *m, worker_t *w, url_t *url)
  **/
 static void
 mbc_lm_target_cb(metha_t *m, worker_t *w,
-                 url_t *url, filetype_t *ft)
+                 url_t *url, attr_list_t *attributes,
+                 filetype_t *ft)
 {
 
 }

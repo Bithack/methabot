@@ -132,7 +132,7 @@ typedef struct metha {
     int                   num_worker_objs;
 
     void   (*status_cb)(struct metha *, struct worker *, url_t *);
-    void   (*target_cb)(struct metha *, struct worker *, url_t *, filetype_t *);
+    void   (*target_cb)(struct metha *, struct worker *, url_t *, attr_list_t *, filetype_t *);
     void   (*error_cb)(struct metha *, const char *s, ...);
     void   (*warning_cb)(struct metha *, const char *s, ...);
     void   (*event_cb)(struct metha *, int ev);

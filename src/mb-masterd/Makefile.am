@@ -6,3 +6,7 @@ mb_masterd_SOURCES = \
 	main.c \
 	master.h
 
+AM_CFLAGS = -I/usr/include/mysql
+AM_LDFLAGS = -lmysqlclient
+
+mb_masterd_LDADD = ../libmetha/libmetha.la

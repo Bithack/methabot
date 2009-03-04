@@ -28,6 +28,7 @@
 
 #include "master.h"
 #include "conn.h"
+#include "../libmetha/metha.h"
 #include "../libmetha/libev/ev.c"
 
 int mbm_load_config();
@@ -90,6 +91,22 @@ main(int argc, char **argv)
             goto error;
         }
 
+        fclose(fp);
+        fp = 0;
+
+        if (mbm_mysql_connect() != 0) {
+            syslog(LOG_ERR, "could not connect to mysql server");
+            goto error;
+        }
+        if (mbm_mysql_setup() != 0) {
+            syslog(LOG_ERR, "setting up mysql tables failed");
+            goto error;
+        }
+        if (mbm_reconfigure() != 0) {
+            syslog(LOG_ERR, "setting up filetype tables failed");
+            goto error;
+        }
+
         mbm_start();
     } else {
         syslog(LOG_ERR, "no configuration file, exiting");
@@ -112,6 +129,134 @@ error:
         fclose(fp);
     closelog();
     return 1;
+}
+
+int
+mbm_mysql_connect()
+{
+    if (!(srv.mysql = mysql_init(0))
+            || !(mysql_real_connect(srv.mysql, "localhost",
+                            "methanol", "test", "methanol",
+                            0, 0, 0)))
+        return -1;
+
+    return 0;
+}
+
+#define SQL_CREATE_LOGIN "\
+            CREATE TABLE IF NOT EXISTS \
+            _login (user VARCHAR(32), pass VARCHAR(32))"
+
+/** 
+ * Set up all default tables
+ **/
+int
+mbm_mysql_setup()
+{
+    mysql_real_query(srv.mysql, SQL_CREATE_LOGIN, strlen(SQL_CREATE_LOGIN));
+
+    return 0;
+}
+
+#define CREATE_TBL         "CREATE TABLE IF NOT EXISTS "
+#define CREATE_TBL_LEN     (sizeof("CREATE TABLE IF NOT EXISTS ")-1)
+#define DEFAULT_LAYOUT     "(id INT, PRIMARY KEY (id))"
+#define DEFAULT_LAYOUT_LEN (sizeof("(id INT, PRIMARY KEY (id))")-1)
+
+enum {
+    ATTR_TYPE_UNKNOWN,
+    ATTR_TYPE_INT,
+    ATTR_TYPE_TEXT,
+    ATTR_TYPE_BLOB,
+};
+
+/** 
+ * mbm_reconfigure()
+ * Create filetype tables.
+ *
+ * When a filetype is created, it will contain only one column
+ * at first, and then ALTER TABLE is used to add the filetype's
+ * attributes one by one. The benefit of adding the columns one,
+ * by one is that whenever a filetype has been changed in the
+ * configuration file, its new attributes will be added as new 
+ * columns, while the existing columns will be untouched, thus
+ * the system can easily reconfigure itself while retaining
+ * already existing columns and data.
+ *
+ * No columns will be removed from filetype tables, since 
+ * they might contain important data. It is up to the system
+ * admin to remove unused columns.
+ **/
+int
+mbm_reconfigure()
+{
+    int  x, a;
+    int  n;
+    char tq[64+64+CREATE_TBL_LEN+DEFAULT_LAYOUT_LEN+1];
+    char *name;
+    int  len;
+
+    /** 
+     * Create a fake, empty metha_t object and load the configuration 
+     * file using it, so we can extract the filetypes and crawlers.
+     **/
+    metha_t *m = calloc(1, sizeof(metha_t));
+    lmetha_load_config(m, srv.config_file);
+
+    for (n=0; n<m->num_filetypes; n++) {
+        name = m->filetypes[n]->name;
+        len = strlen(name);
+
+        /** 
+         * Make sure the name does not contain any weird
+         * characters. Convert them to '_'.
+         **/
+        for (x=0; x<len; x++)
+            if (!isalnum(*(name+x)) && *(name+x) != '_')
+                *(name+x) = '_';
+
+        len = sprintf(tq, "%sft_%.60s%s", 
+                            CREATE_TBL,
+                            name,
+                            DEFAULT_LAYOUT
+                );
+
+        mysql_real_query(srv.mysql, tq, len);
+
+        /** 
+         * Now add all the columns. Many of these queries will probably
+         * fail because the column already exists, but this is expected
+         * behaviour.
+         **/
+        for (a=0; a<m->filetypes[n]->attr_count; a++) {
+            char *attr = m->filetypes[n]->attributes[a];
+            char *type = strchr(attr, ' ');
+            int type_n;
+
+            if (!type || !strlen(type+1)) {
+                syslog(LOG_ERR, "no type given for attribute '%s'", attr);
+                continue;
+            }
+            type++;
+            type_n = ATTR_TYPE_UNKNOWN;
+            if (strcasecmp(type, "INT") == 0)
+                type_n = ATTR_TYPE_INT;
+            else if (strcasecmp(type, "TEXT") == 0)
+                type_n = ATTR_TYPE_TEXT;
+            else if (strcasecmp(type, "BLOB") == 0)
+                type_n = ATTR_TYPE_BLOB;
+
+            if (type_n == ATTR_TYPE_UNKNOWN) {
+                syslog(LOG_ERR, "unknown attribute type '%s'", type);
+                continue;
+            }
+
+            len = sprintf(tq, "ALTER TABLE ft_%.60s ADD COLUMN %.60s", name, attr);
+            mysql_real_query(srv.mysql, tq, len);
+        }
+    }
+
+    return 0;
 }
 
 int mbm_start()
@@ -174,7 +319,7 @@ mbm_ev_sigint(EV_P_ ev_signal *w, int revents)
 
     if (srv.num_conns) {
         for (x=0; x<srv.num_conns; x++) {
-            close(srv.pool[x]->sock);
+            close(srv.pool[x]->sock); 
             free(srv.pool[x]);
         }
 

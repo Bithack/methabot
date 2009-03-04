@@ -348,7 +348,8 @@ lmetha_load_config(metha_t *m, const char *filename)
                 if (y == 6 && strncmp(p, "extend", 6) == 0) {
                     p+=6;
                     if (*p != ':') {
-                        LM_ERROR(m, "<%s:%d>: expected ':' after extend keyword", filename, lm_getline(buf, p));
+                        LM_ERROR(m, "<%s:%d>: expected ':' after extend keyword",
+                                     filename, lm_getline(buf, p));
                         goto error;
                     }
 

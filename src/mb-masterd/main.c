@@ -160,8 +160,8 @@ mbm_mysql_setup()
 
 #define CREATE_TBL         "CREATE TABLE IF NOT EXISTS "
 #define CREATE_TBL_LEN     (sizeof("CREATE TABLE IF NOT EXISTS ")-1)
-#define DEFAULT_LAYOUT     "(id INT, PRIMARY KEY (id))"
-#define DEFAULT_LAYOUT_LEN (sizeof("(id INT, PRIMARY KEY (id))")-1)
+#define DEFAULT_LAYOUT     "(id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id))"
+#define DEFAULT_LAYOUT_LEN (sizeof("(id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id))")-1)
 
 enum {
     ATTR_TYPE_UNKNOWN,

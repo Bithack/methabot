@@ -253,6 +253,12 @@ mbm_reconfigure()
 
             len = sprintf(tq, "ALTER TABLE ft_%.60s ADD COLUMN %.60s", name, attr);
             mysql_real_query(srv.mysql, tq, len);
+
+            if (type_n == ATTR_TYPE_TEXT) {
+                *(type-1) = '\0';
+                sprintf(tq, "ALTER TABLE ft_%.60s ADD FULLTEXT (%.60s)", name, attr);
+                mysql_real_query(srv.mysql, tq, len);
+            }
         }
     }
 

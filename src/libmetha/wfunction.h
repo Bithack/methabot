@@ -24,7 +24,7 @@
 
 /** 
  * Parser Callback Syntax:
- * M_CODE name(worker_t *, iobuf_t *, uehandle_t *, url_t *);
+ * M_CODE name(worker_t *, iobuf_t *, uehandle_t *, url_t *, attr_list_t *al);
  *
  * Handler Callback Syntax:
  * M_CODE name(worker_t *, io_t *, url_t *);
@@ -72,7 +72,7 @@ typedef struct wfunction {
     uint8_t     type;
     uint8_t     purpose;
     union {
-        M_CODE    (*native_parser)(struct worker *, struct iobuf *, struct uehandle *, struct url *);
+        M_CODE    (*native_parser)(struct worker *, struct iobuf *, struct uehandle *, struct url *, struct attr_list *);
         M_CODE    (*native_handler)(struct worker *, struct io *, struct url *);
         JSFunction *javascript;
     } fn;

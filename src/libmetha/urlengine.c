@@ -118,8 +118,14 @@ ue_add_initial(uehandle_t *h, const char *url, uint16_t len)
     url_t   *t;
     ulist_t *list;
 
-    if (!(list = lm_utable_top(&h->primary)))
-        return M_FAILED;
+    if (!(list = lm_utable_top(&h->primary))) {
+        /* try to increase the utable */
+        if (lm_utable_inc(&h->primary) != M_OK)
+            return M_FAILED;
+        if (!(list = lm_utable_top(&h->primary)))
+            return M_FAILED;
+    }
+
     if (!(t = lm_ulist_inc(list)))
         return M_FAILED;
 

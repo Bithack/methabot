@@ -35,10 +35,12 @@ lm_attribute_set(attr_list_t *al, const char *attribute,
 {
     int     x;
     attr_t *a;
+    int     len = strlen(attribute);
 
     for (x=0; x<al->num_attributes; x++) {
         a = &al->list[x];
-        if (strcmp(a->name, attribute) == 0) {
+        if (strncmp(a->name, attribute, len) == 0
+                && (a->name[len] == '\0' || isspace(a->name[len]))) {
             /* found a matching attribute */
 
             if (!(a->value = realloc(a->value, size)))

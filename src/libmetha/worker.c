@@ -452,6 +452,8 @@ lm_worker_wait(worker_t *w)
     fprintf(stderr, "* worker:(%p) state: %s\n", w, worker_state_str[w->state]);
 #endif
 
+    lm_worker_sort(w);
+
     pthread_mutex_unlock(&w->lock);
 
     return msg;
@@ -846,7 +848,7 @@ lm_worker_perform(worker_t *w)
                     w->io_h->buf.sz = len;
                     JS_EndRequest(w->e4x_cx);
                 }
-                p->fn.native_parser(w, &w->io_h->buf, w->ue_h, w->ue_h->current);
+                p->fn.native_parser(w, &w->io_h->buf, w->ue_h, w->ue_h->current, &w->attributes);
                 break;
 
             case LM_WFUNCTION_TYPE_JAVASCRIPT:

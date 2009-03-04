@@ -201,6 +201,7 @@ mbm_ev_conn_read(EV_P_ ev_io *w, int revents)
                         }
                         srv.slaves[srv.num_slaves].state = 0;
                         srv.slaves[srv.num_slaves].conn = conn;
+                        conn->slave_n = srv.num_slaves;
                         srv.num_slaves ++;
                         break;
 

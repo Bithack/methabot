@@ -160,6 +160,7 @@ M_CODE   lmetha_register_worker_object(metha_t *m, const char *name, JSClass *cl
 M_CODE   lmetha_init_jsclass(metha_t *m, JSClass *class, JSNative constructor, uintN nargs, JSPropertySpec *ps, JSFunctionSpec *fs, JSPropertySpec *static_ps, JSFunctionSpec *static_fs);
 M_CODE   lmetha_signal(metha_t *m, int sig);
 M_CODE   lmetha_start(metha_t *m);
+M_CODE   lmetha_wakeup_worker(metha_t *m, const char *crawler, const char *url);
 
 /* io.c */
 M_CODE lm_iothr_launch(io_t *io);

@@ -539,6 +539,50 @@ lm_start(void* in)
 }
 
 /** 
+ * Send one of the possible idle workers to the 
+ * given URL, using the given crawler
+ **/
+M_CODE
+lmetha_wakeup_worker(metha_t *m, const char *crawler,
+                     const char *url)
+{
+    int        x;
+    worker_t  *w;
+    crawler_t *c;
+
+    for (x=0; ; x++) {
+        if (x == m->num_crawlers)
+            return M_UNKNOWN_CRAWLER;
+        if (strcmp(m->crawlers[x]->name, crawler) == 0)
+            break;
+    }
+
+    c = m->crawlers[x];
+
+    pthread_rwlock_wrlock(&m->w_lk_num_waiting);
+    if (m->w_num_waiting) {
+        w = m->waiting_queue[m->w_num_waiting-1];
+        m->w_num_waiting --;
+        pthread_rwlock_unlock(&m->w_lk_num_waiting);
+
+        /* now lock the worker itself, give it the URL
+         * and send it a CONTINUE msg */
+        pthread_mutex_lock(&w->lock);
+        lm_worker_set_crawler(w, c);
+        ue_add_initial(w->ue_h, url, (uint16_t)strlen(url));
+
+        w->message = LM_WORKER_MSG_CONTINUE;
+        pthread_cond_signal(&w->wakeup_cond);
+        pthread_mutex_unlock(&w->lock);
+    } else {
+        pthread_rwlock_unlock(&m->w_lk_num_waiting);
+        return M_FAILED;
+    }
+
+    return M_OK;
+}
+
+/** 
  * Start crawling session. The array of char-pointers at m->urls 
  * will be converted to URLs and used as initial urls.
  **/

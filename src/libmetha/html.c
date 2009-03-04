@@ -83,7 +83,9 @@ memcpy_tolower(void *dest, const void *source, size_t sz)
  * Default HTML parser.
  **/
 M_CODE
-lm_parser_html(struct worker *w, struct iobuf *buf, struct uehandle *ue_h, struct url *url)
+lm_parser_html(struct worker *w, struct iobuf *buf,
+               struct uehandle *ue_h, struct url *url,
+               struct attr_list *al)
 {
     int ret;
     int  tag  = 0;
@@ -154,6 +156,11 @@ lm_parser_html(struct worker *w, struct iobuf *buf, struct uehandle *ue_h, struc
             } while (1);
         }
     }
+
+    /* set the attribute 'html' if the
+     * target filetype has it */
+    lm_attribute_set(al, "html", buf->ptr, buf->sz);
+
     return ret;
 }
 
@@ -278,7 +285,9 @@ static const struct xml_el enc_content[] = {
  * - Tags inside <script>, <style> and <textarea> must be converted.
  **/
 M_CODE
-lm_parser_xmlconv(struct worker *w, struct iobuf *buf, struct uehandle *ue_h, struct url *url)
+lm_parser_xmlconv(struct worker *w, struct iobuf *buf,
+                  struct uehandle *ue_h, struct url *url,
+                  struct attr_list *al)
 {
     char *p = buf->ptr,
          *e = buf->ptr+buf->sz,

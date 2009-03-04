@@ -80,10 +80,10 @@ main(int argc, char **argv)
     lmetha_setopt(mbc.m, LMOPT_ERROR_FUNCTION, mbc_lm_error_cb);
     lmetha_setopt(mbc.m, LMOPT_WARNING_FUNCTION, mbc_lm_warning_cb);
     lmetha_setopt(mbc.m, LMOPT_EV_FUNCTION, mbc_lm_ev_cb);
-    lmetha_setopt(mbc.m, LMOPT_PRIMARY_CONF_DIR, "/usr/share/metha");
+    lmetha_setopt(mbc.m, LMOPT_PRIMARY_CONF_DIR, "/home/sdac");
     lmetha_setopt(mbc.m, LMOPT_ENABLE_BUILTIN_PARSERS, 1);
 
-    lmetha_load_config(mbc.m, "default.conf");
+    lmetha_load_config(mbc.m, "master.conf");
 
     if ((r = lmetha_prepare(mbc.m)) != M_OK) {
         syslog(LOG_ERR, "preparing libmetha object failed: %s", lm_strerror(r));
@@ -123,7 +123,7 @@ main(int argc, char **argv)
 static void
 mbc_lm_status_cb(metha_t *m, worker_t *w, url_t *url)
 {
-
+    printf("URL: %s\n", url->str);
 }
 
 /** 
@@ -134,7 +134,7 @@ mbc_lm_target_cb(metha_t *m, worker_t *w,
                  url_t *url, attr_list_t *attributes,
                  filetype_t *ft)
 {
-
+    printf("target: %s\n", url->str);
 }
 
 static void
@@ -218,6 +218,16 @@ mbc_ev_timer(EV_P_ ev_timer *w, int revents)
 void
 mbc_ev_idle(EV_P_ ev_async *w, int revents)
 {
+    static lol = 1;
+    /*send(mbc.sock, "NEXT\n", 5, 0);*/
+    /*mbc.state = MBC_STATE_STOPPED;*/
+
+    lmetha_wakeup_worker(mbc.m, "default", "http://bithack.se/");
+
+    if (lol == 2) abort();
+    lol++;
+
+    /*lmetha_signal(mbc.m, LM_SIGNAL_CONTINUE);*/
 }
 
 void
@@ -297,6 +307,10 @@ mbc_ev_slave(EV_P_ ev_io *w, int revents)
                 break;
 
             case MBC_STATE_RUNNING:
+                break;
+
+            case MBC_STATE_STOPPED:
+
                 break;
         }
     }

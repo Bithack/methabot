@@ -41,7 +41,7 @@ lm_attribute_set(attr_list_t *al, const char *attribute,
         if (strcmp(a->name, attribute) == 0) {
             /* found a matching attribute */
 
-            if (!(a->value = realloc(size)))
+            if (!(a->value = realloc(a->value, size)))
                 return M_OUT_OF_MEM;
 
             memcpy(a->value, value, size);
@@ -99,14 +99,14 @@ lm_attrlist_prepare(attr_list_t *al, const char **attributes,
     al->num_attributes = num_attributes;
     al->changed = 0;
 
-    return M_OK
+    return M_OK;
 }
 
 /** 
  * Free all attribute values and the list 
  **/
 void
-lm_attrlist_cleanup()
+lm_attrlist_cleanup(attr_list_t *al)
 {
     int x;
     if (al->num_attributes) {

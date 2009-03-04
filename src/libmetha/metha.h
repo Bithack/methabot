@@ -27,6 +27,7 @@
 #include <jsapi.h>
 
 #include "filetype.h"
+#include "attr.h" 
 #include "crawler.h"
 #include "errors.h"
 #include "io.h"

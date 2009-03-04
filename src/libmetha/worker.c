@@ -745,7 +745,7 @@ lm_worker_perform(worker_t *w)
     /* prepare the attributes list for this filetype, so
      * that our parsers can fill in values specifically for this
      * url */
-    lm_attrlist_prepare(&w->attributes, ft->attributes, ft->num_attributes);
+    lm_attrlist_prepare(&w->attributes, ft->attributes, ft->attr_count);
 
     /** 
      * call the handler for this filetype, the handler should download
@@ -890,7 +890,7 @@ lm_worker_perform(worker_t *w)
      * using lm_attribute_set, then this file is considered a match, 
      * so we send it to the LMOPT_TARGET_FUNCTION callback */
     if (w->attributes.changed)
-        w->m->target_cb(w->m, w, url, &w->attributes, ft);
+        w->m->target_cb(w->m, w, w->ue_h->current, &w->attributes, ft);
 
     return M_OK;
 }

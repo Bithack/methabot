@@ -59,6 +59,7 @@ libmetha_la_SOURCES = \
 	mtrie.h     \
 	builtin.h   \
 	ftpparse.h  \
+	attr.c \
 	filter.h
 
 include_HEADERS = \
@@ -67,6 +68,7 @@ include_HEADERS = \
 	module.h    \
 	lmopt.h  \
 	url.h \
+	attr.h \
 	wfunction.h    \
 	../config.h
 

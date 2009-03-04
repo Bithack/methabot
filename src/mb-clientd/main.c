@@ -46,7 +46,7 @@ void mbc_set_active(EV_P_ int which);
 void mbc_ev_idle(EV_P_ ev_async *w, int revents);
 
 static void mbc_lm_status_cb(metha_t *m, worker_t *w, url_t *url);
-static void mbc_lm_target_cb(metha_t *m, worker_t *w, url_t *url, filetype_t *ft);
+static void mbc_lm_target_cb(metha_t *m, worker_t *w, url_t *url, attr_list_t *al, filetype_t *ft);
 static void mbc_lm_error_cb(metha_t *m, const char *s, ...);
 static void mbc_lm_warning_cb(metha_t *m, const char *s, ...);
 static void mbc_lm_ev_cb(metha_t *m, int ev);

@@ -89,6 +89,7 @@ static const struct lm_scope_opt filetype_opts[] = {
     { "handler",    LM_VAL_T_STRING, .value.offs = offsetof(filetype_t, handler.name)},
     { "expr",       LM_VAL_T_EXTRA, .value.set = (M_CODE (*)(void *, const char *))&lm_filetype_set_expr},
     { "crawler_switch",LM_VAL_T_STRING, .value.offs = offsetof(filetype_t, switch_to.name)},
+    { "attributes",LM_VAL_T_ARRAY, .value.array_set = &lm_filetype_set_attributes},
 };
 
 #define NUM_CRAWLER_OPTS sizeof(crawler_opts)/sizeof(struct lm_scope_opt)

@@ -39,6 +39,7 @@ lm_filetype_create(const char *name, uint32_t nlen)
     ret->name[nlen]   = '\0';
     ret->e_count      = 0;
     ret->m_count      = 0;
+    ret->attr_count   = 0;
     ret->parser_str   = 0;
     ret->expr         = 0;
     ret->flags        = 0;
@@ -59,7 +60,8 @@ lm_filetype_destroy(filetype_t *ft)
 }
 
 /** 
- * Required by lmetha_load_config for the override keyword
+ * Required by lmetha_load_config() for the override keyword,
+ * also used by the lm_filetype_destroy() function
  **/
 void
 lm_filetype_clear(filetype_t *ft)
@@ -82,6 +84,12 @@ lm_filetype_clear(filetype_t *ft)
             free(ft->mimetypes[x]);
         free(ft->mimetypes);
         ft->m_count = 0;
+    }
+    if (ft->attr_count) {
+        for (x=0; x<ft->attr_count; x++)
+            free(ft->attributes[x]);
+        free(ft->attributes);
+        ft->attr_count = 0;
     }
     if (ft->parser_chain.num_parsers) {
         ft->parser_chain.num_parsers = 0;
@@ -119,9 +127,16 @@ lm_filetype_dup(filetype_t *dest, filetype_t *source)
         for (x=0; x<source->m_count; x++)
             dest->mimetypes[x] = strdup(source->mimetypes[x]);
     }
+    if (source->attr_count) {
+        if (!(dest->attributes = malloc(source->attr_count*sizeof(char*))))
+            return M_OUT_OF_MEM;
+        for (x=0; x<source->attr_count; x++)
+            dest->attributes[x] = strdup(source->attributes[x]);
+    }
 
     dest->e_count = source->e_count;
     dest->m_count = source->m_count;
+    dest->attr_count = source->attr_count;
     if (source->expr)
         dest->expr = umex_dup(source->expr);
     if (source->switch_to.name)
@@ -135,7 +150,6 @@ lm_filetype_dup(filetype_t *dest, filetype_t *source)
         memcpy(ch_d->parsers, ch_s->parsers, ch_d->num_parsers*sizeof(wfunction_t*));
     }
     dest->handler = source->handler;
-
     dest->flags = source->flags;
 
     return M_OK;
@@ -143,6 +157,9 @@ lm_filetype_dup(filetype_t *dest, filetype_t *source)
 
 /** 
  * Add a file extension associated with this filetype
+ *
+ * This function will copy the given ext and add it 
+ * to the filetype's list of file extensions.
  **/
 M_CODE
 lm_filetype_add_extension(filetype_t *ft, const char *name)
@@ -244,6 +261,35 @@ lm_filetype_set_mimetypes(filetype_t *ft, char **mimetypes, int num_mimetypes)
 }
 
 /** 
+ * Set this filetypes's list of attributes. Attributes are mainly
+ * used when connected to a methanol system, where the attributes
+ * correspond to columns in the filetype table.
+ **/
+M_CODE
+lm_filetype_set_attributes(filetype_t *ft, char **attributes,
+                           int num_attributes)
+{
+    int x;
+
+    /** 
+     * If we have a list of attributes set from before,
+     * we must free it since this function *sets* the list,
+     * and thus removes any existing entries.
+     **/
+    if (ft->attr_count) {
+        for (x=0; x<ft->attr_count; x++)
+            free(ft->attributes[x]);
+        free(ft->attributes);
+    }
+
+    ft->attributes = attributes; /* take the list directly, don't make a copy of it */
+    ft->attr_count = num_attributes;
+
+    return M_OK;
+}
+
+
+/** 
  * Set the UMEX expr for this filetype
  **/
 M_CODE
@@ -253,7 +299,6 @@ lm_filetype_set_expr(filetype_t *ft, const char *expr)
         umex_free(ft->expr);
 
     ft->expr = umex_compile(expr);
-
     return M_OK;
 }
 

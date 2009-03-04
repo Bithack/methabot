@@ -44,10 +44,19 @@ typedef struct filetype {
     char    *name;
     uint8_t  id; /* this is set up by lmetha_prepare() */
 
+    /** 
+     * extensions, mimetypes and attributes are represented 
+     * as arrays in configuration files. Their set-functions
+     * (lm_filetype_*_set()) expect a pointer array.
+     * XXX: Note that the *_set() functions will TAKE the 
+     *      array given, and not make a copy of it.
+     **/
     char   **extensions;
     int      e_count;
     char   **mimetypes;
     int      m_count;
+    char   **attributes;
+    int      attr_count;
 
     umex_t *expr;
 
@@ -75,6 +84,7 @@ void    lm_filetype_destroy(filetype_t *ft);
 M_CODE  lm_filetype_add_extension(filetype_t *ft, const char *name);
 M_CODE  lm_filetype_add_mimetype(filetype_t *ft, const char *name);
 M_CODE  lm_filetype_set_extensions(filetype_t *ft, char **extensions, int num_extensions);
+M_CODE  lm_filetype_set_attributes(filetype_t *ft, char **attributes, int num_attributes);
 M_CODE  lm_filetype_set_mimetypes(filetype_t *ft, char **mimetypes, int num_mimetypes);
 M_CODE  lm_filetype_set_expr(filetype_t *ft, const char *expr);
 void    lm_filetype_clear(filetype_t *ft);

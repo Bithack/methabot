@@ -24,38 +24,14 @@
 
 #include "wfunction.h"
 #include "errors.h"
-
-struct lm_scope_opt {
-    const char       *name;
-    int               type;
-    union {
-        M_CODE     (*set)(void*, const char *);
-        M_CODE     (*array_set)(void*, char **, int);
-        ptrdiff_t    offs;
-        int          flag;
-    } value;
-};
-
-typedef struct lm_scope {
-    const char         *name;
-    struct lm_scope_opt *opts;
-    int           num_opts;
-} lm_scope_t;
-
-enum {
-    LM_VAL_T_UINT,
-    LM_VAL_T_ARRAY,
-    LM_VAL_T_STRING,
-    LM_VAL_T_EXTRA,
-    LM_VAL_T_FLAG,
-};
+#include "lmc.h"
 
 typedef struct lm_mod_properties {
     const char *name;
     const char *version;
-    M_CODE (*init)(struct metha *);
-    M_CODE (*uninit)(struct metha *);
-    M_CODE (*prepare)(struct metha *);
+    M_CODE    (*init)(struct metha *);
+    M_CODE    (*uninit)(struct metha *);
+    M_CODE    (*prepare)(struct metha *);
     int         num_parsers;
     wfunction_t parsers[];
 } lm_mod_properties_t;
@@ -68,6 +44,5 @@ typedef struct lm_mod_properties {
             .name = x, \
             .parser.cb = y \
         }
-#define LM_DEFINE_SCOPE_VAR(x, y, z) {.name = x, .type=y, .value.offs=z}
 
 #endif

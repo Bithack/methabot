@@ -26,8 +26,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 
-#include "../libmetha/conf.h"
-#include "../libmetha/metha.h"
+#include "metha.h"
 #include "config.h"
 #include "methabot.h"
 
@@ -661,7 +660,9 @@ mb_init(void)
             strcpy(mbdir+p_len, "/.methabot");
             if (mkdir(mbdir, S_IRUSR | S_IWUSR | S_IXUSR) != 0) {
                 if (errno != EEXIST)
-                    fprintf(stderr, "mb: warning: could not create %s/ [%d: %s]\n", mbdir, errno, strerror(errno));
+                    fprintf(stderr,
+                            "mb: warning: could not create %s/ [%d: %s]\n",
+                            mbdir, errno, strerror(errno));
             } else {
                 fprintf(stderr, "mb: created %s/ with permissions 700\n", mbdir);
             }
@@ -684,10 +685,15 @@ mb_init(void)
 
                 if (mkdir(home_scripts, S_IRUSR | S_IWUSR | S_IXUSR) != 0) {
                     if (errno != EEXIST)
-                        fprintf(stderr, "mb: warning: could not create %s/ [%d: %s]\n", home_scripts, errno, strerror(errno));
+                        fprintf(stderr,
+                                "mb: warning: could not create %s/ [%d: %s]\n",
+                                home_scripts, errno, strerror(errno));
                 } else {
-                    fprintf(stderr, "mb: created %s/ with permissions 700\n", home_scripts);
-                    fprintf(stderr, "mb: for security reasons, you should not change these permissions\n");
+                    fprintf(stderr, "mb: created %s/ with permissions 700\n",
+                            home_scripts);
+                    fprintf(stderr,
+                            "mb: for security reasons, you should not"
+                            "change these permissions\n");
                 }
             }
         }

@@ -31,6 +31,7 @@
 #include <jsapi.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 static M_CODE lm_prepare_filetypes(metha_t *m);
 static M_CODE lm_prepare_crawlers(metha_t *m);
@@ -87,6 +88,65 @@ m_builtin_parsers[] = {
     },
 };
 
+#define NUM_DIRECTIVES sizeof(directives)/sizeof(struct lmc_directive)
+static const struct lmc_directive directives [] = {
+    {"include",     &lmetha_load_config},
+    {"load_module", &lmetha_load_module},
+};
+
+static struct lmc_class
+filetype_class = 
+{
+    .name           = "filetype",
+    .find_cb        = &lmetha_get_filetype,
+    .zero_cb        = &lm_filetype_clear,
+    .copy_cb        = &lm_filetype_dup,
+    .constructor_cb = &lm_filetype_create,
+    .destructor_cb  = 0,
+    .flags_offs     = offsetof(filetype_t, flags),
+    .opts = {
+        LMC_OPT_ARRAY("extensions", &lm_filetype_set_extensions),
+        LMC_OPT_ARRAY("mimetypes", &lm_filetype_set_mimetypes),
+        LMC_OPT_STRING("parser", offsetof(filetype_t, parser_str)),
+        LMC_OPT_STRING("handler", offsetof(filetype_t, handler.name)),
+        LMC_OPT_EXTRA("expr", &lm_filetype_set_expr),
+        LMC_OPT_STRING("crawler_switch", offsetof(filetype_t, switch_to.name)),
+        LMC_OPT_ARRAY("attributes", &lm_filetype_set_attributes),
+        LMC_OPT_END,
+    }
+};
+
+static struct lmc_class
+crawler_class = 
+{
+    .name           = "crawler",
+    .find_cb        = &lmetha_get_crawler,
+    .zero_cb        = &lm_crawler_clear,
+    .copy_cb        = &lm_crawler_dup,
+    .constructor_cb = &lm_crawler_create,
+    .destructor_cb  = 0,
+    .flags_offs     = offsetof(filetype_t, flags),
+    .opts = {
+        LMC_OPT_ARRAY("filetypes", &lm_crawler_set_filetypes),
+        LMC_OPT_STRING("dynamic_url", offsetof(crawler_t, ftindex.dynamic_url)),
+        LMC_OPT_STRING("extless_url", offsetof(crawler_t, ftindex.extless_url)),
+        LMC_OPT_STRING("unknown_url", offsetof(crawler_t, ftindex.unknown_url)),
+        LMC_OPT_STRING("dir_url", offsetof(crawler_t, ftindex.dir_url)),
+        LMC_OPT_STRING("ftp_dir_url", offsetof(crawler_t, ftindex.ftp_dir_url)),
+        LMC_OPT_FLAG("external", LM_CRFLAG_EXTERNAL),
+        LMC_OPT_UINT("external_peek", offsetof(crawler_t, peek_limit)),
+        LMC_OPT_UINT("depth_limit", offsetof(crawler_t, depth_limit)),
+        LMC_OPT_STRING("initial_filetype", offsetof(crawler_t, initial_filetype.name)),
+        LMC_OPT_STRING("init", offsetof(crawler_t, init)),
+        LMC_OPT_FLAG("spread_workers", LM_CRFLAG_SPREAD_WORKERS),
+        LMC_OPT_FLAG("jail", LM_CRFLAG_JAIL),
+        LMC_OPT_FLAG("robotstxt", LM_CRFLAG_ROBOTSTXT),
+        LMC_OPT_STRING("default_handler", offsetof(crawler_t, default_handler.name)),
+        LMC_OPT_END,
+    }
+};
+
+
 /** 
  * LMOPTs are defined in metha.h
  **/
@@ -127,7 +187,10 @@ lmetha_setopt(metha_t *m, LMOPT opt, ...)
                 break;
             m->builtin_parsers = 1;
             for (x=0; x<LM_NUM_BUILTIN_PARSERS; x++)
-                lmetha_add_wfunction(m, m_builtin_parsers[x].name, m_builtin_parsers[x].type, LM_WFUNCTION_PURPOSE_PARSER, m_builtin_parsers[x].fn.native_parser);
+                lmetha_add_wfunction(m, m_builtin_parsers[x].name,
+                                     m_builtin_parsers[x].type,
+                                     LM_WFUNCTION_PURPOSE_PARSER,
+                                     m_builtin_parsers[x].fn.native_parser);
             break;
 
         case LMOPT_NUM_THREADS:
@@ -242,6 +305,7 @@ metha_t *
 lmetha_create(void)
 {
     metha_t *m;
+    int      x;
     
     if (!(m = calloc(1, sizeof(metha_t))))
         return 0;
@@ -294,6 +358,26 @@ lmetha_create(void)
 
     m->w_num_waiting = 0;
 
+    /** 
+     * Create the configuration file loader,
+     * attach 'm' as its root object, where all
+     * other objects will be added.
+     **/
+    if (!(m->lmc = lmc_create(m))) {
+        lmetha_destroy(m);
+        return 0;
+    }
+
+    /** 
+     * The created lmc parser will be empty of classes
+     * and directives, so we must load it with our own.
+     **/
+    lmc_add_class(m->lmc, &filetype_class);
+    lmc_add_class(m->lmc, &crawler_class);
+
+    for (x=0; x<NUM_DIRECTIVES; x++)
+        lmc_add_directive(m->lmc, &directives[x]);
+
     return m;
 }
 
@@ -313,6 +397,9 @@ lmetha_destroy(metha_t *m)
         if (pool->o)
             free(pool->o);
     }
+
+    if (m->lmc)
+        lmc_destroy(m->lmc);
 
     if (m->num_filetypes) {
         for (x=0; x<m->num_filetypes; x++)
@@ -1080,7 +1167,8 @@ lm_str_to_wfunction(metha_t *m, const char *name, uint8_t purpose)
                     JS_GetProperty(m->e4x_cx, m->e4x_global, s+1, &func);
                     if (JS_TypeOfValue(m->e4x_cx, func) == JSTYPE_FUNCTION) {
                         *s = '/';
-                        if (lmetha_add_wfunction(m, p, LM_WFUNCTION_TYPE_JAVASCRIPT, purpose, JS_ValueToFunction(m->e4x_cx, func)) != M_OK)
+                        if (lmetha_add_wfunction(m, p, LM_WFUNCTION_TYPE_JAVASCRIPT,
+                                    purpose, JS_ValueToFunction(m->e4x_cx, func)) != M_OK)
                             return 0;
 
                         return m->functions[m->num_functions-1];
@@ -1170,6 +1258,66 @@ lmetha_add_wfunction(metha_t *m, const char *name, uint8_t type, uint8_t purpose
 #endif
 
     return M_OK;
+}
+
+/* TODO: don't restrict the path length to 256 chars */
+#define MAX_PATH_LEN 256
+/** 
+ * Load the given configuration file.
+ **/
+M_CODE
+lmetha_load_config(metha_t *m, const char *file)
+{
+    char *full = 0;
+    char *name = 0;
+    char path[MAX_PATH_LEN];
+    char *s;
+    int   x;
+    M_CODE r;
+
+    if (*file != '/') {
+        snprintf(path, MAX_PATH_LEN,
+                "%s/%s", m->conf_dir1, file);
+        if (access(path, R_OK) == -1) {
+            snprintf(path, MAX_PATH_LEN, "%s/%s",
+                    m->conf_dir2, file);
+            if (access(path, R_OK) == -1)
+                return M_COULD_NOT_OPEN;
+        }
+        full = path;
+    } else {
+        full = file;
+        if (access(file, R_OK) == -1)
+            return M_COULD_NOT_OPEN;
+    }
+    name = ((s = strrchr(full, '/')) ? s : full);
+    /** 
+     * Make sure we havent already loaded a configuration file 
+     * with this name.
+     **/
+    for (x=0; x<m->num_configs; x++)
+        if (strcmp(m->configs[x], name) == 0)
+            /* this configuration file has already been loaded */
+            return M_OK;
+
+    if (!(m->configs = realloc(m->configs, (m->num_configs+1)*sizeof(char*))))
+        return M_OUT_OF_MEM;
+
+    m->configs[m->num_configs] = strdup(name);
+    m->num_configs ++;
+
+#ifdef DEBUG
+    fprintf(stderr, "* metha:(%p) loading config '%s'\n", m, full);
+#endif
+
+    if ((r = lmc_parse_file(m->lmc, full)) != M_OK) {
+        if (m->lmc->last_error)
+            LM_ERROR(m, "%s", m->lmc->last_error);
+        else
+            LM_ERROR(m, "could not load '%s'\n", name);
+    }
+
+    return r;
 }
 
 /** 

@@ -35,6 +35,7 @@
 #include "wfunction.h"
 #include "events.h"
 #include "lmopt.h"
+#include "lmc.h"
 
 enum {
     LM_SIGNAL_EXIT,
@@ -65,8 +66,11 @@ struct script_desc {
 };
 
 typedef struct metha {
-    io_t        io;
-    ue_t        ue;
+    io_t          io;
+    ue_t          ue;
+
+    /* configuration file parser from libmethaconfig */
+    lmc_parser_t *lmc;
 
     /** 
      * The event loop and its events
@@ -154,13 +158,14 @@ M_CODE   lmetha_exec_provided(metha_t *m, const char *base_url, const char *buf,
 M_CODE   lmetha_setopt(metha_t *m, LMOPT opt, ...);
 M_CODE   lmetha_add_wfunction(metha_t *m, const char *name, uint8_t type, uint8_t purpose, void *fun);
 M_CODE   lmetha_add_filetype(metha_t *m, filetype_t *ft);
-filetype_t* lmetha_get_filetype(metha_t *m, const char *name);
-crawler_t*  lmetha_get_crawler(metha_t *m, const char *name);
 M_CODE   lmetha_register_worker_object(metha_t *m, const char *name, JSClass *class);
 M_CODE   lmetha_init_jsclass(metha_t *m, JSClass *class, JSNative constructor, uintN nargs, JSPropertySpec *ps, JSFunctionSpec *fs, JSPropertySpec *static_ps, JSFunctionSpec *static_fs);
 M_CODE   lmetha_signal(metha_t *m, int sig);
 M_CODE   lmetha_start(metha_t *m);
 M_CODE   lmetha_wakeup_worker(metha_t *m, const char *crawler, const char *url);
+M_CODE   lmetha_load_config(metha_t *m, const char *file);
+filetype_t* lmetha_get_filetype(metha_t *m, const char *name);
+crawler_t*  lmetha_get_crawler(metha_t *m, const char *name);
 
 /* io.c */
 M_CODE lm_iothr_launch(io_t *io);

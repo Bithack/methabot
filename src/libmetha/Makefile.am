@@ -3,6 +3,7 @@ lib_LTLIBRARIES = \
 	libmetha.la
 
 libmetha_la_LDFLAGS = -version-info 0:0:0
+libmetha_la_LIBADD = ../libmethaconfig/libmethaconfig.la
 
 EXTRA_DIST = \
 	libev/ev.c \
@@ -40,8 +41,6 @@ libmetha_la_SOURCES = \
 	str.c       \
 	mod.c       \
 	filter.c    \
-	conf.c      \
-	conf.h      \
 	mod.h       \
 	str.h       \
 	events.h    \
@@ -72,4 +71,4 @@ include_HEADERS = \
 	wfunction.h    \
 	../config.h
 
-AM_CFLAGS = -Wall
+AM_CFLAGS = -Wall -I../libmethaconfig/

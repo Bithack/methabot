@@ -12,7 +12,7 @@ mb_SOURCES = \
 AM_CFLAGS = -DMETHA_CONFIG_DIR=\"$(datadir)/metha\" \
 		    -DMETHA_SCRIPT_DIR=\"$(datadir)/metha/scripts\" \
 		    -DMETHA_MODULE_DIR=\"$(libdir)/metha/modules\" \
-			-Wall
+			-Wall -I../libmethaconfig/ -I../libmetha/
 
 mb_LDADD = ../libmetha/libmetha.la
 

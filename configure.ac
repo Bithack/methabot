@@ -152,6 +152,7 @@ AC_SUBST(SUBDIRS_EXTRA)
 
 AC_OUTPUT([
 src/Makefile
+src/libmethaconfig/Makefile
 src/libmetha/Makefile
 src/methabot/Makefile
 src/metha-config/Makefile

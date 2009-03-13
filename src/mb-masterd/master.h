@@ -9,6 +9,9 @@
 
 #define MBM_DEFAULT_PORT 5304
 
+struct crawler;
+struct filetype;
+
 struct master {
     MYSQL *mysql;
     struct sockaddr_in addr;
@@ -21,6 +24,12 @@ struct master {
 
     struct slave *slaves;
     unsigned num_slaves;
+
+    struct crawler **crawlers;
+    unsigned         num_crawlers;
+
+    struct filetype **filetypes;
+    unsigned         num_filetypes;
 };
 
 extern struct master srv;

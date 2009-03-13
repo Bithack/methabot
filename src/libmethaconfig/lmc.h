@@ -23,6 +23,7 @@
 #define _LMC__H_
 
 #include <stdint.h>
+#include <stdlib.h>
 #include "errors.h"
 
 #define LMC_MAX_ERR_LEN 256

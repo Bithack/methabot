@@ -28,7 +28,7 @@
 
 #include "master.h"
 #include "conn.h"
-#include "../libmetha/metha.h"
+#include "conf.h"
 #include "../libmetha/libev/ev.c"
 
 int mbm_load_config();
@@ -62,12 +62,14 @@ main(int argc, char **argv)
     openlog("mb-masterd", 0, 0);
     syslog(LOG_INFO, "started");
 
-    close(STDIN_FILENO);
+    /*close(STDIN_FILENO);
     close(STDOUT_FILENO);
-    close(STDERR_FILENO);
+    close(STDERR_FILENO);*/
 
-    if (mbm_load_config() != 0)
+    if (mbm_load_config() != 0) {
+        syslog(LOG_ERR, "loading configuration file failed");
         goto error;
+    }
 
     if (srv.config_file) {
         /* load the configuration file */
@@ -137,7 +139,7 @@ mbm_mysql_connect()
     if (!(srv.mysql = mysql_init(0))
             || !(mysql_real_connect(srv.mysql, "localhost",
                             "methanol", "test", "methanol",
-                            0, 0, 0)))
+                            0, "/var/chroot/apache/var/run/mysqld/mysqld.sock", 0)))
         return -1;
 
     return 0;
@@ -195,17 +197,23 @@ mbm_reconfigure()
     char tq[64+64+CREATE_TBL_LEN+DEFAULT_LAYOUT_LEN+1];
     char *name;
     int  len;
+    lmc_parser_t *lmc;
 
-    /** 
-     * Create a fake, empty metha_t object and load the configuration 
-     * file using it, so we can extract the filetypes and crawlers.
-     **/
-    metha_t *m = calloc(1, sizeof(metha_t));
-    lmetha_load_config(m, srv.config_file);
+    /* the lmc parser is created with 0 as root, since
+     * our object-functions will modify the static 'srv'
+     * directly */
+    if (!(lmc = lmc_create(0)))
+        return -1;
 
-    for (n=0; n<m->num_filetypes; n++) {
-        name = m->filetypes[n]->name;
+    lmc_add_class(lmc, &mbm_filetype_class);
+    lmc_add_class(lmc, &mbm_crawler_class);
+    lmc_parse_file(lmc, srv.config_file);
+
+    for (n=0; n<srv.num_filetypes; n++) {
+        name = srv.filetypes[n]->name;
         len = strlen(name);
+
+        printf("configure: %s\n", name);
 
         /** 
          * Make sure the name does not contain any weird
@@ -228,8 +236,8 @@ mbm_reconfigure()
          * fail because the column already exists, but this is expected
          * behaviour.
          **/
-        for (a=0; a<m->filetypes[n]->attr_count; a++) {
-            char *attr = m->filetypes[n]->attributes[a];
+        for (a=0; a<srv.filetypes[n]->num_attributes; a++) {
+            char *attr = srv.filetypes[n]->attributes[a];
             char *type = strchr(attr, ' ');
             int type_n;
 
@@ -338,6 +346,20 @@ mbm_ev_sigint(EV_P_ ev_signal *w, int revents)
 int
 mbm_cleanup()
 {
+    int x;
+
+    if (srv.num_filetypes) {
+        for (x=0; x<srv.num_filetypes; x++)
+            mbm_filetype_destroy(srv.filetypes[x]);
+        free(srv.filetypes);
+    }
+
+    if (srv.num_crawlers) {
+        for (x=0; x<srv.num_crawlers; x++)
+            mbm_crawler_destroy(srv.crawlers[x]);
+        free(srv.crawlers);
+    }
+
     if (srv.config_file)
         free(srv.config_file);
     if (srv.config_sz)

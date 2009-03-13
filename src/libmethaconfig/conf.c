@@ -565,7 +565,7 @@ lmc_parse(lmc_parser_t *lmc,
                         if (!extend) {
                             /* add the object to the root object using its add_cb 
                              * function */
-                            if ((struct lmc_class *)(curr)->add_cb(lmc->root, curr) != M_OK) {
+                            if ((struct lmc_class *)(curr)->add_cb(lmc->root, o) != M_OK) {
                                 /* out of mem? */
                                 abort();
                             }
@@ -656,9 +656,12 @@ lmc_parse(lmc_parser_t *lmc,
 
                         *t = '\0';
                         if (curr_opt->type == LMC_VAL_T_EXTRA) {
-                            curr_opt->value.set(o, p);
-                        } else
-                            *(char**)((char *)o+curr_opt->value.offs) = strdup(p);
+                            if (curr_opt->value.set)
+                                curr_opt->value.set(o, p);
+                        } else {
+                            if (curr_opt->value.offs)
+                                *(char**)((char *)o+curr_opt->value.offs) = strdup(p);
+                        }
 
                         p = t;
                     } else {
@@ -669,7 +672,8 @@ lmc_parse(lmc_parser_t *lmc,
                     }
                 } else if (isdigit(*p)) {
                     if (curr_opt->type == LMC_VAL_T_UINT) {
-                        *(unsigned int*)((char *)o+curr_opt->value.offs) = atoi(p);
+                        if (curr_opt->value.offs)
+                            *(unsigned int*)((char *)o+curr_opt->value.offs) = atoi(p);
                     } else if (curr_opt->type == LMC_VAL_T_FLAG) {
                         if (scope) {
                             set_error(lmc,
@@ -677,7 +681,7 @@ lmc_parse(lmc_parser_t *lmc,
                                     name, sgetline(buf, p));
                             goto error;
                         }
-                        if (atoi(p))
+                        if (atoi(p) && curr->flags_offs)
                             *(uint8_t*)((char *)o+curr->flags_offs) |= (1 << curr_opt->value.flag);
                     } else {
                         set_error(lmc, "<%s:%d>: option '%s' expects a value of type %s",
@@ -695,7 +699,8 @@ lmc_parse(lmc_parser_t *lmc,
                             goto error;
                         }
                         if (strncasecmp(p, "true", 4) == 0) {
-                            *(uint8_t*)((char *)o+curr->flags_offs) |= (1 << curr_opt->value.flag);
+                            if (curr->flags_offs)
+                                *(uint8_t*)((char *)o+curr->flags_offs) |= (1 << curr_opt->value.flag);
                             p+=4;
                         } else if (strncasecmp(p, "false", 5) == 0)
                             p+=5; /* TODO: set flag to 0 */
@@ -732,7 +737,8 @@ lmc_parse(lmc_parser_t *lmc,
                     /* we are done parsing the array, time to send the 
                      * built array to the callback function for this
                      * variable */
-                    curr_opt->value.array_set(o, array, array_sz);
+                    if (curr_opt->value.array_set)
+                        curr_opt->value.array_set(o, array, array_sz);
                     array = 0;
                     array_sz = 0;
                 }
@@ -756,15 +762,16 @@ lmc_parse(lmc_parser_t *lmc,
 
                 *t = '\0';
 
-                /* current value in the array will start at p and reach to t */
-                if (!(array = realloc(array, (array_sz+1)*sizeof(char*))))
-                    return M_OUT_OF_MEM;
-                if (!(array[array_sz] = malloc((t-p)+1)))
-                    return M_OUT_OF_MEM;
+                if (curr_opt->value.array_set) {
+                    /* current value in the array will start at p and reach to t */
+                    if (!(array = realloc(array, (array_sz+1)*sizeof(char*))))
+                        return M_OUT_OF_MEM;
+                    if (!(array[array_sz] = malloc((t-p)+1)))
+                        return M_OUT_OF_MEM;
 
-                memcpy(array[array_sz], p, (t-p)+1);
-
-                array_sz ++;
+                    memcpy(array[array_sz], p, (t-p)+1);
+                    array_sz ++;
+                }
 
                 p = t;
                 state = STATE_ARRAY_PRE_VAL;

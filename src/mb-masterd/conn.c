@@ -205,6 +205,10 @@ mbm_ev_conn_read(EV_P_ ev_io *w, int revents)
                         srv.num_slaves ++;
                         break;
 
+                    case MBM_AUTH_TYPE_STATUS:
+                        send(sock, "100 OK\n", 7, 0);
+                        break;
+
                     default:
                         send(sock, "202 Login type unavailable\n", sizeof("202 Login type unavailable\n")-1, MSG_NOSIGNAL);
                         goto close;

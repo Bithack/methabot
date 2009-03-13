@@ -123,6 +123,11 @@ main(int argc, char **argv)
 static void
 mbc_lm_status_cb(metha_t *m, worker_t *w, url_t *url)
 {
+    char buf[512];
+    /*
+    int  len;
+    len = snprintf(buf, 511, "URL %s\n", url->str);
+    send(mbc.slave_sock, buf, len);*/
     printf("URL: %s\n", url->str);
 }
 

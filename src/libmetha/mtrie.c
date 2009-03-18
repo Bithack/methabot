@@ -66,6 +66,9 @@ typedef struct mtrie_br_pos BRANCH;
 typedef struct mtrie_leaf   LEAF;
 typedef struct mtrie_conn   CONN;
 
+static void br_free(NODE *n);
+static void node_free(NODE *n);
+
 mtrie_t *
 mtrie_create(void)
 {
@@ -80,6 +83,7 @@ mtrie_create(void)
 void
 mtrie_destroy(mtrie_t* p)
 {
+    mtrie_cleanup(p);
     free(p);
 }
 
@@ -160,6 +164,42 @@ add:
     return &p[x].node;
 }
 
+static void
+node_free(NODE *n)
+{
+    if (n->magic & 0x80) {
+        if (n->magic & 0x3f)
+            free(n->next); /* free leaf */
+        else {
+            br_free(&((CONN*)n->next)->node);
+            free(n->next);
+        }
+    } else 
+        br_free(n);
+}
+
+static void
+br_free(NODE *n)
+{
+    int x;
+    int v = n->magic & 0x3f;
+    for (x=0; x<v; x++)
+        node_free(&n->next[x].node);
+    free(n->next);
+}
+
+/**
+ * Clean up the whole table, free all allocated buffers
+ **/
+void
+mtrie_cleanup(mtrie_t *p)
+{
+    NODE *n;
+    
+    n = &p->entry;
+    node_free(n);
+}
+
 /** 
  * Add a URL to the mtrie-object.
  *
@@ -221,74 +261,82 @@ cont:for (;;) {
             for (x=0; x<y; x++) {
                 register uint8_t c1 = MTRIE_OFFS(*(s+x));
                 register uint8_t c2 = (*(s2+x) & 0x3f);
-                if (c1 != c2) {
-                    uint8_t magic;
-                    BRANCH* br = malloc(sizeof(BRANCH)*2);
-                    if (!x) {
-                        /* it was the first char that didnt match */
-                        n->magic = (n->magic & 0x40) + 2;
-                        n->next  = br;
-        /*                x = 1;*/
+                if (c1 == c2)
+                    continue;
+                uint8_t magic;
+                BRANCH* br = malloc(sizeof(BRANCH)*2);
+                if (!x) {
+                    /* it was the first char that didnt match */
+                    n->magic = (n->magic & 0x40) + 2;
+                    n->next  = br;
+    /*                x = 1;*/
+                } else {
+                    CONN *new = (n->next = malloc(sizeof(CONN)+x));
+                    memcpy(new->s, s2, x);
+                    new->sz = x;
+                    new->node.magic = 2;
+                    new->node.next = br;
+                    n->magic = (n->magic & 0x40) | 0x80;
+                }
+                /* split the leaf/conn */
+                if (leaf) {
+                    LEAF *leaf = (LEAF*)next;
+                    _DEBUG("leaf:(%p) split at char '%c', leaf-pos %d",
+                            leaf,
+                            decodetbl[*(s2+x)], x);
+                    if (leaf->sz == 1) {
+                        _DEBUG("leaf:(%p) new size was %d, destroyed",
+                                leaf, -1);
+                        free(leaf);
+                        magic = 0x40;
+                        next = 0;
                     } else {
-                        CONN *new = (n->next = malloc(sizeof(CONN)+x));
-                        memcpy(new->s, s2, x);
-                        new->sz = x;
-                        new->node.magic = 2;
-                        new->node.next = br;
-                        n->magic = (n->magic & 0x40) | 0x80;
-                    }
-                    /* split the leaf/conn */
-                    if (leaf) {
-                        LEAF *leaf = (LEAF*)next;
-                        _DEBUG("leaf:(%p) split at char '%c', leaf-pos %d", leaf, decodetbl[*(s2+x)], x);
-                        if (leaf->sz == 1) {
-                            _DEBUG("leaf:(%p) new size was %d, destroyed", leaf, -1);
+                        magic = (0x81 | (*(s2+x) & 0x40));
+                        /* shrink the leaf... */
+                        _DEBUG("leaf:(%p) new size = %d, old size = %d",
+                                leaf,
+                                leaf->sz-x-1, leaf->sz);
+                        leaf->sz -= x+1;
+                        if (leaf->sz == 0) {
                             free(leaf);
                             magic = 0x40;
                             next = 0;
                         } else {
-                            magic = (0x81 | (*(s2+x) & 0x40));
-                            /* shrink the leaf... */
-                            _DEBUG("leaf:(%p) new size = %d, old size = %d", leaf, leaf->sz-x-1, leaf->sz);
-                            leaf->sz -= x+1;
-                            if (leaf->sz == 0) {
-                                free(leaf);
-                                magic = 0x40;
-                                next = 0;
-                            } else {
-                                memmove(leaf->s, leaf->s+x+1, leaf->sz);
-                                leaf = realloc(leaf, sizeof(LEAF)+leaf->sz);
-                                next = (void*)leaf;
-                            }
+                            memmove(leaf->s, leaf->s+x+1, leaf->sz);
+                            leaf = realloc(leaf, sizeof(LEAF)+leaf->sz);
+                            next = (void*)leaf;
                         }
-                    } else {
-                        magic = (0x80 | (*(s2+x) & 0x40));
-                        /* shrink the conn... */
-                        CONN *conn = (CONN*)next;
-                        conn->sz -= x+1;
-                        memmove(conn->s, conn->s+x+1, conn->sz);
-                        conn = realloc(conn, sizeof(CONN)+conn->sz);
-                        next = (void*)conn;
                     }
-                    /* sort the two nodes */
-                    v = (c1 > c2);
-                    (*(br+v)).c = c1;
-                    (*(br+v)).node.magic = 0;
-                    (*(br+v)).node.next  = 0;
-                    n = &((*(br+v)).node);
-                    (*(br+!v)).c = c2;
-                    (*(br+!v)).node.magic = magic;
-                    (*(br+!v)).node.next  = next;
-                    _DEBUG("branch:(%p) new with [0] = '%c', [1] = '%c'", br, decodetbl[br[0].c], decodetbl[br[1].c]);
-                    s+=x+1;
-                    goto cont;
+                } else {
+                    magic = (0x80 | (*(s2+x) & 0x40));
+                    /* shrink the conn... */
+                    CONN *conn = (CONN*)next;
+                    conn->sz -= x+1;
+                    memmove(conn->s, conn->s+x+1, conn->sz);
+                    conn = realloc(conn, sizeof(CONN)+conn->sz);
+                    next = (void*)conn;
                 }
+                /* sort the two nodes */
+                v = (c1 > c2);
+                (*(br+v)).c = c1;
+                (*(br+v)).node.magic = 0;
+                (*(br+v)).node.next  = 0;
+                n = &((*(br+v)).node);
+                (*(br+!v)).c = c2;
+                (*(br+!v)).node.magic = magic;
+                (*(br+!v)).node.next  = next;
+                _DEBUG("branch:(%p) new with [0] = '%c', [1] = '%c'",
+                        br, decodetbl[br[0].c], decodetbl[br[1].c]);
+                s+=x+1;
+                goto cont;
             }
             if (leaf) {
                 if (e-s > sz) {
                     /* expand leaf */
                     LEAF *leaf = n->next;
-                    _DEBUG("leaf:(%p) expanding to size: %d, with, '%s', new address:", leaf, e-s, s);
+                    _DEBUG("leaf:(%p) expanding to size: "
+                            "%d, with, '%s', new address:",
+                            leaf, e-s, s);
                     leaf = realloc(leaf, sizeof(leaf)+(e-s));
                     _DEBUG("-- %p", leaf);
                     leaf->sz = y = e-s;

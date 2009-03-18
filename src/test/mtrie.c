@@ -1,6 +1,6 @@
 
-#include "../src/libmetha/mtrie.h"
-#include "../src/libmetha/url.h"
+#include "../libmetha/mtrie.h"
+#include "../libmetha/url.h"
 #include <stdio.h>
 
 const char *list[] = {

@@ -60,6 +60,7 @@ typedef struct mtrie {
 
 mtrie_t* mtrie_create(void);
 void   mtrie_destroy(mtrie_t *p);
+void   mtrie_cleanup(mtrie_t *p);
 int    mtrie_tryadd(mtrie_t *p, url_t *url);
 
 #endif

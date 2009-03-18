@@ -157,6 +157,7 @@ main(int argc, char **argv)
 
     if (argc < 2) {
         fprintf(stderr, "mb: nothing to do, try `mb --help' for more information\n");
+        mb_uninit();
         return 0;
     } else if (strncmp(argv[1], "--", 2) == 0) {
         do {
@@ -401,6 +402,7 @@ main(int argc, char **argv)
         goto error;
 
     lmetha_destroy(m);
+    mb_uninit();
     return 0;
 
 error:
@@ -639,11 +641,11 @@ mb_init(void)
 
     if (p = getenv("MB_SCRIPT_PATH")) {
         home_scripts_sz = strlen(p);
-        home_scripts = p;
+        home_scripts = strdup(p);
     }
     if (p = getenv("MB_CONF_PATH")) {
         home_conf_sz = strlen(p);
-        home_conf = p;
+        home_conf = strdup(p);
     }
 
     if (!home_conf_sz || !home_scripts_sz) {
@@ -774,6 +776,10 @@ mb_uninit(void)
 {
     if (home_conf)
         free(home_conf);
+    if (home_scripts)
+        free(home_scripts);
+    if (install_scripts)
+        free(install_scripts);
     if (install_conf)
         free(install_conf);
 }

@@ -555,6 +555,7 @@ static void
 ue_hostent_free(struct host_ent *p)
 {
     pthread_mutex_destroy(&p->lock);
+    mtrie_cleanup(&p->cache);
     free(p->str);
     free(p);
 }

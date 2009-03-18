@@ -98,6 +98,7 @@ static struct lmc_class
 filetype_class = 
 {
     .name           = "filetype",
+    .add_cb         = &lmetha_add_filetype,
     .find_cb        = &lmetha_get_filetype,
     .zero_cb        = &lm_filetype_clear,
     .copy_cb        = &lm_filetype_dup,
@@ -120,6 +121,7 @@ static struct lmc_class
 crawler_class = 
 {
     .name           = "crawler",
+    .add_cb         = &lmetha_add_crawler,
     .find_cb        = &lmetha_get_crawler,
     .zero_cb        = &lm_crawler_clear,
     .copy_cb        = &lm_crawler_dup,
@@ -1216,6 +1218,27 @@ lmetha_add_filetype(metha_t *m, filetype_t *ft)
 
     m->filetypes[m->num_filetypes] = ft;
     m->num_filetypes ++;
+    
+    return M_OK;
+}
+
+/** 
+ * Add a crawler to the metha_t objects list. The metha_t object
+ * will be responsible for freeing the crawler.
+ **/
+M_CODE
+lmetha_add_crawler(metha_t *m, crawler_t *cr)
+{
+    if (m->num_crawlers) {
+        if (!(m->crawlers = realloc(m->crawlers, (m->num_crawlers+1)*sizeof(crawler_t*))))
+            return M_OUT_OF_MEM;
+    } else {
+        if (!(m->crawlers = malloc(sizeof(void*))))
+            return M_OUT_OF_MEM;
+    }
+
+    m->crawlers[m->num_crawlers] = cr;
+    m->num_crawlers ++;
     
     return M_OK;
 }

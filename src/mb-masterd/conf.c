@@ -22,6 +22,8 @@
 #include "lmc.h"
 #include "conf.h"
 
+#include <string.h>
+
 static struct filetype *filetype_create(const char *name, uint32_t name_len);
 static struct filetype *filetype_find(void *unused, const char *name);
 static M_CODE filetype_add(void *unused, struct filetype *ft);
@@ -106,7 +108,6 @@ mbm_crawler_class =
 static M_CODE
 filetype_add(void *unused, struct filetype *ft)
 {
-    printf("add filetype %p:%s\n", ft, ft->name);
     if (!srv.num_filetypes)
         srv.filetypes = malloc(sizeof(void*));
     else
@@ -133,7 +134,6 @@ filetype_create(const char *name, uint32_t name_len)
         free(r);
         return 0;
     }
-    printf("create filetype %p:%s:%d\n", r, name, name_len);
 
     memcpy(r->name, name, name_len);
     r->name[name_len] = '\0';

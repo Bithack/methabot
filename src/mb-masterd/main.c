@@ -36,6 +36,7 @@ int mbm_main();
 int mbm_cleanup();
 static void mbm_ev_sigint(EV_P_ ev_signal *w, int revents);
 
+static const char *_cfg_file;
 struct master srv;
 
 int
@@ -58,6 +59,11 @@ main(int argc, char **argv)
     if (sid < 0)
         exit(EXIT_FAILURE);
         */
+
+    if (argc > 1)
+        _cfg_file = argv[1];
+    else
+        _cfg_file = "/etc/mb-masterd.conf";
 
     openlog("mb-masterd", 0, 0);
     syslog(LOG_INFO, "started");
@@ -139,7 +145,7 @@ mbm_mysql_connect()
     if (!(srv.mysql = mysql_init(0))
             || !(mysql_real_connect(srv.mysql, "localhost",
                             "methanol", "test", "methanol",
-                            0, "/var/chroot/apache/var/run/mysqld/mysqld.sock", 0)))
+                            0, "/var/run/mysqld/mysqld.sock", 0)))
         return -1;
 
     return 0;
@@ -212,8 +218,6 @@ mbm_reconfigure()
     for (n=0; n<srv.num_filetypes; n++) {
         name = srv.filetypes[n]->name;
         len = strlen(name);
-
-        printf("configure: %s\n", name);
 
         /** 
          * Make sure the name does not contain any weird
@@ -375,7 +379,9 @@ mbm_load_config()
     char *s;
     int len;
 
-    if (!(fp = fopen("mb-masterd.conf", "r"))) {
+    syslog(LOG_INFO, "loading '%s'", _cfg_file);
+
+    if (!(fp = fopen(_cfg_file, "r"))) {
         syslog(LOG_ERR, "could not open configuration file");
         return 1;
     }

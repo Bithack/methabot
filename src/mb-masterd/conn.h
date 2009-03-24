@@ -27,26 +27,26 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-enum {
-    CONN_ACTION_NONE,
-    CONN_ACTION_SEND_CONFIG,
-};
-
-enum {
-    WAIT_NONE,
-    WAIT_TOKEN,
-};
-
 struct conn;
 
-struct slave {
-    int state;
-    struct conn *conn;
+enum {
+    SL_STATE_NONE,
+    SL_STATE_RECV_TOKEN,
+    SL_STATE_RECV_STATUS,
+};
 
-    int wait;
+struct client {
+    char token[40];
+    int  state;
+};
+
+struct slave {
+    struct conn   *conn;
+    struct client *clients;
+    int            num_clients;
     /* client conn will be set if we are waiting for
      * a TOKEN for the given client */
-    struct conn *client_conn;
+    struct conn   *client_conn;
 };
 
 struct conn {
@@ -64,12 +64,13 @@ struct conn {
 enum {
     MBM_AUTH_TYPE_CLIENT = 0,
     MBM_AUTH_TYPE_SLAVE,
-    MBM_AUTH_TYPE_STATUS,
-    MBM_AUTH_TYPE_OPERATOR,
+    MBM_AUTH_TYPE_USER,
 
     NUM_AUTH_TYPES,
 };
 
 void mbm_ev_conn_accept(EV_P_ ev_io *w, int revents);
+void mbm_conn_close(struct conn *conn);
+int  mbm_getline(int fd, char *buf, int max);
 
 #endif

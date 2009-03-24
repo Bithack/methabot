@@ -39,30 +39,20 @@ mbs_client_create(const char *addr)
     time_t now;
     int a, x;
     char *p;
+    char q[512];
 
     if ((cl = malloc(sizeof(struct client)))) {
-        now = time(0);
-        a   = strlen(addr);
-        p   = cl->token;
-
-        for (x=0;x<18;) {
-            if (x%5 == 4) {
-                *(p+x) = '-';
-                x++;
-            } else {
-                srand((long)(time(0)+(&addr)+x));
-                char c = (((*(addr+7+(x%a))) << rand()%8) ^ now ^ (long)&addr) >> rand()%8;
-                *(p+x) = ((c >> 4) & 15) + 'a';
-                *(p+x+1) = ((c & 0x0F) & 15) + 'a' + rand()%8;
-                x += 2;
-            }
-        }
-
         if ((cl->addr.s_addr = inet_addr(addr)) == (in_addr_t)-1) {
             syslog(LOG_ERR, "invalid address");
             free(cl);
             return 0;
         }
+        memcpy(cl->token, "d0be2dc421be4fcd0172e5afceea3970e2f3d940", 40);
+
+        /*
+        qlen = sprintf(q, "SELECT CONCAT(CONCAT(CONCAT('%s', NOW()), RAND()), RAND())", addr);
+        if (mysql_real_query(srv.mysql, q, qlen) == 0)
+        */
     }
 
     return cl;
@@ -113,6 +103,7 @@ mbs_client_init(void *in)
             send(sock, "100 OK\n", 7, 0);
             
             /* enter main loop */
+            ev_async_send(EV_DEFAULT_ &srv.client_status);
 
             mbs_client_free(this);
         } else

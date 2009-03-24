@@ -1,6 +1,6 @@
 /*-
- * client.h
- * This file is part of mb-slaved
+ * nolp.h
+ * This file is part of mb-masterd
  *
  * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
  *
@@ -19,21 +19,36 @@
  * http://bithack.se/projects/methabot/
  */
 
-#ifndef _CLIENT__H_
-#define _CLIENT__H_
+#ifndef _NOLP__H_
+#define _NOLP__H_
 
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#define NOLP_DEFAULT_BUFSZ 256
 
-#define TOKEN_SIZE 40
-
-struct client {
-    char               token[TOKEN_SIZE];
-    struct in_addr     addr;
+enum {
+    NOLP_CMD,
+    NOLP_EXPECT,
+    NOLP_LINE,
 };
 
-void *mbs_client_init(void *in);
-struct client *mbs_client_create(const char *addr);
-void mbs_client_free(struct client *cl);
+struct nolp_fn {
+    const char *name;
+    int (*cb)(void*, char *buf, int size);
+};
+
+typedef struct nolp {
+    char *buf;
+    int   state;
+    int   sz;
+    int   cap;
+    int   fd;
+    void *private;
+    int (*next_cb)(void*, char *buf, int size);
+    struct nolp_fn *fn;
+} nolp_t;
+
+int     nolp_expect(nolp_t *no, int size, int (*complete_cb)(void*, char *, int));
+void    nolp_free(nolp_t *no);
+nolp_t* nolp_create(struct nolp_fn *fn, int sock);
+int     nolp_recv(nolp_t *no);
 
 #endif

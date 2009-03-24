@@ -39,6 +39,7 @@ static int mbs_master_connect();
 static void mbs_ev_master(EV_P_ ev_io *w, int revents);
 static void mbs_ev_conn_accept(EV_P_ ev_io *w, int revents);
 static void mbs_ev_master_timer(EV_P_ ev_io *w, int revents);
+static void mbs_ev_client_status(EV_P_ ev_async *w, int revents);
 
 struct slave srv = {
 };
@@ -110,11 +111,13 @@ int mbs_main()
     ev_signal_init(&sigint_listen, &mbs_ev_sigint, SIGINT);
     ev_io_init(&io_listen, &mbs_ev_conn_accept, sock, EV_READ);
     ev_io_init(&srv.master_io, &mbs_ev_master, srv.master_sock, EV_READ);
+    ev_async_init(&srv.client_status, &mbs_ev_client_status);
 
     /* catch SIGINT so we can close connections and clean up properly */
     ev_signal_start(loop, &sigint_listen);
     ev_io_start(loop, &io_listen);
     ev_io_start(loop, &srv.master_io);
+    ev_async_start(loop, &srv.client_status);
 
     /** 
      * This loop will listen for new connections and data from
@@ -126,6 +129,18 @@ int mbs_main()
     ev_default_destroy();
 
     return 0;
+}
+
+/** 
+ * A client connected, disconnected or changed status. 
+ * Notify the master server about this change.
+ **/
+static void
+mbs_ev_client_status(EV_P_ ev_async *w,
+                     int revents)
+{
+    send(srv.master_io.fd, "STATUS 43\n", 43, 0);
+    send(srv.master_io.fd, "d0be2dc421be4fcd0172e5afceea3970e2f3d940,1\n", 43, 0);
 }
 
 /** 
@@ -202,15 +217,15 @@ sock_getline(int fd, char *buf, int max)
 static void
 mbs_ev_master(EV_P_ ev_io *w, int revents)
 {
-/*    if (revents | EV_ERROR) {
-        ev_io_stop(EV_A_ w);
-        ev_timer_init(&srv.master_timer, &mbs_ev_master_timer, 20.0f, 0.f);
-        ev_timer_start(EV_A_ &srv.master_timer);
-    }*/
 
     char buf[256];
     char *e, *p;
     int sz;
+
+    if (revents & EV_ERROR) {
+        close(w->fd);
+        goto closed;
+    }
 
     switch (srv.mstate) {
         case SLAVE_MSTATE_RECV_CONF:
@@ -247,7 +262,8 @@ mbs_ev_master(EV_P_ ev_io *w, int revents)
                     ok = 1;
 
                     /* add this client to the pending list */
-                    if (!(srv.pending = realloc(srv.pending, (srv.num_pending+1)*sizeof(struct client*)))) {
+                    if (!(srv.pending = realloc(srv.pending,
+                                    (srv.num_pending+1)*sizeof(struct client*)))) {
                         syslog(LOG_ERR, "out of mem");
                         abort();
                     }
@@ -261,7 +277,7 @@ mbs_ev_master(EV_P_ ev_io *w, int revents)
                     send(w->fd, "400\n", 3, 0);
                     mbs_client_free(cl);
                 } else {
-                    sz = sprintf(out, "100 %19s\n", cl->token);
+                    sz = sprintf(out, "100 %40s\n", cl->token);
                     send(w->fd, out, sz, 0);
                 }
             } else
@@ -272,6 +288,10 @@ mbs_ev_master(EV_P_ ev_io *w, int revents)
     return;
 
 closed:
+/*
+        ev_io_stop(EV_A_ w);
+        ev_timer_init(&srv.master_timer, &mbs_ev_master_timer, 20.0f, 0.f);
+        ev_timer_start(EV_A_ &srv.master_timer);*/
     syslog(LOG_WARNING, "master has gone away");
     ev_io_stop(EV_A_ w);
     return;
@@ -336,7 +356,7 @@ mbs_master_login()
     if (send(srv.master_sock, str, len, MSG_NOSIGNAL) == -1)
         return 1;
     if ((len = sock_getline(srv.master_sock, str, 127)) > 0
-            && atoi(str) == 101) {
+            && atoi(str) == 100) {
         syslog(LOG_INFO, "logged in to master");
         return 0;
     } else
@@ -362,7 +382,7 @@ mbs_load_config()
     char *s;
     int len;
 
-    if (!(fp = fopen("mb-slaved.conf", "r"))) {
+    if (!(fp = fopen("/etc/mb-slaved.conf", "r"))) {
         syslog(LOG_ERR, "could not open configuration file");
         return 1;
     }

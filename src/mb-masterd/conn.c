@@ -21,6 +21,7 @@
 
 #include "conn.h"
 #include "master.h"
+#include "nolp.h"
 
 #include <syslog.h>
 #include <string.h>
@@ -28,16 +29,21 @@
 #include <stdio.h>
 #include <errno.h>
 
+extern struct nolp_fn slave_commands[];
+
 const char *auth_types[] = {
     "client",
     "slave",
-    "status",
-    "operator",
+    "user",
 };
 
-static void mbm_ev_conn_read(EV_P_ ev_io *w, int revents);
-static void mbm_conn_close(struct conn *conn);
-static int sock_getline(int fd, char *buf, int max);
+static void slave_read(EV_P_ ev_io *w, int revents);
+static int mbm_token_reply(nolp_t *no, char *buf, int size);
+/* user.c */
+void mbm_user_read(EV_P_ ev_io *w, int revents);
+
+static void conn_read(EV_P_ ev_io *w, int revents);
+static int upgrade_conn(struct conn *conn);
 
 /** 
  * Accept a connection and set up a conn struct
@@ -73,14 +79,14 @@ mbm_ev_conn_accept(EV_P_ ev_io *w, int revents)
     c->authenticated = 0;
 
     /* add an event listenr for this sock */
-    ev_io_init(&c->fd_ev, &mbm_ev_conn_read, sock, EV_READ);
+    ev_io_init(&c->fd_ev, &conn_read, sock, EV_READ);
     ev_io_start(EV_A_ &c->fd_ev);
 
     c->fd_ev.data = c;
 }
 
-static int
-sock_getline(int fd, char *buf, int max)
+int
+mbm_getline(int fd, char *buf, int max)
 {
     int sz;
     char *nl;
@@ -95,8 +101,24 @@ sock_getline(int fd, char *buf, int max)
     return sz;
 }
 
+/** 
+ * Called when data is available on a socket 
+ * connected to a slave.
+ **/
 static void
-mbm_ev_conn_read(EV_P_ ev_io *w, int revents)
+slave_read(EV_P_ ev_io *w, int revents)
+{
+    nolp_t *no = (nolp_t *)w->data;
+
+    if (nolp_recv(no) != 0) {
+        ev_io_stop(EV_A_ w);
+        mbm_conn_close(no->private);
+        /* TODO: free slave */
+    }
+}
+
+static void
+conn_read(EV_P_ ev_io *w, int revents)
 {
     int sock = w->fd;
     char buf[256];
@@ -109,119 +131,47 @@ mbm_ev_conn_read(EV_P_ ev_io *w, int revents)
     struct conn* conn = w->data;
     struct slave *sl;
 
-    if ((sz = sock_getline(sock, buf, 255)) <= 0)
+    if ((sz = mbm_getline(sock, buf, 255)) <= 0)
         goto close;
 
     buf[sz] = '\0';
     char *p = buf;
 
     if (conn->authenticated) {
-        switch (conn->auth) {
-            case MBM_AUTH_TYPE_SLAVE:
-                sl = &srv.slaves[conn->slave_n];
-                switch (sl->wait) {
-                    case WAIT_NONE:
-                        /* receive commands, such as STATUS here */
-                        break;
-                    case WAIT_TOKEN:
-                        if ((x = atoi(p)) == 100) {
-                            /* ok we have a token */
-                            
-                            char *token = malloc(20);
-                            if (!token) {
-                                syslog(LOG_ERR, "out of mem");
-                                abort();
-                            }
-                            strncpy(token, buf+4, 19);
-                            sz = sprintf(buf, "TOKEN %s-%s:%hd\n", token,
-                                    inet_ntoa(conn->addr.sin_addr),
-                                    5305);
-                            struct conn *client = sl->client_conn;
-                            send(client->sock, buf, sz, 0);
-                            free(token);
-
-                            ev_io_stop(EV_A_ &client->fd_ev);
-                            mbm_conn_close(client);
-                        }
-                        break;
-
-                }
-                sl->wait = WAIT_NONE;
-                break;
-            case MBM_AUTH_TYPE_STATUS:
-            case MBM_AUTH_TYPE_OPERATOR:
-                break;
-            default:
-                goto invalid;
-        }
+        /* user & slave connections will change event callback
+         * to the ones found in slave.c and user.c */
+        goto close;
     } else {
-        if (memcmp(buf, "AUTH", 4) == 0) {
-            sscanf(p+4, "%15s %15s %15s", type, user, pwd);
-
-            /* verify the auth type */
-            int auth_found = 0;
-            for (x=0; x<NUM_AUTH_TYPES; x++) {
-                if (strcmp(type, auth_types[x]) == 0) {
-                    conn->auth = x;
-                    auth_found = 1;
-                    break;
-                }
+        if (memcmp(buf, "AUTH", 4) != 0)
+            goto denied;
+        sscanf(p+4, "%15s %15s %15s", type, user, pwd);
+        /* verify the auth type */
+        int auth_found = 0;
+        for (x=0; x<NUM_AUTH_TYPES; x++) {
+            if (strcmp(type, auth_types[x]) == 0) {
+                conn->auth = x;
+                auth_found = 1;
+                break;
             }
-            
-            if (auth_found) {
-                /* first argument is the type, this can be client, slave, status or operator */
-                syslog(LOG_INFO, "AUTH type=%s,user=%s OK from #%d", type, user, sock);
-                conn->authenticated = 1;
+        }
+        
+        if (!auth_found)
+            goto denied;
 
-                switch (conn->auth) {
-                    case MBM_AUTH_TYPE_CLIENT:
-                        send(sock, "101 OK\n", 7, MSG_NOSIGNAL);
+        /* first argument is the type, this can be client, slave, status or operator */
+        syslog(LOG_INFO, "AUTH type=%s,user=%s OK from #%d", type, user, sock);
+        conn->authenticated = 1;
 
-                        /* give this client to a slave */
-                        if (!srv.num_slaves) {
-                            /* add to pending list */
-                        } else {
-                            sz = sprintf(buf, "CLIENT %s\n", inet_ntoa(conn->addr.sin_addr));
-                            send(srv.slaves[0].conn->sock, buf, sz, 0);
-                            srv.slaves[0].wait = WAIT_TOKEN;
-                            srv.slaves[0].client_conn = conn;
-                        }
-                        break;
+        send(sock, "100 OK\n", 7, 0);
 
-                    case MBM_AUTH_TYPE_SLAVE:
-                        send(sock, "101 OK\n", 7, MSG_NOSIGNAL);
-                        sprintf(buf, "CONFIG %d\n", srv.config_sz);
-                        send(sock, buf, strlen(buf), MSG_NOSIGNAL);
-                        send(sock, srv.config_buf, srv.config_sz, MSG_NOSIGNAL);
-
-                        /* Add this slave to the list of slaves */
-                        if (!(srv.slaves = realloc(srv.slaves, (srv.num_slaves+1)*sizeof(struct slave)))) {
-                            syslog(LOG_ERR, "out of mem");
-                            abort();
-                        }
-                        srv.slaves[srv.num_slaves].state = 0;
-                        srv.slaves[srv.num_slaves].conn = conn;
-                        conn->slave_n = srv.num_slaves;
-                        srv.num_slaves ++;
-                        break;
-
-                    case MBM_AUTH_TYPE_STATUS:
-                        send(sock, "100 OK\n", 7, 0);
-                        break;
-
-                    default:
-                        send(sock, "202 Login type unavailable\n", sizeof("202 Login type unavailable\n")-1, MSG_NOSIGNAL);
-                        goto close;
-                };
-            } else {
-                send(sock, "200 DENIED\n", 11, MSG_NOSIGNAL);
-                goto close;
-            }
-        } else
-            goto invalid;
+        if (upgrade_conn(conn) != 0)
+            goto close;
     }
     return;
 
+
+denied:
+    send(sock, "200 DENIED\n", 11, MSG_NOSIGNAL);
 close:
     ev_io_stop(EV_A_ &conn->fd_ev);
     mbm_conn_close(conn);
@@ -233,7 +183,72 @@ invalid:
     close(sock);
 }
 
-static void
+/** 
+ * upgrade the connection depending on what value
+ * conn->auth is set to. Change the event loop
+ * callback function and create a slave structure
+ * if the conn is a slave
+ *
+ * return 0 unless an error occurs
+ **/
+static int
+upgrade_conn(struct conn *conn)
+{
+    int  sock = conn->sock;
+    int  sz;
+    char buf[32];
+
+    switch (conn->auth) {
+        case MBM_AUTH_TYPE_CLIENT:
+
+            /* give this client to a slave */
+            if (!srv.num_slaves) {
+                /* add to pending list */
+                return 1;
+            } else {
+                sz = sprintf(buf, "CLIENT %s\n", inet_ntoa(conn->addr.sin_addr));
+                send(srv.slaves[0].conn->sock, buf, sz, 0);
+                srv.slaves[0].client_conn = conn;
+                nolp_expect_line((nolp_t *)(srv.slaves[0].conn->fd_ev.data),
+                        &mbm_token_reply);
+            }
+            break;
+
+        case MBM_AUTH_TYPE_SLAVE:
+            sprintf(buf, "CONFIG %d\n", srv.config_sz);
+            send(sock, buf, strlen(buf), MSG_NOSIGNAL);
+            send(sock, srv.config_buf, srv.config_sz, MSG_NOSIGNAL);
+
+            /* Add this slave to the list of slaves */
+            if (!(srv.slaves = realloc(srv.slaves, (srv.num_slaves+1)*sizeof(struct slave)))) {
+                syslog(LOG_ERR, "out of mem");
+                abort();
+            }
+
+            srv.slaves[srv.num_slaves].num_clients = 0;
+            srv.slaves[srv.num_slaves].clients = 0;
+            srv.slaves[srv.num_slaves].conn = conn;
+            conn->slave_n = srv.num_slaves;
+            srv.num_slaves ++;
+            ev_set_cb(&conn->fd_ev, &slave_read);
+
+            nolp_t *no = nolp_create(slave_commands, sock);
+            no->private = conn;
+            conn->fd_ev.data = no;
+            break;
+
+        case MBM_AUTH_TYPE_USER:
+            ev_set_cb(&conn->fd_ev, &mbm_user_read);
+            break;
+
+        default:
+            return 1;
+    }
+
+    return 0;
+}
+
+void
 mbm_conn_close(struct conn *conn)
 {
     int x;
@@ -249,5 +264,34 @@ mbm_conn_close(struct conn *conn)
     }
 
     srv.num_conns --;
+}
+
+
+/** 
+ * return 0 if the token was read and sent to the 
+ * corresponding client successfully
+ **/
+static int
+mbm_token_reply(nolp_t *no, char *buf, int size)
+{
+    int           sz;
+    char          out[70];
+    struct conn  *client;
+    struct conn  *conn = (struct conn*)no->private;
+    struct slave *sl = &srv.slaves[conn->slave_n];
+    client = sl->client_conn;
+
+    if (atoi(buf) != 100)
+        return -1;
+    sz = sprintf(out, "TOKEN %.40s-%s:%hd\n", buf+4,
+            inet_ntoa(conn->addr.sin_addr),
+            5305);
+    send(client->sock, out, sz, 0);
+
+    /* stop and disconnect the client connection */
+    ev_io_stop(EV_DEFAULT, &client->fd_ev);
+    mbm_conn_close(client);
+
+    return 0;
 }
 

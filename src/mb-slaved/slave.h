@@ -32,6 +32,7 @@ struct slave {
     ev_io     master_io;
     /* timer for reconnecting to the master if the connection is lost */
     ev_timer  master_timer;
+    ev_async  client_status;
 
     struct client  **pending;
     int              num_pending;

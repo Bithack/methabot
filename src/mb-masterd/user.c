@@ -1,8 +1,10 @@
 /*-
- * client.h
- * This file is part of mb-slaved
+ * user.c
+ * This file is part of mb-masterd
  *
- * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
+ * Copyright (c) 2009, Emil Romanus <emil.romanus@gmail.com>
+ * http://metha-sys.org/
+ * http://bithack.se/projects/methabot/
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,25 +17,16 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- * 
- * http://bithack.se/projects/methabot/
  */
 
-#ifndef _CLIENT__H_
-#define _CLIENT__H_
+#include "libev/ev.h"
 
-#include <netinet/in.h>
-#include <arpa/inet.h>
-
-#define TOKEN_SIZE 40
-
-struct client {
-    char               token[TOKEN_SIZE];
-    struct in_addr     addr;
-};
-
-void *mbs_client_init(void *in);
-struct client *mbs_client_create(const char *addr);
-void mbs_client_free(struct client *cl);
-
-#endif
+/** 
+ * Called when data is available on a socket 
+ * connected to a user. Interpret commands 
+ * such as status and search queries.
+ **/
+void
+mbm_user_read(EV_P_ ev_io *w, int revents)
+{
+}

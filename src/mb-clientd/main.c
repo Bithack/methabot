@@ -332,10 +332,10 @@ mbc_ev_slave(EV_P_ ev_io *w, int revents)
  * and send the token as login.
  *
  * Format of the token:
- * xxxx-xxxx-xxxx-xxxx-a.b.c.d:Z
- * \_________________/ \_____/ |
- *         |             /     |
- *    Login token    IP-Addr Port
+ * xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-a.b.c.d:Z
+ * \______________________________________/ \_____/ |
+ *                   |                        /     |
+ *            Login token (SHA1)          IP-Addr Port
  * 
  * mbc.sock must be closed before this function is 
  * called, i.e. the master must have been disconnected.
@@ -344,21 +344,13 @@ mbc_ev_slave(EV_P_ ev_io *w, int revents)
 int
 mbc_slave_connect(const char *token, int len)
 {
-    const char *p, *s;
-    const char *e;
-    int         x = 0;
-    char        out[25];
+    char       *p, *e, *s, *t;
+    char        out[100];
 
-    char *t;
-
+    if (len < 48)
+        return -1;
     e = (p = token)+len;
-    do {
-        if (!(p = memchr(p, '-', e-p)))
-            return -1;
-        x++;
-        p++;
-    } while (x<4);
-
+    p += 41;
     if (!(s = memchr(p, ':', e-p)))
         return -1;
 
@@ -380,11 +372,8 @@ mbc_slave_connect(const char *token, int len)
         return -1;
     }
 
-    memcpy(out, "AUTH ", 5);
-    memcpy(out+5, token, 19);
-    *(out+24) = '\n';
-    send(mbc.sock, out, 25, 0);
-
+    sprintf(out, "AUTH %.40s\n", token);
+    send(mbc.sock, out, 46, 0);
     return 0;
 }
 

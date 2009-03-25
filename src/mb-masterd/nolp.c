@@ -101,9 +101,13 @@ nolp_recv(nolp_t *no)
 
         default:
             while ((p = memchr(no->buf+last, '\n', no->sz-last))) {
-                if (no->state == NOLP_LINE)
+                if (no->state == NOLP_LINE) {
+                    printf("LINE\n");
+                    no->state = NOLP_CMD;
+                    printf("LINE->CMD\n");
                     no->next_cb(no, no->buf, no->sz-last);
-                else {
+                } else {
+                    printf("CMD\n");
                     /* NOLP_CMD */
                     if ((s = memchr(no->buf, ' ', p-no->buf))) {
                         *s = '\0';

@@ -65,6 +65,7 @@ main(int argc, char **argv)
     else
         _cfg_file = "/etc/mb-masterd.conf";
 
+    signal(SIGPIPE, SIG_IGN);
     openlog("mb-masterd", 0, 0);
     syslog(LOG_INFO, "started");
 
@@ -291,6 +292,8 @@ int mbm_start()
     srv.addr.sin_family = AF_INET;
     sock = socket(PF_INET, SOCK_STREAM, 0);
 
+    int o = 1;
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, o, sizeof(o));
     if (bind(sock, (struct sockaddr*)&srv.addr, sizeof srv.addr) == -1) {
         syslog(LOG_ERR, "could not bind to %s:%hd",
                 inet_ntoa(srv.addr.sin_addr),

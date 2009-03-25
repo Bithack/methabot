@@ -71,6 +71,7 @@ main(int argc, char **argv)
 
     signal(SIGPIPE, SIG_IGN);
     openlog("mb-clientd", 0, 0);
+    syslog(LOG_INFO, "started");
 
     if (!(mbc.m = lmetha_create()))
         exit(1);
@@ -229,7 +230,7 @@ mbc_ev_idle(EV_P_ ev_async *w, int revents)
 
     lmetha_wakeup_worker(mbc.m, "default", "http://bithack.se/");
 
-    if (lol == 2) abort();
+    if (lol == 2) {sleep(2);abort();}
     lol++;
 
     /*lmetha_signal(mbc.m, LM_SIGNAL_CONTINUE);*/
@@ -254,7 +255,7 @@ mbc_ev_master(EV_P_ ev_io *w, int revents)
                 /** 
                  * Reply from master after login.
                  **/
-                if ((msg = atoi(buf)) == 101) {
+                if ((msg = atoi(buf)) == 100) {
                     syslog(LOG_INFO, "logged on to master, waiting for token");
                     mbc.state = MBC_STATE_WAIT_TOKEN;
                 } else

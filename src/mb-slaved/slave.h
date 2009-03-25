@@ -39,6 +39,7 @@ struct slave {
     pthread_mutex_t  pending_lk;
     struct client **clients;
     int             num_clients;
+    pthread_mutex_t  clients_lk;
 };
 
 extern struct slave srv;

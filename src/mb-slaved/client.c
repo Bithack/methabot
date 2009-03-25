@@ -27,6 +27,8 @@
 #include "client.h"
 #include <pthread.h>
 
+void mbs_client_main(struct client *this);
+
 /** 
  * Create a new client with a random login-token
  *
@@ -99,19 +101,72 @@ mbs_client_init(void *in)
         free(buf);
         buf = 0;
 
-        if (this) {
-            send(sock, "100 OK\n", 7, 0);
-            
-            /* enter main loop */
-            ev_async_send(EV_DEFAULT_ &srv.client_status);
-
-            mbs_client_free(this);
-        } else
+        if (!this) {
             send(sock, "200 Denied\n", 11, 0);
+            break;
+        }
+        send(sock, "100 OK\n", 7, 0);
+
+        /* move 'this' into the global list of clients
+         * at srv.clients */
+        pthread_mutex_lock(&srv.clients_lk);
+        if (!(srv.clients = realloc(srv.clients, (srv.num_clients+1)*sizeof(struct client*))))
+            abort();
+        srv.clients[srv.num_clients] = this;
+        srv.num_clients++;
+        pthread_mutex_unlock(&srv.clients_lk);
+        
+        /* notify the main thread that we chagned the client list,
+         * the slave in turn will update the master with the new 
+         * list */
+        ev_async_send(EV_DEFAULT_ &srv.client_status);
+
+        /* enter main loop */
+        mbs_client_main(this);
     } while (0);
 
     if (buf)
         free(buf);
     close(sock);
+
+    /* remove this client from the client list, 
+     * if it's been added to it earlier */
+    if (this) {
+        pthread_mutex_lock(&srv.clients_lk);
+        for (x=0; x<srv.num_clients; x++) {
+            if (srv.clients[x] == this) {
+                if (x != srv.num_clients-1) {
+                    srv.clients[x] = srv.clients[srv.num_clients-1];
+                }
+                if (srv.num_clients == 1) {
+                    free(srv.clients);
+                    srv.clients = 0;
+                } else if (!(srv.clients = realloc(srv.clients, (srv.num_clients-1)*sizeof(struct client*))))
+                        abort();
+                srv.num_clients--;
+                break;
+            }
+        }
+        pthread_mutex_unlock(&srv.clients_lk);
+        ev_async_send(EV_DEFAULT_ &srv.client_status);
+        mbs_client_free(this);
+    }
+
     return 0;
 }
+
+void
+mbs_client_main(struct client *this)
+{
+    struct ev_loop *loop;
+
+    /*
+    if (!(loop = ev_loop_new(EVFLAG_AUTO)))
+        return;
+
+    ev_loop(loop, 0);
+    ev_loop_destroy(loop);
+    */
+    sleep(1);
+}
+

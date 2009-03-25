@@ -22,6 +22,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <syslog.h>
 #include "libev/ev.h"
 #include "master.h"
 #include "conn.h"
@@ -52,6 +53,18 @@ sl_status_command(nolp_t *no, char *buf, int size)
 static int
 sl_status_parse(nolp_t *no, char *buf, int size)
 {
-    abort();
+    int x;
+    int count = size/43;
+    struct conn *conn = no->private;
+    struct slave *sl = &srv.slaves[conn->slave_n];
+    if (!(sl->clients = realloc(sl->clients, sizeof(struct client)*count)))
+        return -1;
+    sl->num_clients = count;
+    for (x=0; x<count; x++) {
+        memcpy(sl->clients[x].token, buf+(x*43), 40);
+        sl->clients[x].state = atoi(buf+(x*43)+41);
+    }
+
+    return 0;
 }
 

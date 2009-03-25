@@ -51,6 +51,7 @@ main(int argc, char **argv)
 {
     int r=0;
 
+    signal(SIGPIPE, SIG_IGN);
     openlog("mb-slaved", 0, 0);
     syslog(LOG_INFO, "started");
 
@@ -62,6 +63,7 @@ main(int argc, char **argv)
 
     do {
         pthread_mutex_init(&srv.pending_lk, 0);
+        pthread_mutex_init(&srv.clients_lk, 0);
 
         if ((r = mbs_load_config()) != 0)
             break;
@@ -134,13 +136,35 @@ int mbs_main()
 /** 
  * A client connected, disconnected or changed status. 
  * Notify the master server about this change.
+ *
+ * Output buffer sent to the master will look like:
+ * STATUS <x>\n
+ * <token>,<state>\n
+ * <token>,<state>\n
+ * ...
+ *
+ * Where x is the size in bytes of the list of 
+ * clients (starting from second line), token
+ * is the 40-char client token, and state is 0/1 whether
+ * the client is running or idle (1 = running).
  **/
 static void
 mbs_ev_client_status(EV_P_ ev_async *w,
                      int revents)
 {
-    send(srv.master_io.fd, "STATUS 43\n", 43, 0);
-    send(srv.master_io.fd, "d0be2dc421be4fcd0172e5afceea3970e2f3d940,1\n", 43, 0);
+    char *out;
+    char *p;
+    int x;
+    pthread_mutex_lock(&srv.clients_lk);
+    if (!(p = out = malloc(32+(srv.num_clients*43))))
+        abort();
+    p += sprintf(p, "STATUS %d\n", srv.num_clients*43);
+    for (x=0; x<srv.num_clients; x++)
+        p += sprintf(p, "%.40s,%d\n", srv.clients[x]->token, 1);
+    pthread_mutex_unlock(&srv.clients_lk);
+
+    send(srv.master_io.fd, out, p-out, 0);
+    free(out);
 }
 
 /** 
@@ -369,6 +393,7 @@ int
 mbs_cleanup()
 {
     pthread_mutex_destroy(&srv.pending_lk);
+    pthread_mutex_destroy(&srv.clients_lk);
     if (srv.user) free(srv.user);
     if (srv.pass) free(srv.pass);
 }

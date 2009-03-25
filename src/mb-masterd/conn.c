@@ -207,10 +207,10 @@ upgrade_conn(struct conn *conn)
                 return 1;
             } else {
                 sz = sprintf(buf, "CLIENT %s\n", inet_ntoa(conn->addr.sin_addr));
-                send(srv.slaves[0].conn->sock, buf, sz, 0);
                 srv.slaves[0].client_conn = conn;
                 nolp_expect_line((nolp_t *)(srv.slaves[0].conn->fd_ev.data),
                         &mbm_token_reply);
+                send(srv.slaves[0].conn->sock, buf, sz, 0);
             }
             break;
 
@@ -253,6 +253,15 @@ mbm_conn_close(struct conn *conn)
 {
     int x;
 
+    if (conn->authenticated && conn->auth == MBM_AUTH_TYPE_CLIENT) {
+        for (x=0; x<srv.num_slaves; x++) {
+            if (srv.slaves[x].client_conn == conn) {
+                srv.slaves[x].client_conn = 0;
+                break;
+            }
+        }
+    }
+
     close(conn->sock);
     free(conn);
 
@@ -279,7 +288,10 @@ mbm_token_reply(nolp_t *no, char *buf, int size)
     struct conn  *client;
     struct conn  *conn = (struct conn*)no->private;
     struct slave *sl = &srv.slaves[conn->slave_n];
-    client = sl->client_conn;
+    if (!(client = sl->client_conn))
+        /* client must have disconnected before 
+         * we replied */
+        return 0;
 
     if (atoi(buf) != 100)
         return -1;

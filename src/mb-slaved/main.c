@@ -51,7 +51,6 @@ main(int argc, char **argv)
 {
     int r=0;
 
-    signal(SIGPIPE, SIG_IGN);
     openlog("mb-slaved", 0, 0);
     syslog(LOG_INFO, "started");
 

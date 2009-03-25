@@ -167,6 +167,6 @@ mbs_client_main(struct client *this)
     ev_loop(loop, 0);
     ev_loop_destroy(loop);
     */
-    sleep(1);
+    sleep(1000);
 }
 

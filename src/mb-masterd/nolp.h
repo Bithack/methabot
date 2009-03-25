@@ -41,6 +41,7 @@ typedef struct nolp {
     int   sz;
     int   cap;
     int   fd;
+    int   expect;
     void *private;
     int (*next_cb)(void*, char *buf, int size);
     struct nolp_fn *fn;

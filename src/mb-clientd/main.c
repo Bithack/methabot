@@ -227,11 +227,13 @@ mbc_ev_idle(EV_P_ ev_async *w, int revents)
     static lol = 1;
     /*send(mbc.sock, "NEXT\n", 5, 0);*/
     /*mbc.state = MBC_STATE_STOPPED;*/
+    /*
 
     lmetha_wakeup_worker(mbc.m, "default", "http://bithack.se/");
 
     if (lol == 2) {sleep(2);abort();}
     lol++;
+    */
 
     /*lmetha_signal(mbc.m, LM_SIGNAL_CONTINUE);*/
 }

@@ -48,22 +48,51 @@ sl_status_command(nolp_t *no, char *buf, int size)
 }
 
 /**
- * prepare for receiving the status buffer
+ * parse the status buffer, generate both XML and internal
+ * representations
+ *
+ * xml syntax:
+ * <client-list for="slave_name">
+ *   <client id="sha1-hash">
+ *     <user>username</user>
+ *     <status>status</status>
+ *     <address>address</address>
+ *   </client>
+ *   ...
+ * </client-list>
  **/
 static int
 sl_status_parse(nolp_t *no, char *buf, int size)
 {
     int x;
     int count = size/43;
+    char *p;
     struct conn *conn = no->private;
     struct slave *sl = &srv.slaves[conn->slave_n];
     if (!(sl->clients = realloc(sl->clients, sizeof(struct client)*count)))
         return -1;
+    if (!(p = (sl->xml.clients.buf = realloc(sl->xml.clients.buf,
+                    count*(40+128+1+15+sizeof("<client id=\"\"><user></user><status></status><address></address></client>")-1)
+                    +sizeof("<client-list for=\"\"></client-list>")-1))))
+        return -1;
     sl->num_clients = count;
+    p += sprintf(p, "<client-list for=\"%.64s\">","test_slave");// sl->name);
     for (x=0; x<count; x++) {
         memcpy(sl->clients[x].token, buf+(x*43), 40);
         sl->clients[x].state = atoi(buf+(x*43)+41);
+        p+=sprintf(p, 
+                "<client id=\"%.40s\">"
+                "<user>%.64s</user>"
+                "<status>1</status>"
+                "<address>%s</address>"
+                "</client>",
+                sl->clients[x].token, "test", "127.0.0.1");
     }
+    p += sprintf(p, "</client-list>");
+
+    x = p-sl->xml.clients.buf;
+    sl->xml.clients.buf = realloc(sl->xml.clients.buf, x);
+    sl->xml.clients.sz = x;
 
     return 0;
 }

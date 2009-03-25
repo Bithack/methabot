@@ -41,12 +41,21 @@ struct client {
 };
 
 struct slave {
+    char          *name;
+    int            name_len;
     struct conn   *conn;
     struct client *clients;
     int            num_clients;
     /* client conn will be set if we are waiting for
      * a TOKEN for the given client */
     struct conn   *client_conn;
+
+    struct {
+        struct {
+            char *buf;
+            int   sz;
+        } clients;
+    } xml;
 };
 
 struct conn {

@@ -72,6 +72,7 @@ nolp_recv(nolp_t *no)
     int   x;
     int   last = no->sz;
     int   sock = no->fd;
+    int   rerun;
     char *p;
     char *e;
     char *s;
@@ -84,58 +85,64 @@ nolp_recv(nolp_t *no)
         return -1;
     no->sz += sz;
 
-    switch (no->state) {
-        case NOLP_EXPECT:
-            if (no->sz == no->cap) {
-                /* all expected data received, call the
-                 * next_cb() function */
-                if (no->next_cb(no, no->buf, no->sz) != 0)
-                    return -1;
-                no->sz = 0;
-                no->cap = NOLP_DEFAULT_BUFSZ;
-                no->state = NOLP_CMD;
-                if (!(no->buf = realloc(no->buf, NOLP_DEFAULT_BUFSZ)))
-                    return -1;
-            }
-            break;
-
-        default:
-            while ((p = memchr(no->buf+last, '\n', no->sz-last))) {
-                if (no->state == NOLP_LINE) {
-                    printf("LINE\n");
+    do {
+        rerun = 0;
+        switch (no->state) {
+            case NOLP_EXPECT:
+                if (no->sz == no->expect) {
+                    /* all expected data received, call the
+                     * next_cb() function */
+                    if (no->next_cb(no, no->buf, no->sz) != 0)
+                        return -1;
+                    no->sz = 0;
+                    no->cap = NOLP_DEFAULT_BUFSZ;
                     no->state = NOLP_CMD;
-                    printf("LINE->CMD\n");
-                    no->next_cb(no, no->buf, no->sz-last);
-                } else {
-                    printf("CMD\n");
-                    /* NOLP_CMD */
-                    if ((s = memchr(no->buf, ' ', p-no->buf))) {
-                        *s = '\0';
-                        for (x=0;; x++) {
-                            if (!no->fn[x].name)
-                                /* command not found */
-                                return -1;
-                            if (strcmp(no->fn[x].name, no->buf) == 0) {
-                                if (no->fn[x].cb(no, s+1, (no->buf+no->sz)-(s+1)) != 0)
-                                    return -1;
-                                break;
-                            }
-                        }
-                    } else
+                    if (!(no->buf = realloc(no->buf, NOLP_DEFAULT_BUFSZ)))
                         return -1;
                 }
-                last = 0;
-                if (p+1 < no->buf+no->sz) {
-                    x = (no->buf+no->sz)-(p+1);
-                    /* more data after this command, we'll move it 
-                     * to the front */
-                    no->sz -= x;
-                    memmove(no->buf, p+1, x);
-                } else
-                    no->sz = 0;
-            }
-            break;
-    }
+                break;
+
+            default:
+                while ((p = memchr(no->buf+last, '\n', no->sz-last))) {
+                    if (no->state == NOLP_LINE) {
+                        no->state = NOLP_CMD;
+                        no->next_cb(no, no->buf, no->sz-last);
+                    } else {
+                        /* NOLP_CMD */
+                        if ((s = memchr(no->buf, ' ', p-no->buf))) {
+                            *s = '\0';
+                            for (x=0;; x++) {
+                                if (!no->fn[x].name)
+                                    /* command not found */
+                                    return -1;
+                                if (strcmp(no->fn[x].name, no->buf) == 0) {
+                                    if (no->fn[x].cb(no, s+1, p-(s+1)) != 0)
+                                        return -1;
+                                    break;
+                                }
+                            }
+                        } else
+                            return -1;
+                    }
+                    last = 0;
+                    if (p+1 < no->buf+no->sz) {
+                        x = (no->buf+no->sz)-(p+1);
+                        /* more data after this command, we'll move it 
+                         * to the front */
+                        no->sz = x;
+                        memmove(no->buf, p+1, x);
+                    } else
+                        no->sz = 0;
+
+                    if (no->state == NOLP_EXPECT) {
+                        if (no->sz)
+                            rerun = 1;
+                        break;
+                    }
+                }
+                break;
+        }
+    } while (rerun);
 
     return 0;
 }
@@ -159,12 +166,15 @@ int
 nolp_expect(nolp_t *no, int size,
             int (*complete_cb)(void*, char *, int))
 {
-    if (!(no->buf = realloc(no->buf, size)))
-        return -1;
+    if (size > no->sz) {
+        if (!(no->buf = realloc(no->buf, size)))
+            return -1;
+        no->cap = size;
+    }
 
     no->next_cb = complete_cb;
-    no->sz = 0;
-    no->cap = size;
+    /*no->sz = 0;*/
+    no->expect = size;
     no->state = NOLP_EXPECT;
 
     return 0;

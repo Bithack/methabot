@@ -20,13 +20,97 @@
  */
 
 #include "libev/ev.h"
+#include "master.h"
+#include "nolp.h"
+
+static int user_list_clients_command(nolp_t *no, char *buf, int size);
+static int user_list_slaves_command(nolp_t *no, char *buf, int size);
+static int user_slave_info_command(nolp_t *no, char *buf, int size);
+static int user_client_info_command(nolp_t *no, char *buf, int size);
+
+struct nolp_fn user_commands[] = {
+    {"LIST-SLAVES", user_list_slaves_command},
+    {"LIST-CLIENTS", user_list_clients_command},
+    {"SLAVE-INFO", user_slave_info_command},
+    {"CLIENT-INFO", user_client_info_command},
+    {0},
+};
+
+#define MSG203 "203 Not found\n"
 
 /** 
- * Called when data is available on a socket 
- * connected to a user. Interpret commands 
- * such as status and search queries.
+ * The LIST-CLIENTS command requests a list of clients
+ * connected to the given slave. Syntax:
+ * LIST-CLIENTS <slave>\n
+ * 'slave' should be the NAME of a slave
  **/
-void
-mbm_user_read(EV_P_ ev_io *w, int revents)
+static int
+user_list_clients_command(nolp_t *no, char *buf, int size)
 {
+    int  x;
+    char reply[32];
+    struct conn *conn = (struct conn*)no->private;
+
+    for (x=0; ; x++) {
+        if (x == srv.num_slaves) {
+            send(conn->sock, MSG203, sizeof(MSG203)-1, 0);
+            break;
+        }
+        struct slave *sl = &srv.slaves[x];
+        if (1) {//size == sl->name_len && memcmp(sl->name, buf) == 0) {
+            int len = sprintf(reply, "100 %d\n", sl->xml.clients.sz);
+            send(conn->sock, reply, len, 0);
+            send(conn->sock, sl->xml.clients.buf, sl->xml.clients.sz, 0);
+            break;
+        }
+    }
+
+    return 0;
 }
+
+/** 
+ * LIST-SLAVES returns a list of all slaves in XML format, 
+ * including their client count. Syntax:
+ * LIST-SLAVES 0\n
+ * currently, the second argument is unused and should be 
+ * set to 0.
+ **/
+static int
+user_list_slaves_command(nolp_t *no, char *buf, int size)
+{
+    /*
+    char reply[32];
+    struct conn *conn = (struct conn*)no->private;
+    int len = sprintf(reply, "100 %d\n", srv.xml.slave_list.sz);
+    send(conn->sock, reply, len, 0);
+    send(conn->sock, srv.xml.slave_list.buf, srv.xml.slave_list.sz, 0);
+    */
+
+    return 0;
+}
+
+/** 
+ * The SLAVE-INFO outputs information about a slave, such
+ * as address and num connected clients, in XML format.
+ * Syntax:
+ * SLAVE-INFO <slave>\n
+ * 'slave' should be the NAME of a slave
+ **/
+static int
+user_slave_info_command(nolp_t *no, char *buf, int size)
+{
+    return 0;
+}
+
+/** 
+ * The CLIENT-INFO outputs information about a client
+ * in XML format. Syntax:
+ * CLIENT-INFO <client>\n
+ * 'client' should be the NAME of a client
+ **/
+static int
+user_client_info_command(nolp_t *no, char *buf, int size)
+{
+    return 0;
+}
+

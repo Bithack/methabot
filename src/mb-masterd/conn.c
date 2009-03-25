@@ -30,6 +30,7 @@
 #include <errno.h>
 
 extern struct nolp_fn slave_commands[];
+extern struct nolp_fn user_commands[];
 
 const char *auth_types[] = {
     "client",
@@ -37,6 +38,7 @@ const char *auth_types[] = {
     "user",
 };
 
+static void user_read(EV_P_ ev_io *w, int revents);
 static void slave_read(EV_P_ ev_io *w, int revents);
 static int mbm_token_reply(nolp_t *no, char *buf, int size);
 /* user.c */
@@ -117,6 +119,23 @@ slave_read(EV_P_ ev_io *w, int revents)
     }
 }
 
+/** 
+ * Called when data is available on a socket 
+ * connected to a user. Interpret commands 
+ * such as status and search queries.
+ **/
+static void
+user_read(EV_P_ ev_io *w, int revents)
+{
+    nolp_t *no = (nolp_t *)w->data;
+
+    if (nolp_recv(no) != 0) {
+        ev_io_stop(EV_A_ w);
+        mbm_conn_close(no->private);
+    }
+}
+
+
 static void
 conn_read(EV_P_ ev_io *w, int revents)
 {
@@ -196,6 +215,7 @@ upgrade_conn(struct conn *conn)
 {
     int  sock = conn->sock;
     int  sz;
+    nolp_t *no;
     char buf[32];
 
     switch (conn->auth) {
@@ -225,6 +245,8 @@ upgrade_conn(struct conn *conn)
                 abort();
             }
 
+            srv.slaves[srv.num_slaves].xml.clients.buf = 0;
+            srv.slaves[srv.num_slaves].xml.clients.sz = 0;
             srv.slaves[srv.num_slaves].num_clients = 0;
             srv.slaves[srv.num_slaves].clients = 0;
             srv.slaves[srv.num_slaves].conn = conn;
@@ -232,13 +254,19 @@ upgrade_conn(struct conn *conn)
             srv.num_slaves ++;
             ev_set_cb(&conn->fd_ev, &slave_read);
 
-            nolp_t *no = nolp_create(slave_commands, sock);
+            if (!(no = nolp_create(slave_commands, sock)))
+                return -1;
             no->private = conn;
             conn->fd_ev.data = no;
             break;
 
         case MBM_AUTH_TYPE_USER:
-            ev_set_cb(&conn->fd_ev, &mbm_user_read);
+            ev_set_cb(&conn->fd_ev, &user_read);
+
+            if (!(no = nolp_create(user_commands, sock)))
+                return -1;
+            no->private = conn;
+            conn->fd_ev.data = no;
             break;
 
         default:

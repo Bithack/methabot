@@ -78,13 +78,11 @@ user_list_clients_command(nolp_t *no, char *buf, int size)
 static int
 user_list_slaves_command(nolp_t *no, char *buf, int size)
 {
-    /*
     char reply[32];
     struct conn *conn = (struct conn*)no->private;
     int len = sprintf(reply, "100 %d\n", srv.xml.slave_list.sz);
     send(conn->sock, reply, len, 0);
     send(conn->sock, srv.xml.slave_list.buf, srv.xml.slave_list.sz, 0);
-    */
 
     return 0;
 }

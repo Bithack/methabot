@@ -45,7 +45,7 @@ static int mbm_token_reply(nolp_t *no, char *buf, int size);
 void mbm_user_read(EV_P_ ev_io *w, int revents);
 
 static void conn_read(EV_P_ ev_io *w, int revents);
-static int upgrade_conn(struct conn *conn);
+static int upgrade_conn(struct conn *conn, const char *user);
 
 /** 
  * Accept a connection and set up a conn struct
@@ -183,7 +183,7 @@ conn_read(EV_P_ ev_io *w, int revents)
 
         send(sock, "100 OK\n", 7, 0);
 
-        if (upgrade_conn(conn) != 0)
+        if (upgrade_conn(conn, user) != 0)
             goto close;
     }
     return;
@@ -211,7 +211,7 @@ invalid:
  * return 0 unless an error occurs
  **/
 static int
-upgrade_conn(struct conn *conn)
+upgrade_conn(struct conn *conn, const char *user)
 {
     int  sock = conn->sock;
     int  sz;
@@ -239,19 +239,10 @@ upgrade_conn(struct conn *conn)
             send(sock, buf, strlen(buf), MSG_NOSIGNAL);
             send(sock, srv.config_buf, srv.config_sz, MSG_NOSIGNAL);
 
-            /* Add this slave to the list of slaves */
-            if (!(srv.slaves = realloc(srv.slaves, (srv.num_slaves+1)*sizeof(struct slave)))) {
-                syslog(LOG_ERR, "out of mem");
-                abort();
-            }
+            struct slave *sl = mbm_create_slave(user);
+            if (!sl) return -1;
 
-            srv.slaves[srv.num_slaves].xml.clients.buf = 0;
-            srv.slaves[srv.num_slaves].xml.clients.sz = 0;
-            srv.slaves[srv.num_slaves].num_clients = 0;
-            srv.slaves[srv.num_slaves].clients = 0;
-            srv.slaves[srv.num_slaves].conn = conn;
             conn->slave_n = srv.num_slaves;
-            srv.num_slaves ++;
             ev_set_cb(&conn->fd_ev, &slave_read);
 
             if (!(no = nolp_create(slave_commands, sock)))

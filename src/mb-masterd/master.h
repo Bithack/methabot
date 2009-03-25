@@ -30,6 +30,13 @@ struct master {
 
     struct filetype **filetypes;
     unsigned         num_filetypes;
+
+    struct {
+        struct {
+            char *buf;
+            int   sz;
+        } slave_list;
+    } xml;
 };
 
 extern struct master srv;

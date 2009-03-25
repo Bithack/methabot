@@ -43,6 +43,7 @@ struct client {
 struct slave {
     char          *name;
     int            name_len;
+    int            id;
     struct conn   *conn;
     struct client *clients;
     int            num_clients;

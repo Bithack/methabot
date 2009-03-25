@@ -152,9 +152,16 @@ mbm_mysql_connect()
     return 0;
 }
 
-#define SQL_CREATE_LOGIN "\
+#define SQL_USER_TBL "\
             CREATE TABLE IF NOT EXISTS \
-            _login (user VARCHAR(32), pass VARCHAR(32))"
+            _user (user VARCHAR(32), pass VARCHAR(32))"
+#define SQL_SLAVE_TBL "\
+            CREATE TABLE IF NOT EXISTS \
+            _slave ( \
+                    id INT NOT NULL AUTO_INCREMENT, \
+                    user VARCHAR(64), \
+                    PRIMARY KEY (id) \
+                    )"
 
 /** 
  * Set up all default tables
@@ -162,7 +169,8 @@ mbm_mysql_connect()
 int
 mbm_mysql_setup()
 {
-    mysql_real_query(srv.mysql, SQL_CREATE_LOGIN, strlen(SQL_CREATE_LOGIN));
+    mysql_real_query(srv.mysql, SQL_USER_TBL, strlen(SQL_USER_TBL));
+    mysql_real_query(srv.mysql, SQL_SLAVE_TBL, strlen(SQL_SLAVE_TBL));
 
     return 0;
 }

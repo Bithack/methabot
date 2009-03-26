@@ -26,6 +26,7 @@
 #include "slave.h"
 #include "client.h"
 #include <pthread.h>
+#include <mysql/mysql.h>
 
 void mbs_client_main(struct client *this);
 
@@ -41,7 +42,11 @@ mbs_client_create(const char *addr)
     time_t now;
     int a, x;
     char *p;
-    char q[512];
+    char q[128];
+    int qlen;
+
+    MYSQL_RES *res;
+    MYSQL_ROW *row;
 
     if ((cl = malloc(sizeof(struct client)))) {
         if ((cl->addr.s_addr = inet_addr(addr)) == (in_addr_t)-1) {
@@ -49,12 +54,35 @@ mbs_client_create(const char *addr)
             free(cl);
             return 0;
         }
-        memcpy(cl->token, "d0be2dc421be4fcd0172e5afceea3970e2f3d940", 40);
+        qlen = sprintf(q, "SELECT SHA1(CONCAT(CONCAT(CONCAT('%s', NOW()), RAND()), RAND()))", addr);
+        if (mysql_real_query(srv.mysql, q, qlen) != 0
+                || !(res = mysql_store_result(srv.mysql))
+                || !(mysql_num_rows(res))
+                || !(row = mysql_fetch_row(res))
+                ) {
+            free(cl);
+            return 0;
+        }
+        if (row[0])
+            memcpy(cl->token, row[0], 40);
+        else
+            return 0;
 
-        /*
-        qlen = sprintf(q, "SELECT CONCAT(CONCAT(CONCAT('%s', NOW()), RAND()), RAND())", addr);
-        if (mysql_real_query(srv.mysql, q, qlen) == 0)
-        */
+        mysql_free_result(res);
+
+        /** 
+         * add the client to the _client table which will give us an 
+         * integer identifier to be used when adding URLs to the log
+         * and save target urls
+         **/
+        qlen = sprintf(q, "INSERT INTO _client (token) VALUES ('%.40s');", cl->token);
+        if (mysql_real_query(srv.mysql, q, qlen) != 0) {
+            free(cl);
+            return 0;
+        }
+        cl->id = (long)mysql_insert_id(srv.mysql);
+
+        syslog(LOG_INFO,"new client %d:'%.6s...' from %s", (int)cl->id, cl->token, addr);
     }
 
     return cl;

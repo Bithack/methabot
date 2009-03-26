@@ -155,6 +155,13 @@ mbm_mysql_connect()
 #define SQL_USER_TBL "\
             CREATE TABLE IF NOT EXISTS \
             _user (user VARCHAR(32), pass VARCHAR(32))"
+#define SQL_CLIENT_TBL "\
+            CREATE TABLE IF NOT EXISTS \
+            _client ( \
+                    id INT NOT NULL AUTO_INCREMENT, \
+                    token VARCHAR(40), \
+                    PRIMARY KEY (id) \
+                    )"
 #define SQL_SLAVE_TBL "\
             CREATE TABLE IF NOT EXISTS \
             _slave ( \
@@ -170,6 +177,7 @@ int
 mbm_mysql_setup()
 {
     mysql_real_query(srv.mysql, SQL_USER_TBL, strlen(SQL_USER_TBL));
+    mysql_real_query(srv.mysql, SQL_CLIENT_TBL, strlen(SQL_CLIENT_TBL));
     mysql_real_query(srv.mysql, SQL_SLAVE_TBL, strlen(SQL_SLAVE_TBL));
 
     return 0;

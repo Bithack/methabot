@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <mysql/mysql.h>
 
 #include "../libmetha/libev/ev.h"
 
@@ -16,7 +17,8 @@ enum {
 };
 
 struct slave {
-    int mstate;
+    int                 mstate;
+    MYSQL              *mysql;
 
     struct sockaddr_in addr;
     struct sockaddr_in master;

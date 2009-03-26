@@ -60,6 +60,11 @@ main(int argc, char **argv)
 
     signal(SIGPIPE, SIG_IGN);
 
+    if (!(srv.mysql = mysql_init(0)))
+        abort();
+    if (!(mysql_real_connect(srv.mysql, "localhost", "methanol", "test", "methanol", 0, "/var/run/mysqld/mysqld.sock", 0)))
+        abort();
+
     do {
         pthread_mutex_init(&srv.pending_lk, 0);
         pthread_mutex_init(&srv.clients_lk, 0);
@@ -266,6 +271,8 @@ mbs_ev_master(EV_P_ ev_io *w, int revents)
         case SLAVE_MSTATE_COMMAND:
             if ((sz = sock_getline(w->fd, buf, 255)) <= 0)
                 goto closed;
+
+            buf[sz-1] = '\0';
 
             if (strncmp(buf, "CONFIG", 6) == 0) {
                 if (!(srv.config_buf = malloc(atoi(buf+6)))) {

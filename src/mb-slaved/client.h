@@ -28,6 +28,7 @@
 #define TOKEN_SIZE 40
 
 struct client {
+    long               id;
     char               token[TOKEN_SIZE];
     struct in_addr     addr;
 };

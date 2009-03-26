@@ -101,7 +101,9 @@ mbm_create_slave(const char *user)
                   "<user>%.64s</user>"
                   "<num-clients>%d</num-clients>"
                 "</slave>",
-                r->id, r->name, r->num_clients
+                srv.slaves[x].id,
+                srv.slaves[x].name,
+                srv.slaves[x].num_clients
                 );
     p+=sprintf(p, "</slave-list>");
     srv.xml.slave_list.sz = p-srv.xml.slave_list.buf;

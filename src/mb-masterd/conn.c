@@ -242,8 +242,9 @@ upgrade_conn(struct conn *conn, const char *user)
             struct slave *sl = mbm_create_slave(user);
             if (!sl) return -1;
 
-            conn->slave_n = srv.num_slaves;
+            conn->slave_n = srv.num_slaves-1;
             ev_set_cb(&conn->fd_ev, &slave_read);
+            sl->conn = conn;
 
             if (!(no = nolp_create(slave_commands, sock)))
                 return -1;

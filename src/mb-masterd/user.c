@@ -42,14 +42,17 @@ struct nolp_fn user_commands[] = {
  * The LIST-CLIENTS command requests a list of clients
  * connected to the given slave. Syntax:
  * LIST-CLIENTS <slave>\n
- * 'slave' should be the NAME of a slave
+ * 'slave' should be the iid of a slave
  **/
 static int
 user_list_clients_command(nolp_t *no, char *buf, int size)
 {
     int  x;
+    int  id;
     char reply[32];
     struct conn *conn = (struct conn*)no->private;
+
+    id = atoi(buf);
 
     for (x=0; ; x++) {
         if (x == srv.num_slaves) {
@@ -57,7 +60,7 @@ user_list_clients_command(nolp_t *no, char *buf, int size)
             break;
         }
         struct slave *sl = &srv.slaves[x];
-        if (1) {//size == sl->name_len && memcmp(sl->name, buf) == 0) {
+        if (sl->id == id) {
             int len = sprintf(reply, "100 %d\n", sl->xml.clients.sz);
             send(conn->sock, reply, len, 0);
             send(conn->sock, sl->xml.clients.buf, sl->xml.clients.sz, 0);
@@ -97,6 +100,37 @@ user_list_slaves_command(nolp_t *no, char *buf, int size)
 static int
 user_slave_info_command(nolp_t *no, char *buf, int size)
 {
+    int x;
+    int id;
+    char tmp[32];
+    char reply[
+        sizeof("<slave-info for=\"\"><address></address></slave-info>")-1
+        +64+20+16];
+    struct conn  *conn = (struct conn*)no->private;
+    struct slave *sl = 0;
+
+    id = atoi(buf);
+    for (x=0; x<srv.num_slaves; x++) {
+        if (srv.slaves[x].id == id) {
+            sl = &srv.slaves[x];
+            break;
+        }
+    }
+    if (!sl) {
+        send(conn->sock, MSG203, sizeof(MSG203)-1, 0);
+        return 0;
+    }
+    int len =
+        sprintf(reply,
+            "<slave-info for=\"%s-%d\">"
+              "<address>%s</address>"
+            "</slave-info>",
+            sl->name,
+            sl->id,
+            inet_ntoa(conn->addr.sin_addr));
+    x = sprintf(tmp, "100 %d\n", len);
+    send(conn->sock, tmp, x, 0);
+    send(conn->sock, reply, len, 0);
     return 0;
 }
 

@@ -47,5 +47,6 @@ struct slave {
 extern struct slave srv;
 
 int sock_getline(int fd, char *buf, int max);
+MYSQL *mbs_dup_mysql_conn(void);
 
 #endif

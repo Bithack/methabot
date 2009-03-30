@@ -273,12 +273,16 @@ mbm_conn_close(struct conn *conn)
 {
     int x;
 
-    if (conn->authenticated && conn->auth == MBM_AUTH_TYPE_CLIENT) {
-        for (x=0; x<srv.num_slaves; x++) {
-            if (srv.slaves[x].client_conn == conn) {
-                srv.slaves[x].client_conn = 0;
-                break;
+    if (conn->authenticated) {
+        if (conn->auth == MBM_AUTH_TYPE_CLIENT) {
+            for (x=0; x<srv.num_slaves; x++) {
+                if (srv.slaves[x].client_conn == conn) {
+                    srv.slaves[x].client_conn = 0;
+                    break;
+                }
             }
+        } else if (conn->auth == MBM_AUTH_TYPE_SLAVE) {
+            /* refresh the XML list of slaves */
         }
     }
 

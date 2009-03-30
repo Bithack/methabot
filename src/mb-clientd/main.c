@@ -50,10 +50,13 @@ static void mbc_lm_target_cb(metha_t *m, worker_t *w, url_t *url, attr_list_t *a
 static void mbc_lm_error_cb(metha_t *m, const char *s, ...);
 static void mbc_lm_warning_cb(metha_t *m, const char *s, ...);
 static void mbc_lm_ev_cb(metha_t *m, int ev);
+static int mbc_ev_slave_login(nolp_t *no, char *buf, int size);
 
 struct mbc mbc = {
     .state = MBC_STATE_DISCONNECTED,
 };
+
+extern struct nolp_fn sl_commands[];
 
 const char *master = "127.0.0.1";
 const char *user = "test";
@@ -62,11 +65,6 @@ const char *pass = "test";
 int
 main(int argc, char **argv)
 {
-    /** 
-     * 1. Connect to master and log in
-     * 2. Wait for slave token
-     * 3. Connect to slave
-     **/
     M_CODE          r;
 
     signal(SIGPIPE, SIG_IGN);
@@ -74,6 +72,9 @@ main(int argc, char **argv)
     syslog(LOG_INFO, "started");
 
     if (!(mbc.m = lmetha_create()))
+        exit(1);
+
+    if (!(mbc.no = nolp_create(&sl_commands, 0)))
         exit(1);
 
     lmetha_setopt(mbc.m, LMOPT_TARGET_FUNCTION, mbc_lm_target_cb);
@@ -108,7 +109,7 @@ main(int argc, char **argv)
         mbc_set_active(mbc.loop, MBC_MASTER);
     } else {
         ev_timer_start(mbc.loop, &mbc.timer_ev);
-        syslog(LOG_INFO, "master is away, retrying in 10 secs");
+        syslog(LOG_INFO, "master is away, retrying in 5 secs");
     }
 
     ev_async_start(mbc.loop, &mbc.idle_ev);
@@ -125,11 +126,24 @@ static void
 mbc_lm_status_cb(metha_t *m, worker_t *w, url_t *url)
 {
     char buf[512];
-    /*
+    char *p;
     int  len;
-    len = snprintf(buf, 511, "URL %s\n", url->str);
-    send(mbc.slave_sock, buf, len);*/
-    printf("URL: %s\n", url->str);
+
+    /* prefer using the stacked buffer, but if it is not
+     * big enough, then malloc one on the heap and use
+     * that one instead. Most likely URLs wont be longer
+     * than 512 chars */
+    if (url->sz >= 507) {
+        if (!(p = malloc(url->sz+6)))
+            syslog(LOG_ERR, "out of mem");
+    } else
+        p = buf;
+    len = snprintf(p, "URL %s\n", url->str);
+    send(mbc.sock, p, len, 0);
+    /*printf("URL: %s\n", url->str);*/
+
+    if (p != buf)
+        free(p);
 }
 
 /** 
@@ -184,7 +198,7 @@ mbc_set_active(EV_P_ int which)
     switch (which) {
         case MBC_NONE:
             /* Start a timer so we don't freeze, this timer
-             * will reconnect to the master after 10 secs */
+             * will reconnect to the master after 5 secs */
             ev_timer_start(EV_A_ &mbc.timer_ev);
             break;
 
@@ -194,12 +208,17 @@ mbc_set_active(EV_P_ int which)
             break;
 
         case MBC_SLAVE:
+            nolp_expect_line(mbc.no, &mbc_ev_slave_login);
             ev_io_init(&mbc.sock_ev, mbc_ev_slave, mbc.sock, EV_READ);
             ev_io_start(EV_A_ &mbc.sock_ev);
             break;
     }
 }
 
+/** 
+ * called when timer was reached. the timer should only
+ * be started if we are waiting to reconnect to the master
+ **/
 void
 mbc_ev_timer(EV_P_ ev_timer *w, int revents)
 {
@@ -221,21 +240,16 @@ mbc_ev_timer(EV_P_ ev_timer *w, int revents)
     }
 }
 
+/** 
+ * crawling session is done, we're out of URLs
+ * and must notify the slave and then wait for
+ * new URL(s)
+ **/
 void
 mbc_ev_idle(EV_P_ ev_async *w, int revents)
 {
-    static lol = 1;
-    /*send(mbc.sock, "NEXT\n", 5, 0);*/
-    /*mbc.state = MBC_STATE_STOPPED;*/
-    /*
-
-    lmetha_wakeup_worker(mbc.m, "default", "http://bithack.se/");
-
-    if (lol == 2) {sleep(2);abort();}
-    lol++;
-    */
-
-    /*lmetha_signal(mbc.m, LM_SIGNAL_CONTINUE);*/
+    send(mbc.sock, "STATUS 0\n", 9, 0);
+    mbc.state = MBC_STATE_STOPPED;
 }
 
 void
@@ -289,41 +303,31 @@ mbc_ev_master(EV_P_ ev_io *w, int revents)
 }
 
 /** 
+ * when we receive a reply from the slave after 
+ * an AUTH command
+ **/
+static int
+mbc_ev_slave_login(nolp_t *no, char *buf, int size)
+{
+    if (atoi(buf) == 100) {
+        syslog(LOG_INFO, "slave connection established");
+        mbc.state = MBC_STATE_STOPPED;
+    } else {
+        syslog(LOG_WARNING, "slave login failed");
+        return -1;
+    }
+
+    return 0;
+}
+
+/** 
  * Called when a message from the slave is sent
  **/
 void
 mbc_ev_slave(EV_P_ ev_io *w, int revents)
 {
-    char buf[256];
-    int  sz;
-    int  msg;
-    int disconnect = 0;
-
-    if ((sz = sock_getline(w->fd, buf, 255)) <= 0) {
-        syslog(LOG_WARNING, "slave has gone away");
-        disconnect = 1;
-    } else {
-        switch (mbc.state) {
-            case MBC_STATE_WAIT_LOGIN:
-                if ((msg = atoi(buf)) == 100) {
-                    syslog(LOG_INFO, "slave connection established");
-                    mbc.state = MBC_STATE_STOPPED;
-                } else {
-                    syslog(LOG_WARNING, "slave login failed");
-                    disconnect = 1;
-                }
-                break;
-
-            case MBC_STATE_RUNNING:
-                break;
-
-            case MBC_STATE_STOPPED:
-
-                break;
-        }
-    }
-
-    if (disconnect) {
+    mbc.no->fd = w->fd;
+    if (nolp_recv(mbc.no) != 0) {
         close(w->fd);
         mbc.state = MBC_STATE_DISCONNECTED;
         mbc_set_active(EV_A_ MBC_NONE);
@@ -369,9 +373,7 @@ mbc_slave_connect(const char *token, int len)
     *t = '-';
 
     if (connect(mbc.sock, (struct sockaddr*)&mbc.slave, sizeof(struct sockaddr_in)) != 0) {
-#ifdef DEBUG
         syslog(LOG_ERR, "connect() failed: %s", strerror(errno));
-#endif
         return -1;
     }
 

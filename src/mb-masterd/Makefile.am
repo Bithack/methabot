@@ -8,8 +8,6 @@ mb_masterd_SOURCES = \
 	slave.c \
 	user.c \
 	main.c \
-	nolp.h \
-	nolp.c \
 	master.h
 
 AM_CFLAGS = -I/usr/include/mysql -I../libmetha/ -I../libmethaconfig/

@@ -169,6 +169,14 @@ mbm_mysql_connect()
                     user VARCHAR(64), \
                     PRIMARY KEY (id) \
                     )"
+#define SQL_URL_TBL "\
+            CREATE TABLE IF NOT EXISTS \
+            _url ( \
+                    hash VARCHAR(40), \
+                    url VARCHAR(4096), \
+                    date DATETIME, \
+                    PRIMARY KEY (hash) \
+                    )"
 
 /** 
  * Set up all default tables
@@ -176,9 +184,10 @@ mbm_mysql_connect()
 int
 mbm_mysql_setup()
 {
-    mysql_real_query(srv.mysql, SQL_USER_TBL, strlen(SQL_USER_TBL));
-    mysql_real_query(srv.mysql, SQL_CLIENT_TBL, strlen(SQL_CLIENT_TBL));
-    mysql_real_query(srv.mysql, SQL_SLAVE_TBL, strlen(SQL_SLAVE_TBL));
+    mysql_real_query(srv.mysql, SQL_USER_TBL, sizeof(SQL_USER_TBL)-1);
+    mysql_real_query(srv.mysql, SQL_CLIENT_TBL, sizeof(SQL_CLIENT_TBL)-1);
+    mysql_real_query(srv.mysql, SQL_SLAVE_TBL, sizeof(SQL_SLAVE_TBL)-1);
+    mysql_real_query(srv.mysql, SQL_URL_TBL, sizeof(SQL_URL_TBL)-1);
 
     return 0;
 }

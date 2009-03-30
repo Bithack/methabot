@@ -60,9 +60,7 @@ main(int argc, char **argv)
 
     signal(SIGPIPE, SIG_IGN);
 
-    if (!(srv.mysql = mysql_init(0)))
-        abort();
-    if (!(mysql_real_connect(srv.mysql, "localhost", "methanol", "test", "methanol", 0, "/var/run/mysqld/mysqld.sock", 0)))
+    if (!(srv.mysql = mbs_dup_mysql_conn()))
         abort();
 
     do {
@@ -135,6 +133,32 @@ int mbs_main()
     ev_default_destroy();
 
     return 0;
+}
+
+/** 
+ * Create a new MySQL connection using the global
+ * mysql settings, "duplicate" the connection
+ **/
+MYSQL *
+mbs_dup_mysql_conn(void)
+{
+    MYSQL *ret;
+
+    if (!(ret = mysql_init(0)))
+        return 0;
+    if (!(mysql_real_connect(ret,
+                    "localhost",
+                    "methanol",
+                    "test",
+                    "methanol",
+                    0,
+                    "/var/run/mysqld/mysqld.sock",
+                    0))) {
+        mysql_close(ret);
+        return 0;
+    }
+
+    return ret;
 }
 
 /** 

@@ -26,6 +26,7 @@
 #include <arpa/inet.h>
 #include "../libmetha/metha.h"
 #include "../libmetha/libev/ev.h"
+#include "nolp.h"
 
 enum {
     MBC_STATE_DISCONNECTED,
@@ -40,15 +41,18 @@ enum {
 
 struct mbc {
     metha_t            *m;
+    nolp_t             *no; /* used for receiving commands from the slave */
     struct ev_loop     *loop;
     ev_io              sock_ev;
     ev_timer           timer_ev;
     ev_async           idle_ev;
     int                state;
-    int                sock;
+    int                sock; /* element used for both the master and the slave socket */
     struct sockaddr_in addr;
     struct sockaddr_in master;
     struct sockaddr_in slave;
 }; 
+
+extern struct mbc mbc;
 
 #endif

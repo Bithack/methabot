@@ -24,6 +24,7 @@
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "libev/ev.h"
 
 #define TOKEN_SIZE 40
 
@@ -33,6 +34,10 @@ struct client {
     int                running;
     char              *user;
     struct in_addr     addr;
+    struct ev_loop    *loop;
+    ev_async           async;
+    void              *no;
+    void              *mysql;
 };
 
 void *mbs_client_init(void *in);

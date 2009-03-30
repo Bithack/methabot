@@ -1,6 +1,6 @@
 /*-
  * nolp.h
- * This file is part of mb-masterd
+ * This file is part of libmethaconfig
  *
  * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
  *

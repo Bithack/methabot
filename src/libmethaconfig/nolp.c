@@ -1,6 +1,6 @@
 /*-
  * nolp.c
- * This file is part of mb-masterd
+ * This file is part of libmethaconfig
  *
  * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
  *
@@ -109,20 +109,19 @@ nolp_recv(nolp_t *no)
                         no->next_cb(no, no->buf, no->sz-last);
                     } else {
                         /* NOLP_CMD */
-                        if ((s = memchr(no->buf, ' ', p-no->buf))) {
-                            *s = '\0';
-                            for (x=0;; x++) {
-                                if (!no->fn[x].name)
-                                    /* command not found */
+                        if (!(s = memchr(no->buf, ' ', p-no->buf)))
+                            s = p;
+                        *s = '\0';
+                        for (x=0;; x++) {
+                            if (!no->fn[x].name)
+                                /* command not found */
+                                return -1;
+                            if (strcmp(no->fn[x].name, no->buf) == 0) {
+                                if (no->fn[x].cb(no, s+1, p-(s+1)) != 0)
                                     return -1;
-                                if (strcmp(no->fn[x].name, no->buf) == 0) {
-                                    if (no->fn[x].cb(no, s+1, p-(s+1)) != 0)
-                                        return -1;
-                                    break;
-                                }
+                                break;
                             }
-                        } else
-                            return -1;
+                        }
                     }
                     last = 0;
                     if (p+1 < no->buf+no->sz) {

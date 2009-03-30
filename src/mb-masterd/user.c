@@ -28,6 +28,7 @@ static int user_list_slaves_command(nolp_t *no, char *buf, int size);
 static int user_slave_info_command(nolp_t *no, char *buf, int size);
 static int user_client_info_command(nolp_t *no, char *buf, int size);
 static int user_show_config_command(nolp_t *no, char *buf, int size);
+static int user_log_command(nolp_t *no, char *buf, int size);
 
 struct nolp_fn user_commands[] = {
     {"LIST-SLAVES", user_list_slaves_command},
@@ -35,6 +36,7 @@ struct nolp_fn user_commands[] = {
     {"SLAVE-INFO", user_slave_info_command},
     {"CLIENT-INFO", user_client_info_command},
     {"SHOW-CONFIG", user_show_config_command},
+    {"LOG", user_log_command},
     {0},
 };
 
@@ -202,6 +204,20 @@ user_client_info_command(nolp_t *no, char *buf, int size)
 
 static int
 user_show_config_command(nolp_t *no, char *buf, int size)
+{
+    char           out[64];
+    struct conn   *conn;
+    int            x;
+
+    conn = (struct client *)no->private;
+    x = snprintf(out, "100 %d\n", srv.config_sz);
+    send(conn->sock, out, x, 0);
+    send(conn->sock, srv.config_buf, srv.config_sz, 0);
+    return 0;
+}
+
+static int
+user_log_command(nolp_t *no, char *buf, int size)
 {
     return 0;
 }

@@ -149,28 +149,65 @@ static int
 sl_status_parse(nolp_t *no, char *buf, int size)
 {
     int x;
-    int count = size/43;
-    char *p;
+    int xml_sz = 0;
+    char *p, *rp, *re;
     struct conn *conn = no->private;
     struct slave *sl = &srv.slaves[conn->slave_n];
-    if (!(sl->clients = realloc(sl->clients, sizeof(struct client)*count)))
-        return -1;
+    struct client *curr;
+    char user[65];
+    char address[16];
+    int status;
+
+    for (x=0; x<sl->num_clients; x++) {
+        free(sl->clients[x].user);
+        free(sl->clients[x].addr);
+    }
+    sl->num_clients = 0;
+    rp = buf;
+    re = buf+size;
+    while (rp < re-1) {
+        if (!(sl->clients = realloc(sl->clients, sizeof(struct client)*(sl->num_clients+1))))
+            return -1;
+        curr = &sl->clients[sl->num_clients];
+        sscanf(rp, "%40s%15s%64s%d",
+                &curr->token, &address, &user,
+                &curr->status);
+        curr->user = strdup(user);
+        curr->addr = strdup(address);
+        sl->num_clients ++;
+        xml_sz += strlen(user)+strlen(address)+40+1;
+        if (!(rp = memchr(rp+1, '\n', re-rp)))
+            break;
+    }
+
+    char  slave_str[80];
+    int   slave_str_len
+        = sprintf(slave_str, "%.64s-%d", sl->name, sl->id);
+    /* generate XML information */
     if (!(p = (sl->xml.clients.buf = realloc(sl->xml.clients.buf,
-                    count*(40+156+1+15+sizeof("<client id=\"\"><user></user><status></status><address></address></client>")-1)
-                    +sizeof("<client-list for=\"\"></client-list>")-1))))
+                    xml_sz+
+                    slave_str_len+
+                    sl->num_clients*(
+                        sizeof("<client id=\"\"><user></user><slave></slave><status></status><address></address></client>")-1
+                        +slave_str_len
+                        )+
+                    sizeof("<client-list for=\"\"></client-list>")-1))))
         return -1;
-    sl->num_clients = count;
-    p += sprintf(p, "<client-list for=\"%.64s-%d\">", sl->name, sl->id);
-    for (x=0; x<count; x++) {
-        memcpy(sl->clients[x].token, buf+(x*43), 40);
-        sl->clients[x].state = atoi(buf+(x*43)+41);
+    p += sprintf(p, "<client-list for=\"%s\">", slave_str);
+    for (x=0; x<sl->num_clients; x++) {
+        curr = &sl->clients[x];
         p+=sprintf(p, 
                 "<client id=\"%.40s\">"
                   "<user>%.64s</user>"
-                  "<status>1</status>"
-                  "<address>%s</address>"
+                  "<slave>%s</slave>"
+                  "<status>%d</status>"
+                  "<address>%.15s</address>"
                 "</client>",
-                sl->clients[x].token, "test", "127.0.0.1");
+                curr->token,
+                curr->user,
+                slave_str, 
+                (curr->status & 1),
+                curr->addr);
     }
     p += sprintf(p, "</client-list>");
 

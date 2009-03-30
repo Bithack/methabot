@@ -36,7 +36,7 @@ void mbs_client_main(struct client *this);
  * addr should be the clients IP-address
  **/
 struct client*
-mbs_client_create(const char *addr)
+mbs_client_create(const char *addr, const char *user)
 {
     struct client* cl;
     time_t now;
@@ -49,8 +49,9 @@ mbs_client_create(const char *addr)
     MYSQL_ROW *row;
 
     if ((cl = malloc(sizeof(struct client)))) {
-        if ((cl->addr.s_addr = inet_addr(addr)) == (in_addr_t)-1) {
-            syslog(LOG_ERR, "invalid address");
+        if ((cl->addr.s_addr = inet_addr(addr)) == (in_addr_t)-1
+                || !(cl->user = strdup(user))) {
+            syslog(LOG_ERR, "invalid address/user");
             free(cl);
             return 0;
         }
@@ -91,6 +92,7 @@ mbs_client_create(const char *addr)
 void
 mbs_client_free(struct client *cl)
 {
+    free(cl->user);
     free(cl);
 }
 
@@ -148,6 +150,8 @@ mbs_client_init(void *in)
          * the slave in turn will update the master with the new 
          * list */
         ev_async_send(EV_DEFAULT_ &srv.client_status);
+
+        this->running = 1;
 
         /* enter main loop */
         mbs_client_main(this);

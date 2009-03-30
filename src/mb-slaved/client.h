@@ -30,11 +30,13 @@
 struct client {
     long               id;
     char               token[TOKEN_SIZE];
+    int                running;
+    char              *user;
     struct in_addr     addr;
 };
 
 void *mbs_client_init(void *in);
-struct client *mbs_client_create(const char *addr);
+struct client *mbs_client_create(const char *addr, const char *user);
 void mbs_client_free(struct client *cl);
 
 #endif

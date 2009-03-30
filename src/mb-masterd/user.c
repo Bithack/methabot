@@ -27,12 +27,14 @@ static int user_list_clients_command(nolp_t *no, char *buf, int size);
 static int user_list_slaves_command(nolp_t *no, char *buf, int size);
 static int user_slave_info_command(nolp_t *no, char *buf, int size);
 static int user_client_info_command(nolp_t *no, char *buf, int size);
+static int user_show_config_command(nolp_t *no, char *buf, int size);
 
 struct nolp_fn user_commands[] = {
     {"LIST-SLAVES", user_list_slaves_command},
     {"LIST-CLIENTS", user_list_clients_command},
     {"SLAVE-INFO", user_slave_info_command},
     {"CLIENT-INFO", user_client_info_command},
+    {"SHOW-CONFIG", user_show_config_command},
     {0},
 };
 
@@ -142,6 +144,64 @@ user_slave_info_command(nolp_t *no, char *buf, int size)
  **/
 static int
 user_client_info_command(nolp_t *no, char *buf, int size)
+{
+    int x, y;
+    int  found;
+    int  sz;
+    char out[256];
+    struct client *c;
+    struct slave  *sl;
+    struct conn   *conn;
+
+    if (size != 40)
+        return -1; /* return -1 to close the connection */
+
+    found = 0;
+    c = 0;
+    conn = (struct conn*)no->private;
+
+    /* search through all slaves for a client matching the 
+     * given hash */
+    for (x=0; x<srv.num_slaves; x++) {
+        for (y=0; y<srv.slaves[x].num_clients; y++) {
+            if (memcmp(srv.slaves[x].clients[y].token, buf, 40) == 0) {
+                c = &srv.slaves[x].clients[y];
+                sl = &srv.slaves[x];
+                found = 1;
+                break;
+            }
+        }
+        if (found)
+            break;
+    }
+    if (!c) {
+        /* send 203 not found message if the client was not
+         * found */
+        send(conn->sock, MSG203, sizeof(MSG203)-1, 0);
+        return 0;
+    }
+
+    sz = sprintf(out, 
+            "<client id=\"%.40s\">"
+              "<user>%.64s</user>"
+              "<slave>%.64s-%d</slave>"
+              "<status>%d</status>"
+              "<address>%.15s</address>"
+            "</client>",
+            c->token,
+            c->user,
+            sl->name, sl->id,
+            (c->status & 1),
+            c->addr);
+    x = sprintf(out+sz, "100 %d\n", sz);
+
+    send(conn->sock, out+sz, x, 0);
+    send(conn->sock, out, sz, 0);
+    return 0;
+}
+
+static int
+user_show_config_command(nolp_t *no, char *buf, int size)
 {
     return 0;
 }

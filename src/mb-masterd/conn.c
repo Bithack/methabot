@@ -226,7 +226,7 @@ upgrade_conn(struct conn *conn, const char *user)
                 /* add to pending list */
                 return 1;
             } else {
-                sz = sprintf(buf, "CLIENT %s\n", inet_ntoa(conn->addr.sin_addr));
+                sz = sprintf(buf, "CLIENT %s %s\n", inet_ntoa(conn->addr.sin_addr), user);
                 srv.slaves[0].client_conn = conn;
                 nolp_expect_line((nolp_t *)(srv.slaves[0].conn->fd_ev.data),
                         &mbm_token_reply);

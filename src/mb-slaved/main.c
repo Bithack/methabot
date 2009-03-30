@@ -143,8 +143,8 @@ int mbs_main()
  *
  * Output buffer sent to the master will look like:
  * STATUS <x>\n
- * <token>,<state>\n
- * <token>,<state>\n
+ * <token> <address> <user> <state>\n
+ * <token> <address> <user> <state>\n
  * ...
  *
  * Where x is the size in bytes of the list of 
@@ -159,15 +159,22 @@ mbs_ev_client_status(EV_P_ ev_async *w,
     char *out;
     char *p;
     int x;
+    int len;
     pthread_mutex_lock(&srv.clients_lk);
-    if (!(p = out = malloc(32+(srv.num_clients*43))))
+    if (!(p = out = malloc(32+(srv.num_clients*(40+3+65+16)))))
         abort();
-    p += sprintf(p, "STATUS %d\n", srv.num_clients*43);
     for (x=0; x<srv.num_clients; x++)
-        p += sprintf(p, "%.40s,%d\n", srv.clients[x]->token, 1);
+        p += sprintf(p, "%.40s %s %s %d\n",
+                srv.clients[x]->token,
+                inet_ntoa(srv.clients[x]->addr),
+                srv.clients[x]->user,
+                (srv.clients[x]->running & 1));
     pthread_mutex_unlock(&srv.clients_lk);
+    len = p-out;
+    x = sprintf(p, "STATUS %d\n", len);
 
-    send(srv.master_io.fd, out, p-out, 0);
+    send(srv.master_io.fd, p, x, 0);
+    send(srv.master_io.fd, out, len, 0);
     free(out);
 }
 
@@ -284,8 +291,13 @@ mbs_ev_master(EV_P_ ev_io *w, int revents)
                 srv.mstate = SLAVE_MSTATE_RECV_CONF;
             } else if (strncmp(buf, "CLIENT", 6) == 0) {
                 char out[TOKEN_SIZE+5];
-                struct client *cl = mbs_client_create(buf+7);
+                char *s = strchr(buf+7, ' ');
+                struct client *cl;
                 int ok = 0;
+                
+                if (!s)
+                    goto data_error;
+                cl = mbs_client_create(buf+7, s+1);
 
                 pthread_mutex_lock(&srv.pending_lk);
                 if (cl && srv.num_pending < MAX_NUM_PENDING) {

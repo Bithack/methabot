@@ -36,8 +36,11 @@ enum {
 };
 
 struct client {
-    char token[40];
-    int  state;
+    char  token[40];
+    char *user;
+    char *addr;
+    int   status;
+    int   state;
 };
 
 struct slave {

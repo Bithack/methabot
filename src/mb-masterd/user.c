@@ -23,24 +23,30 @@
 #include "master.h"
 #include "nolp.h"
 
+#include <stdio.h>
+
 static int user_list_clients_command(nolp_t *no, char *buf, int size);
 static int user_list_slaves_command(nolp_t *no, char *buf, int size);
 static int user_slave_info_command(nolp_t *no, char *buf, int size);
 static int user_client_info_command(nolp_t *no, char *buf, int size);
 static int user_show_config_command(nolp_t *no, char *buf, int size);
 static int user_log_command(nolp_t *no, char *buf, int size);
+static int user_add_command(nolp_t *no, char *buf, int size);
 
 struct nolp_fn user_commands[] = {
-    {"LIST-SLAVES", user_list_slaves_command},
+    {"LIST-SLAVES", &user_list_slaves_command},
     {"LIST-CLIENTS", user_list_clients_command},
     {"SLAVE-INFO", user_slave_info_command},
     {"CLIENT-INFO", user_client_info_command},
     {"SHOW-CONFIG", user_show_config_command},
     {"LOG", user_log_command},
+    {"ADD", user_add_command},
     {0},
 };
 
+#define MSG100 "100 OK\n"
 #define MSG203 "203 Not found\n"
+#define MSG300 "300 Internal Error\n"
 
 /** 
  * The LIST-CLIENTS command requests a list of clients
@@ -209,8 +215,8 @@ user_show_config_command(nolp_t *no, char *buf, int size)
     struct conn   *conn;
     int            x;
 
-    conn = (struct client *)no->private;
-    x = snprintf(out, "100 %d\n", srv.config_sz);
+    conn = (struct conn *)no->private;
+    x = sprintf(out, "100 %d\n", srv.config_sz);
     send(conn->sock, out, x, 0);
     send(conn->sock, srv.config_buf, srv.config_sz, 0);
     return 0;
@@ -219,6 +225,34 @@ user_show_config_command(nolp_t *no, char *buf, int size)
 static int
 user_log_command(nolp_t *no, char *buf, int size)
 {
+    return 0;
+}
+
+/** 
+ * called when the ADD request is performed by
+ * a user. ADD is used to add URLs. They will be 
+ * added with a last-crawled date of 00-00-00 and
+ * thus be put at the front of the queue.
+ **/
+static int
+user_add_command(nolp_t *no, char *buf, int size)
+{
+    char q[size+96];
+    int  len;
+    int  x;
+    /* make sure there's no single-quote that can 
+     * risk injecting SQL */
+    for (x=0; x<size; x++)
+        if (buf[x] == '\'')
+            buf[x] = '_';
+    len = sprintf(q, "INSERT INTO _url (url, hash, date) "
+                     "VALUES ('%s', SHA1(url), '00-00-00 00:00:00')", buf);
+    if (mysql_real_query(srv.mysql, q, len) != 0) {
+        send(no->fd, MSG300, sizeof(MSG300)-1, 0);
+        return -1;
+    }
+
+    send(no->fd, MSG100, sizeof(MSG100)-1, 0);
     return 0;
 }
 

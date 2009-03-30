@@ -28,6 +28,8 @@
 #include "conn.h"
 #include "nolp.h"
 
+int mbm_create_slave_list_xml();
+
 static int sl_status_command(nolp_t *no, char *buf, int size);
 static int sl_status_parse(nolp_t *no, char *buf, int size);
 static int read_token(EV_P_ struct conn *conn);
@@ -83,6 +85,17 @@ mbm_create_slave(const char *user)
     r->num_clients = 0;
     r->clients = 0;
 
+    mbm_create_slave_list_xml();
+    syslog(LOG_INFO, "registered slave: %s-%d", r->name, r->id);
+    
+    return r;
+}
+
+int
+mbm_create_slave_list_xml()
+{
+    int x;
+
     /* recreate the XML for the slave list */
     srv.xml.slave_list.buf =
         realloc(
@@ -112,9 +125,7 @@ mbm_create_slave(const char *user)
             srv.xml.slave_list.buf, 
             srv.xml.slave_list.sz);
 
-    syslog(LOG_INFO, "registered slave: %s-%d", r->name, r->id);
-    
-    return r;
+    return 0;
 }
 
 

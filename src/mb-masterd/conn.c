@@ -29,6 +29,8 @@
 #include <stdio.h>
 #include <errno.h>
 
+int mbm_create_slave_list_xml(void);
+
 extern struct nolp_fn slave_commands[];
 extern struct nolp_fn user_commands[];
 
@@ -115,7 +117,6 @@ slave_read(EV_P_ ev_io *w, int revents)
     if (nolp_recv(no) != 0) {
         ev_io_stop(EV_A_ w);
         mbm_conn_close(no->private);
-        /* TODO: free slave */
     }
 }
 
@@ -282,7 +283,23 @@ mbm_conn_close(struct conn *conn)
                 }
             }
         } else if (conn->auth == MBM_AUTH_TYPE_SLAVE) {
+            /* move the top-most slave to this slave's
+             * position in the list, if this slave isn't
+             * already the top-most one */
+            if (conn->slave_n != srv.num_slaves-1) {
+                srv.slaves[conn->slave_n] = srv.slaves[srv.num_slaves];
+                srv.slaves[conn->slave_n].conn->slave_n = conn->slave_n;
+            }
+            if (srv.num_slaves == 1) {
+                free(srv.slaves);
+                srv.slaves = 0;
+            } else if (!(srv.slaves = realloc(srv.slaves, (srv.num_slaves-1)*sizeof(struct slave)))) {
+                syslog(LOG_ERR, "out of mem");
+                abort();
+            }
+            srv.num_slaves --;
             /* refresh the XML list of slaves */
+            mbm_create_slave_list_xml();
         }
     }
 
@@ -317,12 +334,12 @@ mbm_token_reply(nolp_t *no, char *buf, int size)
          * we replied */
         return 0;
 
-    if (atoi(buf) != 100)
-        return -1;
-    sz = sprintf(out, "TOKEN %.40s-%s:%hd\n", buf+4,
-            inet_ntoa(conn->addr.sin_addr),
-            5305);
-    send(client->sock, out, sz, 0);
+    if (atoi(buf) != 100) {
+        sz = sprintf(out, "TOKEN %.40s-%s:%hd\n", buf+4,
+                inet_ntoa(conn->addr.sin_addr),
+                5305);
+        send(client->sock, out, sz, 0);
+    }
 
     /* stop and disconnect the client connection */
     ev_io_stop(EV_DEFAULT, &client->fd_ev);

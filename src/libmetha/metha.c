@@ -1337,10 +1337,28 @@ lmetha_load_config(metha_t *m, const char *file)
         if (m->lmc->last_error)
             LM_ERROR(m, "%s", m->lmc->last_error);
         else
-            LM_ERROR(m, "could not load '%s'\n", name);
+            LM_ERROR(m, "could not load '%s'", name);
     }
 
     return r;
+}
+
+/** 
+ * read configuration from memory
+ **/
+M_CODE
+lmetha_read_config(metha_t *m, const char *buf, int size)
+{
+    M_CODE r;
+
+    if ((r = lmc_parse(m->lmc, "::memory::", buf, size)) != M_OK) {
+        if (m->lmc->last_error)
+            LM_ERROR(m, "%s", m->lmc->last_error);
+        else
+            LM_ERROR(m, "an error occured while reading configuration from memory");
+    }
+
+    return M_OK;
 }
 
 /** 

@@ -36,6 +36,7 @@ struct client {
     struct in_addr     addr;
     struct ev_loop    *loop;
     ev_async           async;
+    ev_timer           timer;
     void              *no;
     void              *mysql;
 };

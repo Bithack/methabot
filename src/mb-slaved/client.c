@@ -30,12 +30,17 @@
 #include "client.h"
 #include "nolp.h"
 
+void mbs_client_main(struct client *this, int sock);
+static int get_and_send_url(struct client *cl);
+
 static void client_event(EV_P_ ev_io *w, int revents);
 static void thr_signal(EV_P_ ev_async *w, int revents);
-void mbs_client_main(struct client *this, int sock);
+static void timer_reached(EV_P_ ev_timer *w, int revents);
 
 static int on_status(nolp_t *no, char *buf, int size);
 static int on_url(nolp_t *no, char *buf, int size);
+
+static int send_config(int sock);
 
 /* nolp commands, client -> slave */
 struct nolp_fn client_commands[] = {
@@ -192,7 +197,7 @@ void
 mbs_client_main(struct client *this, int sock)
 {
     struct ev_loop *loop;
-    ev_io io;
+    ev_io           io;
 
     if (!(this->no = nolp_create(&client_commands, sock)))
         return;
@@ -229,14 +234,35 @@ mbs_client_main(struct client *this, int sock)
     ev_async_send(EV_DEFAULT_ &srv.client_status);
     this->running = 1;
 
+    /* notify the login success to the client, and then send
+     * the configuration file */
     send(sock, "100 OK\n", 7, 0);
-    ev_loop(loop, 0);
+    if (send_config(sock) == 0) {
+        ev_loop(loop, 0);
+    }
     ev_io_stop(loop, &io);
     ev_async_stop(loop, &this->async);
     ev_loop_destroy(loop);
 
     mysql_close(this->mysql);
     syslog(LOG_INFO, "client disconnected");
+}
+
+/* send the active configuration as received from the
+ * master to the client, this must be done be anything else
+ * is done */
+static int
+send_config(int sock)
+{
+    char out[64];
+    int  len;
+    len = sprintf(out, "CONFIG %d\n", srv.config_sz);
+    if (send(sock, out, len, 0) <= 0)
+        return -1;
+    if (send(sock, srv.config_buf, srv.config_sz, 0) != srv.config_sz)
+        return -1;
+
+    return 0;
 }
 
 /** 
@@ -247,7 +273,7 @@ static void
 client_event(EV_P_ ev_io *w, int revents)
 {
     if (nolp_recv((nolp_t *)w->data) != 0)
-        ev_unloop(EV_A_ EVUNLOOP_ALL);
+        ev_unloop(EV_A_ EVUNLOOP_ONE);
 }
 
 /** 
@@ -259,9 +285,63 @@ thr_signal(EV_P_ ev_async *w, int revents)
 
 }
 
+/* see on_status() for why the timer is used */
+static void
+timer_reached(EV_P_ ev_timer *w, int revents)
+{
+    /* return 0 if we successfully found a URL and sent
+     * it to the client */
+    if (get_and_send_url((struct client*)w->data) != 0)
+        ev_timer_again(loop, w);
+}
+
 #define Q_GET_NEW_URL \
     "SELECT url FROM _url WHERE `date` < DATE_ADD(NOW(), INTERVAL 1 DAY) "\
     "ORDER BY `date` DESC LIMIT 0,1;"
+
+/** 
+ * get_and_send_url()
+ *
+ * query the database for any new URL, if found
+ * then send it to the client. Returns 0 if a 
+ * URL was found and sent to the client, non-
+ * zero on error or no URL was found.
+ **/
+static int
+get_and_send_url(struct client *cl)
+{
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+    int   sz;
+    char *url;
+    char *buf;
+    unsigned long *lengths;
+    if (mysql_real_query(cl->mysql, Q_GET_NEW_URL, sizeof(Q_GET_NEW_URL)-1) != 0)
+        return -1;
+    if (!(res = mysql_store_result(cl->mysql)))
+        return -1;
+    if (mysql_num_rows(res)) {
+        if (!(row = mysql_fetch_row(res))
+                || !(lengths = mysql_fetch_lengths(res))) {
+            mysql_free_result(res);
+            return -1;
+        }
+
+        buf = malloc(lengths[0]+8);
+#ifdef DEBUG
+        syslog(LOG_DEBUG, "sending url '%.*s' to client '%.7s...'", lengths[0], row[0], cl->token);
+#endif
+        sz = sprintf(buf, "START %s\n", row[0]);
+
+        send(((nolp_t *)(cl->no))->fd, buf, sz, 0);
+        free(buf);
+
+        return 0;
+    }
+    mysql_free_result(res);
+
+    return 1;
+}
 
 /** 
  * STATUS command
@@ -274,19 +354,23 @@ on_status(nolp_t *no, char *buf, int size)
 
     cl = (struct client*)no->private;
     status = atoi(buf);
-    cl->running = status;
     ev_async_send(EV_DEFAULT_ &srv.client_status);
 
+    /** 
+     * if status goes to 0, we'll try to find a new
+     * URL for this client. If no URL can be found, we'll
+     * start a timer that periodically checks for new 
+     * URLs.
+     **/
     if (status == 0) {
-        /*
-        if (mysql_real_query(cl->mysql, Q_GET_NEW_URL, sizeof(Q_GET_NEW_URL)-1) != 0)
-            return -1;
-        if (mysql_num_rows(cl->mysql)) {
-
-        }*/
-        send(no->fd, "START http://bithack.se/\n", sizeof("START http://bithack.se/\n")-1, 0);
+        if (get_and_send_url(cl) != 0) {
+            ev_timer_init(&cl->timer, &timer_reached, 5.f, .0f);
+            cl->timer.data = cl;
+            cl->timer.repeat = 5.f;
+            ev_timer_start(cl->loop, &cl->timer);
+        }
     }
-
+    cl->running = status;
     return 0;
 }
 
@@ -317,17 +401,17 @@ on_url(nolp_t *no, char *buf, int size)
 
     /* copy the URL, but replace possible '\''
      * with '_' to avoid sql injections */
-    for (x=0; x<+size; x++) {
-        char *p = q+sizeof(Q_URL_1)-1+x;
+    for (x=0; x<size; x++) {
+        char *p = (q+sizeof(Q_URL_1)-1)+x;
         if (buf[x] == '\'')
             *p = '_';
         else
             *p = buf[x];
     }
-    memcpy(q+sizeof(Q_URL_1-1)+size,
+    memcpy(q+sizeof(Q_URL_1)-1+size,
            Q_URL_2, sizeof(Q_URL_2));
     if (mysql_real_query(cl->mysql, q, sz) != 0) {
-        syslog(LOG_ERR, "failed when attempting to update _url table");
+        syslog(LOG_ERR, "updating _url table failed: %s", mysql_error(cl->mysql));
         ret = -1;
     }
     free(q);

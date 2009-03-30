@@ -82,19 +82,7 @@ main(int argc, char **argv)
     lmetha_setopt(mbc.m, LMOPT_ERROR_FUNCTION, mbc_lm_error_cb);
     lmetha_setopt(mbc.m, LMOPT_WARNING_FUNCTION, mbc_lm_warning_cb);
     lmetha_setopt(mbc.m, LMOPT_EV_FUNCTION, mbc_lm_ev_cb);
-    lmetha_setopt(mbc.m, LMOPT_PRIMARY_CONF_DIR, "/home/sdac");
     lmetha_setopt(mbc.m, LMOPT_ENABLE_BUILTIN_PARSERS, 1);
-
-    lmetha_load_config(mbc.m, "master.conf");
-
-    if ((r = lmetha_prepare(mbc.m)) != M_OK) {
-        syslog(LOG_ERR, "preparing libmetha object failed: %s", lm_strerror(r));
-        exit(1);
-    }
-    if ((r = lmetha_start(mbc.m)) != M_OK) {
-        syslog(LOG_ERR, "start libmetha session failed: %s", lm_strerror(r));
-        exit(1);
-    }
 
     mbc.loop = ev_default_loop(0);
 
@@ -138,7 +126,7 @@ mbc_lm_status_cb(metha_t *m, worker_t *w, url_t *url)
             syslog(LOG_ERR, "out of mem");
     } else
         p = buf;
-    len = snprintf(p, "URL %s\n", url->str);
+    len = sprintf(p, "URL %s\n", url->str);
     send(mbc.sock, p, len, 0);
     /*printf("URL: %s\n", url->str);*/
 

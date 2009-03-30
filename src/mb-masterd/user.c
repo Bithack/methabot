@@ -242,6 +242,7 @@ user_add_command(nolp_t *no, char *buf, int size)
     int  x;
     /* make sure there's no single-quote that can 
      * risk injecting SQL */
+    buf[size] = '\0';
     for (x=0; x<size; x++)
         if (buf[x] == '\'')
             buf[x] = '_';

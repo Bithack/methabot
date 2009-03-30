@@ -83,6 +83,7 @@ mbm_create_slave(const char *user)
     r->xml.clients.buf = 0;
     r->xml.clients.sz = 0;
     r->num_clients = 0;
+    r->client_conn = 0;
     r->clients = 0;
 
     mbm_create_slave_list_xml();

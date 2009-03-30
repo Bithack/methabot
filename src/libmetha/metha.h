@@ -165,6 +165,7 @@ M_CODE   lmetha_signal(metha_t *m, int sig);
 M_CODE   lmetha_start(metha_t *m);
 M_CODE   lmetha_wakeup_worker(metha_t *m, const char *crawler, const char *url);
 M_CODE   lmetha_load_config(metha_t *m, const char *file);
+M_CODE   lmetha_read_config(metha_t *m, const char *buf, int size);
 filetype_t* lmetha_get_filetype(metha_t *m, const char *name);
 crawler_t*  lmetha_get_crawler(metha_t *m, const char *name);
 

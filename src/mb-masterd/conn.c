@@ -218,7 +218,7 @@ upgrade_conn(struct conn *conn, const char *user)
     int  sock = conn->sock;
     int  sz;
     nolp_t *no;
-    char buf[32];
+    char buf[96];
 
     switch (conn->auth) {
         case MBM_AUTH_TYPE_CLIENT:
@@ -228,7 +228,7 @@ upgrade_conn(struct conn *conn, const char *user)
                 /* add to pending list */
                 return -1;
             } else {
-                unsigned min = -1;
+                unsigned min = (unsigned)-1;
                 unsigned min_o;
                 unsigned x;
                 /* find the slave with the least num clients connected, 
@@ -244,11 +244,11 @@ upgrade_conn(struct conn *conn, const char *user)
                 }
                 /* the slave with the least amount of clients should now be at
                  * srv.slaves[min_o] */
-                if (min_o == -1)
+                if (min == (unsigned)-1)
                     /* no slave found, or they were all busy */
                     return -1;
 
-                sz = sprintf(buf, "CLIENT %s %s\n", inet_ntoa(conn->addr.sin_addr), user);
+                sz = sprintf(buf, "CLIENT %s %.64s\n", inet_ntoa(conn->addr.sin_addr), user);
                 srv.slaves[min_o].client_conn = conn; 
                 nolp_expect_line((nolp_t *)(srv.slaves[min_o].conn->fd_ev.data),
                         &mbm_token_reply);
@@ -355,7 +355,7 @@ mbm_token_reply(nolp_t *no, char *buf, int size)
          * we replied */
         return 0;
 
-    if (atoi(buf) != 100) {
+    if (atoi(buf) == 100) {
         sz = sprintf(out, "TOKEN %.40s-%s:%hd\n", buf+4,
                 inet_ntoa(conn->addr.sin_addr),
                 5305);

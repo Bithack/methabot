@@ -89,16 +89,30 @@ nolp_recv(nolp_t *no)
         rerun = 0;
         switch (no->state) {
             case NOLP_EXPECT:
-                if (no->sz == no->expect) {
+                if (no->cap < no->expect) {
+                    if (!(no->buf = realloc(no->buf, no->expect)))
+                        return -1;
+                    no->cap = no->expect;
+
+                }
+                if (no->sz >= no->expect) {
                     /* all expected data received, call the
                      * next_cb() function */
-                    if (no->next_cb(no, no->buf, no->sz) != 0)
+                    if (no->next_cb(no, no->buf, no->expect) != 0)
                         return -1;
-                    no->sz = 0;
-                    no->cap = NOLP_DEFAULT_BUFSZ;
+
+                    if (no->sz == no->expect) {
+                        no->sz = 0;
+                        no->cap = NOLP_DEFAULT_BUFSZ;
+                        if (!(no->buf = realloc(no->buf, NOLP_DEFAULT_BUFSZ)))
+                            return -1;
+                    } else {
+                        x = (no->buf+no->sz)-(no->buf+no->expect);
+                        no->sz = x;
+                        memmove(no->buf, (no->buf+no->expect), x);
+                        rerun = 1;
+                    }
                     no->state = NOLP_CMD;
-                    if (!(no->buf = realloc(no->buf, NOLP_DEFAULT_BUFSZ)))
-                        return -1;
                 }
                 break;
 
@@ -165,12 +179,6 @@ int
 nolp_expect(nolp_t *no, int size,
             int (*complete_cb)(void*, char *, int))
 {
-    if (size > no->sz) {
-        if (!(no->buf = realloc(no->buf, size)))
-            return -1;
-        no->cap = size;
-    }
-
     no->next_cb = complete_cb;
     /*no->sz = 0;*/
     no->expect = size;

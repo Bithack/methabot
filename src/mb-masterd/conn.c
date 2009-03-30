@@ -184,8 +184,9 @@ conn_read(EV_P_ ev_io *w, int revents)
 
         send(sock, "100 OK\n", 7, 0);
 
-        if (upgrade_conn(conn, user) != 0)
+        if (upgrade_conn(conn, user) != 0) {
             goto close;
+        }
     }
     return;
 
@@ -225,13 +226,33 @@ upgrade_conn(struct conn *conn, const char *user)
             /* give this client to a slave */
             if (!srv.num_slaves) {
                 /* add to pending list */
-                return 1;
+                return -1;
             } else {
+                unsigned min = -1;
+                unsigned min_o;
+                unsigned x;
+                /* find the slave with the least num clients connected, 
+                 * and connect this client with that slave, also verify 
+                 * that the slave isn't currently generating a token for 
+                 * another client */
+                for (x=0; x<srv.num_slaves; x++) {
+                    struct slave *sl = &srv.slaves[x];
+                    if (sl->num_clients < min && !sl->client_conn) {
+                        min = sl->num_clients;
+                        min_o = x;
+                    }
+                }
+                /* the slave with the least amount of clients should now be at
+                 * srv.slaves[min_o] */
+                if (min_o == -1)
+                    /* no slave found, or they were all busy */
+                    return -1;
+
                 sz = sprintf(buf, "CLIENT %s %s\n", inet_ntoa(conn->addr.sin_addr), user);
-                srv.slaves[0].client_conn = conn;
-                nolp_expect_line((nolp_t *)(srv.slaves[0].conn->fd_ev.data),
+                srv.slaves[min_o].client_conn = conn; 
+                nolp_expect_line((nolp_t *)(srv.slaves[min_o].conn->fd_ev.data),
                         &mbm_token_reply);
-                send(srv.slaves[0].conn->sock, buf, sz, 0);
+                send(srv.slaves[min_o].conn->sock, buf, sz, 0);
             }
             break;
 

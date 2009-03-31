@@ -24,6 +24,7 @@
 #include <curl/curl.h>
 
 #include "js.h"
+#include "worker.h"
 #include "io.h"
 
 static JSBool __lm_js_print(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
@@ -32,6 +33,7 @@ static JSBool __lm_js_getc(JSContext *cx, JSObject *this, uintN argc, jsval *arg
 static JSBool __lm_js_get(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
 static JSBool __lm_js_http_post(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
 static JSBool __lm_js_filesize(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
+static JSBool __lm_js_set_attribute(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
 
 JSFunctionSpec lm_js_allfunctions[] = {
     {"print", __lm_js_print, 1},
@@ -43,6 +45,14 @@ JSFunctionSpec lm_js_allfunctions[] = {
     {0}
 };
 
+/** 
+ * functions usable on the 'this' object 
+ * of workers. i.e. this.set_attribute("x", "y");
+ **/
+JSFunctionSpec lm_js_workerfunctions[] = {
+    {"set_attribute", __lm_js_set_attribute, 2},
+    {0}
+};
 
 void
 lm_jserror(JSContext *cx, const char *message, JSErrorReport *report)
@@ -76,7 +86,7 @@ lm_jsval_foreach(JSContext *cx, jsval v,
 {
     int32_t sz, x;
 
-    if (v == JSVAL_NULL) {
+    if (JSVAL_IS_NULL(v) || JSVAL_IS_VOID(v)) {
     } else if (JSVAL_IS_OBJECT(v)) {
         jsval length;
         JSObject *o;
@@ -263,6 +273,32 @@ __lm_js_filesize(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *
     fclose(fh);
 
     *ret = INT_TO_JSVAL(filesize);
+    return JS_TRUE;
+}
+
+/** 
+ * set the given filetype attribute of the
+ * current URL
+ **/
+JSBool
+__lm_js_set_attribute(JSContext *cx, JSObject *this,
+                 uintN argc, jsval *argv,
+                 jsval *ret)
+{
+    worker_t *w;
+    const char *attr, *val;
+
+    if (!(w = JS_GetPrivate(cx, this)))
+        return JS_FALSE;
+
+    if (!JS_ConvertArguments(cx, argc, argv, "ss", &attr, &val))
+        return JS_FALSE;
+
+    if (lm_attribute_set(&w->attributes, attr, val, strlen(val)) == M_OK)
+        *ret = JSVAL_TRUE;
+    else
+        *ret = JSVAL_FALSE;
+
     return JS_TRUE;
 }
 

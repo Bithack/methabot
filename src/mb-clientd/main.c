@@ -83,6 +83,7 @@ main(int argc, char **argv)
     lmetha_setopt(mbc.m, LMOPT_WARNING_FUNCTION, mbc_lm_warning_cb);
     lmetha_setopt(mbc.m, LMOPT_EV_FUNCTION, mbc_lm_ev_cb);
     lmetha_setopt(mbc.m, LMOPT_ENABLE_BUILTIN_PARSERS, 1);
+    lmetha_setopt(mbc.m, LMOPT_PRIMARY_SCRIPT_DIR, "/usr/share/metha/scripts");
 
     mbc.loop = ev_default_loop(0);
 
@@ -142,7 +143,31 @@ mbc_lm_target_cb(metha_t *m, worker_t *w,
                  url_t *url, attr_list_t *attributes,
                  filetype_t *ft)
 {
-    printf("target: %s\n", url->str);
+    char pre[11+1+url->sz+96];
+    int  sz;
+    int  x;
+    int  total = 0;
+    int y;
+    for (x=0; x<attributes->num_attributes; x++) {
+        sz = sprintf(pre, "%d", attributes->list[x].size);
+        char *s = strchr(attributes->list[x].name, ' ');
+        if (!s) y = strlen(attributes->list[x].name);
+        else y = s-attributes->list[x].name;
+
+        total += y+attributes->list[x].size+2+sz;
+    }
+    sz = sprintf(pre, "TARGET 0 %s %.64s %d\n",
+            url->str, ft->name,
+            total);
+    send(mbc.sock, pre, sz, 0);
+    for (x=0; x<attributes->num_attributes; x++) {
+        char *s = strchr(attributes->list[x].name, ' ');
+        if (!s) y = strlen(attributes->list[x].name);
+        else y = s-attributes->list[x].name;
+        sz = sprintf(pre, "%.*s %d ", y, attributes->list[x].name, attributes->list[x].size);
+        send(mbc.sock, pre, sz, 0);
+        send(mbc.sock, attributes->list[x].value, attributes->list[x].size, 0);
+    }
 }
 
 static void

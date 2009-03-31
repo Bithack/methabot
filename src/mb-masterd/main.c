@@ -200,6 +200,24 @@ mbm_mysql_connect()
                     PRIMARY KEY (id), \
                     INDEX (`to`) \
                     )"
+#define SQL_SESSION_TBL "\
+            CREATE TABLE IF NOT EXISTS \
+            nol_session ( \
+                    id INT NOT NULL AUTO_INCREMENT, \
+                    `added_id` INT, \
+                    `client_id` INT, \
+                    `date` DATETIME, \
+                    PRIMARY KEY (id)\
+                    )"
+#define SQL_SESSION_REL_TBL "\
+            CREATE TABLE IF NOT EXISTS \
+            nol_session_rel ( \
+                    session_id INT NOT NULL, \
+                    filetype VARCHAR(64), \
+                    `target_id` INT, \
+                    PRIMARY KEY (id)\
+                    )"
+
 /*
 #define SQL_CRAWLERS_DROP "DROP TABLE IF EXISTS nol_crawlers;"
 #define SQL_CRAWLERS_TBL "\
@@ -232,6 +250,8 @@ mbm_mysql_setup()
     mysql_real_query(srv.mysql, SQL_URL_TBL, sizeof(SQL_URL_TBL)-1);
     mysql_real_query(srv.mysql, SQL_ADDED_TBL, sizeof(SQL_ADDED_TBL)-1);
     mysql_real_query(srv.mysql, SQL_MSG_TBL, sizeof(SQL_MSG_TBL)-1);
+    mysql_real_query(srv.mysql, SQL_SESSION_TBL, sizeof(SQL_SESSION_TBL)-1);
+    mysql_real_query(srv.mysql, SQL_SESSION_REL_TBL, sizeof(SQL_SESSION_REL_TBL)-1);
 
     /* if there's no user added to the user table, then we
      * must add the default one with admin:admin as login */
@@ -257,9 +277,14 @@ mbm_mysql_setup()
 }
 
 #define CREATE_TBL         "CREATE TABLE IF NOT EXISTS "
-#define CREATE_TBL_LEN     (sizeof("CREATE TABLE IF NOT EXISTS ")-1)
-#define DEFAULT_LAYOUT     "(id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id))"
-#define DEFAULT_LAYOUT_LEN (sizeof("(id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id))")-1)
+#define CREATE_TBL_LEN     (sizeof(CREATE_TBL)-1)
+#define DEFAULT_LAYOUT     \
+    "(id INT NOT NULL AUTO_INCREMENT, "\
+    "url_hash VARCHAR(40), "\
+    "date DATETIME, "\
+    "PRIMARY KEY (id),"\
+    "UNIQUE (url_hash))"
+#define DEFAULT_LAYOUT_LEN (sizeof(DEFAULT_LAYOUT)-1)
 
 enum {
     ATTR_TYPE_UNKNOWN,

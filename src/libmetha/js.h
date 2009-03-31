@@ -30,5 +30,6 @@ void     lm_jserror(JSContext *cx, const char *message, JSErrorReport *report);
 M_CODE   lm_jsval_foreach(JSContext *cx, jsval v, M_CODE (*__callback)(void *, const char *, uint16_t), void *extra);
 
 extern JSFunctionSpec lm_js_allfunctions[];
+extern JSFunctionSpec lm_js_workerfunctions[];
 
 #endif

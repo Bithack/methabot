@@ -39,13 +39,20 @@ static void timer_reached(EV_P_ ev_timer *w, int revents);
 
 static int on_status(nolp_t *no, char *buf, int size);
 static int on_url(nolp_t *no, char *buf, int size);
+static int on_target(nolp_t *no, char *buf, int size);
+static int on_target_recv(nolp_t *no, char *buf, int size);
 
+static int update_ft_attr(struct client *cl, char *attr, int attr_len, char *val, int val_len);
 static int send_config(int sock);
+
+char *mbs_str_filter_quote(char *s, int size);
+char *mbs_str_filter_name(char *s, int size);
 
 /* nolp commands, client -> slave */
 struct nolp_fn client_commands[] = {
     {"STATUS", &on_status},
     {"URL", &on_url},
+    {"TARGET", &on_target},
     {0}
 };
 /** 
@@ -352,9 +359,16 @@ get_and_send_url(struct client *cl)
                 "SET date = DATE_ADD(NOW(), INTERVAL 1 DAY) "
                 "WHERE id=%d LIMIT 1;",
                 id);
-        mysql_real_query(cl->mysql, buf, sz);
+        if (mysql_real_query(cl->mysql, buf, sz) != 0) {
+            free(buf);
+            return -1;
+        }
+        /*
+        sprintf(buf,
+                "INSERT INTO `nol_session` VALUES ()
+                )
+                */
         free(buf);
-
         return 0;
     }
     mysql_free_result(res);
@@ -436,5 +450,204 @@ on_url(nolp_t *no, char *buf, int size)
     free(q);
 
     return ret;
+}
+
+#define Q_ADD_TARGET_1 "INSERT INTO ft_"
+#define Q_ADD_TARGET_2 " VALUES ()"
+
+/** 
+ * Syntax for TARGET:
+ * 
+ * TARGET <parent-url> <url> <filetype> <size>\n
+ * ... attributes ...
+ *
+ * Currently, parent-url is unused and will be 0.
+ **/
+static int
+on_target(nolp_t *no, char *buf,
+          int size)
+{
+    struct client *cl;
+    char *p = buf;
+    char *e = buf+size;
+    char *url;
+    char *filetype;
+    char q[size+32];
+    int  len;
+    int  x;
+
+    if (!(p = memchr(p, ' ', e-p)))
+        return -1;
+    url = p+1;
+    p++;
+    if (!(p = memchr(p, ' ', e-p)))
+        return -1;
+    filetype = p+1;
+    p++;
+    if (!(p = memchr(p, ' ', e-p)))
+        return -1;
+
+    cl = ((struct client *)no->private);
+    if (p-filetype > 63)
+        len = 63;
+    else
+        len = p-filetype;
+
+    /* replace all chars thats not A-Za-z0-9_ with '_' */
+    for (x=0; x<len; x++)
+        *(cl->filetype_name+x) = 
+            (!isalnum(*(filetype+x))?'_':*(filetype+x));
+    *(cl->filetype_name+x) = '\0';
+    *p = '\0';
+    *(filetype-1) = '\0';
+    for (x=0; x<filetype-1-url; x++)
+        if (*(url+x) == '\'')
+            *(url+x) = '_';
+
+    len = sprintf(q,
+            "INSERT INTO ft_%.64s (url_hash, date) VALUES (SHA1('%s'), NOW()) "
+            "ON DUPLICATE KEY UPDATE date=NOW()",
+            cl->filetype_name,
+            url);
+
+    if (mysql_real_query(cl->mysql, q, len) != 0) {
+        syslog(LOG_ERR, "saving target failed: %s", mysql_error(cl->mysql));
+        return -1;
+    }
+
+#ifdef DEBUG
+    syslog(LOG_DEBUG,
+            "start receiving attributes for '%s' of type '%s'",
+            url, cl->filetype_name);
+#endif
+
+    cl->target_id = mysql_insert_id(cl->mysql);
+
+    nolp_expect(no, atoi(p+1), &on_target_recv);
+    return 0;
+}
+/**
+ * Command received from the client when a target has been 
+ * found, 'buf' should contain a list of attributes to 
+ * save along with this target file type.
+ * 
+ * Each attribute will look like this:
+ * 
+ * <name> <size> <data>
+ **/
+static int
+on_target_recv(nolp_t *no, char *buf,
+               int size)
+{
+    char *p = buf,
+         *e = buf+size,
+         *attr,
+         *value;
+    struct client *cl;
+    int value_len, attr_len;
+    cl = (struct client *)no->private;
+
+    while (p<e) {
+        attr = p;
+        if (!(p = memchr(p, ' ', e-p)))
+            break;
+        attr_len = p-attr;
+        p++;
+        value_len = atoi(p);
+        if (!(p = memchr(p, ' ', e-p)))
+            break;
+        p++;
+        value = p;
+        if (p+value_len > e)
+            break;
+
+        if (update_ft_attr(cl,
+                    attr, attr_len,
+                    value, value_len) != 0)
+            break;
+
+        p+=value_len;
+    }
+    return 0;
+}
+
+/** 
+ * update the attribute with the given
+ * value
+ **/
+static int
+update_ft_attr(struct client *cl,
+               char *attr, int attr_len,
+               char *val, int val_len)
+{
+    int  len;
+    char q[128+val_len+attr_len];
+
+    /* TODO: use mysql_real_escape_string instead
+     * of mbs_str_filter_quote to allow insert of 
+     * data containing single quotes */
+
+    len = sprintf(q,
+            "UPDATE ft_%.64s SET %.*s = '%.*s' "
+            "WHERE id=%d LIMIT 1;",
+            cl->filetype_name,
+            attr_len,
+            mbs_str_filter_name(attr, attr_len),
+            val_len,
+            mbs_str_filter_quote(val, val_len),
+            cl->target_id);
+    if (mysql_real_query(cl->mysql, q, len) != 0) {
+        syslog(LOG_ERR, "updating attributes failed: %s", mysql_error(cl->mysql));
+        return -1;
+    }
+    return 0;
+}
+
+/** 
+ * filter a string by replacing all characters
+ * but A-Za-z0-9_ with '_', required for 
+ * filetype names, table names, login names
+ * and more
+ *
+ * returns the given string
+ **/
+char *
+mbs_str_filter_name(char *s, int size)
+{
+    char *p = s;
+    char *e = s+size;
+    if (size == -1) {
+        for (p=s;*p;p++)
+            if (!isalnum(*p))
+                *p = '_';
+    } else {
+        for (p=s;p<e;p++)
+            if (!isalnum(*p))
+                *p = '_';
+    }
+    return s;
+}
+
+/** 
+ * filter a string by replacing all occurences
+ * of '\'' with '_' to prevent SQL-injections
+ *
+ * returns the given string
+ **/
+char *
+mbs_str_filter_quote(char *s, int size)
+{
+    char *p = s;
+    char *e = s+size;
+    if (size == -1) {
+        for (p=s;*p;p++)
+            if (*p == '\'')
+                *p = '_';
+    } else {
+        for (p=s;p<e;p++)
+            if (*p == '\'')
+                *p = '_';
+    }
+    return s;
 }
 

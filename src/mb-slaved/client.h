@@ -31,6 +31,7 @@
 struct client {
     long               id;
     long               session_id;
+    long               target_id;
     char               token[TOKEN_SIZE];
     int                running;
     char              *user;
@@ -40,6 +41,7 @@ struct client {
     ev_timer           timer;
     void              *no;
     void              *mysql;
+    char               filetype_name[64];
 };
 
 void *mbs_client_init(void *in);

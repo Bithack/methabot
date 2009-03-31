@@ -57,7 +57,7 @@ static const char *worker_state_str[] = {
  * This is the object class for the 'this' variable in e4x parser callbacks.
  **/
 static const JSClass worker_jsclass = {
-    "worker_t", 0,
+    "worker_t", JSCLASS_HAS_PRIVATE,
     JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_PropertyStub,
     JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, JS_FinalizeStub,
     JSCLASS_NO_OPTIONAL_MEMBERS
@@ -956,6 +956,12 @@ lm_worker_init_e4x(worker_t *w)
     }
 
     JS_SetPrivate(w->e4x_cx, w->e4x_this, w);
+
+    /* set up worker functions */
+    if (JS_DefineFunctions(w->e4x_cx, w->e4x_this, &lm_js_workerfunctions) == JS_FALSE) {
+        LM_ERROR(w->m, "fatal: defining native javascript worker functions failed");
+        return M_FAILED;
+    }
 
     JS_AddRoot(w->e4x_cx, &w->e4x_this);
     JS_EndRequest(w->e4x_cx);

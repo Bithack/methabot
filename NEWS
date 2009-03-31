@@ -18,20 +18,25 @@ Changes and new features:
 * Various improvements to the  configuration  loader, such as dynamically adding 
   and changing classes and scopes
 * Lots of memory usage optimizations and cleanup fixes
-* Support for filetype attributes.  Parsers can now set custom data that will be
-  associated with a parsed file.  Attributes primary area of use is when you are 
+* Bugfix, a syntax error would  in  some  rare  cases  occur when parsing integer
+  values in configuration files
+* Bugfix, when javascript filetype parsers did not return a value, it was treated
+  as a string, "undefined", and used as a relative URL
+* Support for  filetype attributes.  Parsers can now set custom data that will be
+  associated with a parsed file.  Attributes' primary area of use is when you are 
   connected to a Methanol system and want to store meta-data about a URL.
+* new Javascript  function set_attribute() for setting attributes for the current
+  URL
 * API support for custom status, error/warning and target reporter functions
 * lmetha_global_setopt() is no longer available, replaced with lmetha_setopt()
   options
-* mb-clientd is a version of the methabot client, running in the background and
+* mb-clientd is  a version of the methabot client, running in the background and
   communicating with a Methanol web crawling system
 * mb-slaved: a slave server  responsible  for  managing and collecting data from
   client daemons
 * mb-masterd is the master server, responsible  for statistics and system-global
   signaling
-* madmind is a command line utility for administrating a Methanol system
-* phpmadmind is a web interface for administrating a Methanol system
+* phpMadMind is a web interface for administrating a Methanol system
 
 1.6.0
 =====

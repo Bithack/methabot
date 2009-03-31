@@ -50,8 +50,6 @@ static void conn_read(EV_P_ ev_io *w, int revents);
 static int upgrade_conn(struct conn *conn, const char *user);
 static int check_user_login(const char *user, const char *pwd);
 
-void strrmsq(char *s);
-
 /** 
  * Accept a connection and set up a conn struct
  **/
@@ -354,6 +352,9 @@ mbm_conn_close(struct conn *conn)
                 }
             }
         } else if (conn->auth == MBM_AUTH_TYPE_SLAVE) {
+            syslog(LOG_INFO, "slave %s-%d disconnected",
+                    srv.slaves[conn->slave_n].name,
+                    srv.slaves[conn->slave_n].id);
             /* move the top-most slave to this slave's
              * position in the list, if this slave isn't
              * already the top-most one */

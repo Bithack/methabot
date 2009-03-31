@@ -30,6 +30,7 @@
 
 struct client {
     long               id;
+    long               session_id;
     char               token[TOKEN_SIZE];
     int                running;
     char              *user;

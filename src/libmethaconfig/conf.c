@@ -252,7 +252,9 @@ lmc_parse_file(lmc_parser_t *lmc,
         char *s;
         if (!(s = strrchr(filename, '/'))) s = filename;
         else s++;
-        return lmc_parse(lmc, s, p, sz);
+        r = lmc_parse(lmc, s, p, sz);
+        free(p);
+        return r;
     } while (0);
 
     /* reach here if error before lmc_parse()
@@ -689,7 +691,9 @@ lmc_parse(lmc_parser_t *lmc,
                                 curr_opt->name, val_str[curr_opt->type]);
                         goto error;
                     }
-                    do p++; while (isdigit(*p));
+                    while (isdigit(*p))
+                        p++;
+                    p--;
                 } else {
                     if (curr_opt->type == LMC_VAL_T_FLAG) {
                         if (scope) {
@@ -788,7 +792,6 @@ lmc_parse(lmc_parser_t *lmc,
     }
 
     if (array) free(array);
-    if (buf) free(buf);
     return M_OK;
 
 uc:
@@ -796,7 +799,6 @@ uc:
 
 error:
     if (array) free(array);
-    if (buf) free(buf);
     return M_FAILED;
 }
 

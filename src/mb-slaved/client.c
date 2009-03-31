@@ -289,14 +289,23 @@ thr_signal(EV_P_ ev_async *w, int revents)
 static void
 timer_reached(EV_P_ ev_timer *w, int revents)
 {
+    char *p;
     /* return 0 if we successfully found a URL and sent
      * it to the client */
-    if (get_and_send_url((struct client*)w->data) != 0)
-        ev_timer_again(loop, w);
+    switch (get_and_send_url((struct client*)w->data)) {
+        case -1:
+            p = mysql_error(((struct client*)w->data)->mysql);
+            syslog(LOG_ERR, "URL get and send failed: %s", p?(*p?p:"error"):"error");
+            ev_unloop(EV_A_ EVUNLOOP_ONE);
+        case 0:
+            return;
+        case 1:
+            ev_timer_again(loop, w);
+    }
 }
 
 #define Q_GET_NEW_URL \
-    "SELECT url FROM nol_url WHERE `date` < DATE_ADD(NOW(), INTERVAL 1 DAY) "\
+    "SELECT id, input FROM nol_added WHERE `date` <= NOW()"\
     "ORDER BY `date` DESC LIMIT 0,1;"
 
 /** 
@@ -315,6 +324,7 @@ get_and_send_url(struct client *cl)
     int   sz;
     char *url;
     char *buf;
+    int   id;
     unsigned long *lengths;
     if (mysql_real_query(cl->mysql, Q_GET_NEW_URL, sizeof(Q_GET_NEW_URL)-1) != 0)
         return -1;
@@ -327,13 +337,22 @@ get_and_send_url(struct client *cl)
             return -1;
         }
 
-        buf = malloc(lengths[0]+8);
+        id = atoi(row[0]);
+        buf = malloc(lengths[1]+8);
 #ifdef DEBUG
-        syslog(LOG_DEBUG, "sending url '%.*s' to client '%.7s...'", lengths[0], row[0], cl->token);
+        syslog(LOG_DEBUG, "sending url '%.*s' to client '%.7s...'", lengths[1], row[1], cl->token);
 #endif
-        sz = sprintf(buf, "START %s\n", row[0]);
+        sz = sprintf(buf, "START %s\n", row[1]);
 
         send(((nolp_t *)(cl->no))->fd, buf, sz, 0);
+
+        buf = realloc(buf, 128);
+        sz = sprintf(buf, 
+                "UPDATE nol_added "
+                "SET date = DATE_ADD(NOW(), INTERVAL 1 DAY) "
+                "WHERE id=%d LIMIT 1;",
+                id);
+        mysql_real_query(cl->mysql, buf, sz);
         free(buf);
 
         return 0;

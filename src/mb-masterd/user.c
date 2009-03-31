@@ -230,30 +230,37 @@ user_log_command(nolp_t *no, char *buf, int size)
 
 /** 
  * called when the ADD request is performed by
- * a user. ADD is used to add URLs. They will be 
- * added with a last-crawled date of 00-00-00 and
- * thus be put at the front of the queue.
+ * a user. ADD is used to add URLs.
  **/
 static int
 user_add_command(nolp_t *no, char *buf, int size)
 {
-    char q[size+96];
+    char q[size+32];
+    char crawler[64];
+    char *e;
     int  len;
     int  x;
+    e = buf+size;
+    buf[size] = '\0';
+    if (!(len = sscanf(buf, "%64s", &crawler)))
+        return -1;
+    while (!isspace(*buf) && buf<e)
+        buf++;
+    while (isspace(*buf) && buf<e)
+        buf++;
     /* make sure there's no single-quote that can 
      * risk injecting SQL */
-    buf[size] = '\0';
-    for (x=0; x<size; x++)
-        if (buf[x] == '\'')
-            buf[x] = '_';
-    /*
-    len = sprintf(q, "INSERT INTO nol_added (input, hash, date) "
-                     "VALUES ('%s', SHA1(url), '00-00-00 00:00:00')", buf);
+    strrmsq(crawler);
+    strrmsq(buf);
+    len = sprintf(q, "INSERT INTO nol_added (user_id, crawler, input, date) "
+                     "VALUES (%d, '%s', '%s', NOW())",
+                     ((struct conn*)no->private)->user_id,
+                     crawler,
+                     buf);
     if (mysql_real_query(srv.mysql, q, len) != 0) {
         send(no->fd, MSG300, sizeof(MSG300)-1, 0);
         return -1;
     }
-    */
 
     send(no->fd, MSG100, sizeof(MSG100)-1, 0);
     return 0;

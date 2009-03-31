@@ -1358,7 +1358,7 @@ lmetha_read_config(metha_t *m, const char *buf, int size)
             LM_ERROR(m, "an error occured while reading configuration from memory");
     }
 
-    return M_OK;
+    return r;
 }
 
 /** 

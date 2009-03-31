@@ -42,5 +42,6 @@ struct master {
 extern struct master srv;
 
 void *mbm_conn_main(void *in);
+void strrmsq(char *s);
 
 #endif

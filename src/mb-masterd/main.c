@@ -182,6 +182,7 @@ mbm_mysql_connect()
             nol_added ( \
                     id INT NOT NULL AUTO_INCREMENT, \
                     user_id INT, \
+                    crawler VARCHAR(64), \
                     input VARCHAR(4096), \
                     date DATETIME, \
                     PRIMARY KEY (id),\
@@ -199,6 +200,21 @@ mbm_mysql_connect()
                     PRIMARY KEY (id), \
                     INDEX (`to`) \
                     )"
+/*
+#define SQL_CRAWLERS_DROP "DROP TABLE IF EXISTS nol_crawlers;"
+#define SQL_CRAWLERS_TBL "\
+            CREATE TABLE \
+            nol_crawlers ( \
+                    id INT NOT NULL AUTO_INCREMENT, \
+                    `to` INT, \
+                    `from` INT, \
+                    `date` DATETIME, \
+                    title VARCHAR(255), \
+                    content TEXT, \
+                    PRIMARY KEY (id), \
+                    INDEX (`to`) \
+                    )"
+                    */
 #define SQL_USER_CHECK "SELECT null FROM nol_user LIMIT 0,1;"
 #define SQL_ADD_DEFAULT_USER "INSERT INTO nol_user (user, pass) VALUES ('admin', 'admin')"
 /** 

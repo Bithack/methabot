@@ -48,6 +48,9 @@ void mbm_user_read(EV_P_ ev_io *w, int revents);
 
 static void conn_read(EV_P_ ev_io *w, int revents);
 static int upgrade_conn(struct conn *conn, const char *user);
+static int check_user_login(const char *user, const char *pwd);
+
+void strrmsq(char *s);
 
 /** 
  * Accept a connection and set up a conn struct
@@ -178,6 +181,10 @@ conn_read(EV_P_ ev_io *w, int revents)
         if (!auth_found)
             goto denied;
 
+        if (conn->auth == MBM_AUTH_TYPE_USER)
+            if ((conn->user_id = check_user_login(user, pwd)) == -1)
+                goto denied;
+
         /* first argument is the type, this can be client, slave, status or operator */
         syslog(LOG_INFO, "AUTH type=%s,user=%s OK from #%d", type, user, sock);
         conn->authenticated = 1;
@@ -192,7 +199,7 @@ conn_read(EV_P_ ev_io *w, int revents)
 
 
 denied:
-    send(sock, "200 DENIED\n", 11, MSG_NOSIGNAL);
+    send(sock, "200 Denied\n", 11, MSG_NOSIGNAL);
 close:
     ev_io_stop(EV_A_ &conn->fd_ev);
     mbm_conn_close(conn);
@@ -202,6 +209,49 @@ invalid:
     syslog(LOG_WARNING, "invalid data from #%d, closing connection", sock);
     send(sock, "201 Bad Request\n", 16, MSG_NOSIGNAL);
     close(sock);
+}
+
+/**
+ * verify the login
+ *
+ * this function does NOT check for buffer overflows using 
+ * long user or pwd strings, and should only be used 
+ * where those two have already been cut
+ *
+ * return the user id on success, or -1 if the login 
+ * failed.
+ **/
+static int
+check_user_login(const char *user, const char *pwd)
+{
+    char buf[64*3];
+    int len;
+    MYSQL_RES *r;
+    MYSQL_ROW row;
+
+    strrmsq(user);
+    strrmsq(pwd);
+
+    len = sprintf(buf, "SELECT id FROM nol_user WHERE user = '%s' AND pass = '%s';",
+            user, pwd);
+    if (mysql_real_query(srv.mysql, buf, len) == 0)
+        if ((r = mysql_store_result(srv.mysql)))
+            if ((row = mysql_fetch_row(r)))
+                return atoi(row[0]);
+    return -1;
+}
+
+/** 
+ * remove single-quotes
+ **/
+void
+strrmsq(char *s)
+{
+    while (*s) {
+        if (*s == '\'')
+            *s = '_';
+        s++;
+    }
 }
 
 /** 

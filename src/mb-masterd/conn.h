@@ -67,6 +67,7 @@ struct conn {
     int   auth;
     int   authenticated;
     int   action;
+    int   user_id;
     /* if this is connection to a slave, the slave
      * "id" will be set here */
     int   slave_n;

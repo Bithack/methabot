@@ -72,7 +72,7 @@ mbm_create_slave(const char *user)
             *(r->name+x) = '_';
     r->name_len = sz;
 
-    sz = sprintf(q, "INSERT INTO _slave (user) VALUES ('%s');", r->name);
+    sz = sprintf(q, "INSERT INTO nol_slave (user) VALUES ('%s');", r->name);
     if (mysql_real_query(srv.mysql, q, sz) != 0) {
         free(r->name);
         srv.num_slaves --;

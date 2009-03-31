@@ -154,40 +154,88 @@ mbm_mysql_connect()
 
 #define SQL_USER_TBL "\
             CREATE TABLE IF NOT EXISTS \
-            _user (user VARCHAR(32), pass VARCHAR(32))"
+            nol_user (id INT NOT NULL AUTO_INCREMENT, user VARCHAR(32), pass VARCHAR(32), PRIMARY KEY (id))"
 #define SQL_CLIENT_TBL "\
             CREATE TABLE IF NOT EXISTS \
-            _client ( \
+            nol_client ( \
                     id INT NOT NULL AUTO_INCREMENT, \
                     token VARCHAR(40), \
                     PRIMARY KEY (id) \
                     )"
 #define SQL_SLAVE_TBL "\
             CREATE TABLE IF NOT EXISTS \
-            _slave ( \
+            nol_slave ( \
                     id INT NOT NULL AUTO_INCREMENT, \
                     user VARCHAR(64), \
                     PRIMARY KEY (id) \
                     )"
 #define SQL_URL_TBL "\
             CREATE TABLE IF NOT EXISTS \
-            _url ( \
+            nol_url ( \
                     hash VARCHAR(40), \
                     url VARCHAR(4096), \
                     date DATETIME, \
                     PRIMARY KEY (hash) \
                     )"
-
+#define SQL_ADDED_TBL "\
+            CREATE TABLE IF NOT EXISTS \
+            nol_added ( \
+                    id INT NOT NULL AUTO_INCREMENT, \
+                    user_id INT, \
+                    input VARCHAR(4096), \
+                    date DATETIME, \
+                    PRIMARY KEY (id),\
+                    INDEX (user_id)\
+                    )"
+#define SQL_MSG_TBL "\
+            CREATE TABLE IF NOT EXISTS \
+            nol_msg ( \
+                    id INT NOT NULL AUTO_INCREMENT, \
+                    `to` INT, \
+                    `from` INT, \
+                    `date` DATETIME, \
+                    title VARCHAR(255), \
+                    content TEXT, \
+                    PRIMARY KEY (id), \
+                    INDEX (`to`) \
+                    )"
+#define SQL_USER_CHECK "SELECT null FROM nol_user LIMIT 0,1;"
+#define SQL_ADD_DEFAULT_USER "INSERT INTO nol_user (user, pass) VALUES ('admin', 'admin')"
 /** 
  * Set up all default tables
  **/
 int
 mbm_mysql_setup()
 {
+    MYSQL_RES *r;
+    long       id;
+    char msg[512];
     mysql_real_query(srv.mysql, SQL_USER_TBL, sizeof(SQL_USER_TBL)-1);
     mysql_real_query(srv.mysql, SQL_CLIENT_TBL, sizeof(SQL_CLIENT_TBL)-1);
     mysql_real_query(srv.mysql, SQL_SLAVE_TBL, sizeof(SQL_SLAVE_TBL)-1);
     mysql_real_query(srv.mysql, SQL_URL_TBL, sizeof(SQL_URL_TBL)-1);
+    mysql_real_query(srv.mysql, SQL_ADDED_TBL, sizeof(SQL_ADDED_TBL)-1);
+    mysql_real_query(srv.mysql, SQL_MSG_TBL, sizeof(SQL_MSG_TBL)-1);
+
+    /* if there's no user added to the user table, then we
+     * must add the default one with admin:admin as login */
+    if (mysql_real_query(srv.mysql, SQL_USER_CHECK, sizeof(SQL_USER_CHECK)-1) != 0)
+        return -1;
+    if (!(r = mysql_store_result(srv.mysql)))
+        return -1;
+    if (!mysql_num_rows(r)) {
+        mysql_real_query(srv.mysql, SQL_ADD_DEFAULT_USER, sizeof(SQL_ADD_DEFAULT_USER)-1);
+        id = mysql_insert_id(srv.mysql);
+        /* also send a message to the admin user telling him to
+         * change his password as soon as possible */
+        int  len;
+        len = sprintf(msg, "INSERT INTO nol_msg (`to`, `from`, `date`, `title`, `content`)"
+                           "VALUES (%d, NULL, NOW(), 'Password must be changed!', "
+                           "'You are currently logged in with the default account created on system startup. It is strongly recommended that you change your password.')",
+                           (int)id);
+        mysql_real_query(srv.mysql, msg, len);
+    }
+    mysql_free_result(r);
 
     return 0;
 }

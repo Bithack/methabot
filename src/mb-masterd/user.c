@@ -246,12 +246,14 @@ user_add_command(nolp_t *no, char *buf, int size)
     for (x=0; x<size; x++)
         if (buf[x] == '\'')
             buf[x] = '_';
-    len = sprintf(q, "INSERT INTO _url (url, hash, date) "
+    /*
+    len = sprintf(q, "INSERT INTO nol_added (input, hash, date) "
                      "VALUES ('%s', SHA1(url), '00-00-00 00:00:00')", buf);
     if (mysql_real_query(srv.mysql, q, len) != 0) {
         send(no->fd, MSG300, sizeof(MSG300)-1, 0);
         return -1;
     }
+    */
 
     send(no->fd, MSG100, sizeof(MSG100)-1, 0);
     return 0;

@@ -99,7 +99,7 @@ mbs_client_create(const char *addr, const char *user)
          * integer identifier to be used when adding URLs to the log
          * and save target urls
          **/
-        qlen = sprintf(q, "INSERT INTO _client (token) VALUES ('%.40s');", cl->token);
+        qlen = sprintf(q, "INSERT INTO nol_client (token) VALUES ('%.40s');", cl->token);
         if (mysql_real_query(srv.mysql, q, qlen) != 0) {
             free(cl);
             return 0;
@@ -296,7 +296,7 @@ timer_reached(EV_P_ ev_timer *w, int revents)
 }
 
 #define Q_GET_NEW_URL \
-    "SELECT url FROM _url WHERE `date` < DATE_ADD(NOW(), INTERVAL 1 DAY) "\
+    "SELECT url FROM nol_url WHERE `date` < DATE_ADD(NOW(), INTERVAL 1 DAY) "\
     "ORDER BY `date` DESC LIMIT 0,1;"
 
 /** 
@@ -375,7 +375,7 @@ on_status(nolp_t *no, char *buf, int size)
 }
 
 #define Q_URL_1 \
-                "INSERT INTO _url (url, hash, date)" \
+                "INSERT INTO nol_url (url, hash, date)" \
                 "VALUES ('"
 #define Q_URL_2 \
                 "', SHA1(url), NOW())" \

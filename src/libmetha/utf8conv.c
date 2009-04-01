@@ -36,10 +36,10 @@ lm_parser_utf8conv(worker_t *w, iobuf_t *buf,
                    uehandle_t *ue_h, url_t *url,
                    attr_list_t *al)
 {
-    const char *enc;
-    const char *s;
-    const char *p;
-    const char *e;
+    char *enc;
+    char *s;
+    char *p;
+    char *e;
     size_t      oleft, ileft;
     char       *out, *outp, *in;
     iconv_t     cd = (iconv_t)-1;
@@ -72,7 +72,13 @@ lm_parser_utf8conv(worker_t *w, iobuf_t *buf,
                     break;
                 if (!(p = memmem(s, p-s, "charset=", 8)))
                     continue;
-                cd = iconv_open("UTF-8", p+8);
+                p+=8;
+                for (s=p; isalnum(*s) || *s == '-'; s++)
+                    ;
+                char tmp = *s;
+                *s = '\0';
+                cd = iconv_open("UTF-8", p);
+                *s = tmp;
                 break;
             } else
                 s++;

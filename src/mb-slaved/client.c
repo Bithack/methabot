@@ -580,26 +580,29 @@ update_ft_attr(struct client *cl,
                char *attr, int attr_len,
                char *val, int val_len)
 {
+    int  e_len;
     int  len;
-    char q[128+val_len+attr_len];
+    char *q = malloc(128+(val_len*2)+attr_len);
+    if (!q)
+        return -1;
+    /* we allocate val_len*2 because mysql_real_escape_string
+     * could theoretically create a string double in size */
 
-    /* TODO: use mysql_real_escape_string instead
-     * of mbs_str_filter_quote to allow insert of 
-     * data containing single quotes */
-
-    len = sprintf(q,
-            "UPDATE ft_%.64s SET %.*s = '%.*s' "
-            "WHERE id=%d LIMIT 1;",
+    len = sprintf(q, "UPDATE ft_%.64s SET %.*s = '",
             cl->filetype_name,
             attr_len,
-            mbs_str_filter_name(attr, attr_len),
-            val_len,
-            mbs_str_filter_quote(val, val_len),
-            cl->target_id);
+            mbs_str_filter_name(attr, attr_len));
+
+    len += mysql_real_escape_string(cl->mysql, q+len, val, val_len);
+    len += sprintf(q+len, "' WHERE id=%d LIMIT 1;", cl->target_id);
+
     if (mysql_real_query(cl->mysql, q, len) != 0) {
+        free(q);
         syslog(LOG_ERR, "updating attributes failed: %s", mysql_error(cl->mysql));
         return -1;
     }
+
+    free(q);
     return 0;
 }
 

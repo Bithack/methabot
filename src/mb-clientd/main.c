@@ -83,6 +83,7 @@ main(int argc, char **argv)
     lmetha_setopt(mbc.m, LMOPT_WARNING_FUNCTION, mbc_lm_warning_cb);
     lmetha_setopt(mbc.m, LMOPT_EV_FUNCTION, mbc_lm_ev_cb);
     lmetha_setopt(mbc.m, LMOPT_ENABLE_BUILTIN_PARSERS, 1);
+    lmetha_setopt(mbc.m, LMOPT_ENABLE_COOKIES, 1);
     lmetha_setopt(mbc.m, LMOPT_PRIMARY_SCRIPT_DIR, "/usr/share/metha/scripts");
 
     mbc.loop = ev_default_loop(0);

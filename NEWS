@@ -14,6 +14,8 @@ mentation and project related new:
 http://bithack.se/projects/methabot/
 
 Changes and new features:
+* Support for converting between character encodings through libiconv
+* New parser utf8conv for converting almost any character encoding to utf8
 * The configuration system has been  moved to a seperate library, libmethaconfig
 * Various improvements to the  configuration  loader, such as dynamically adding 
   and changing classes and scopes

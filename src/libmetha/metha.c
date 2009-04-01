@@ -41,6 +41,9 @@ static struct script_desc* lm_load_script(metha_t *m, const char *file);
 static wfunction_t *lm_str_to_wfunction(metha_t *m, const char *name, uint8_t purpose);
 static void* lm_start(void* in);
 
+/* utf8conv.c */
+M_CODE lm_parser_utf8conv(worker_t *w, iobuf_t *buf, uehandle_t *ue_h, url_t *url, attr_list_t *al);
+
 static JSClass global_jsclass = {
     "global", JSCLASS_GLOBAL_FLAGS,
     JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_PropertyStub,
@@ -85,6 +88,11 @@ m_builtin_parsers[] = {
         .purpose = LM_WFUNCTION_PURPOSE_PARSER,
         .name = "css",
         .fn.native_parser = &lm_parser_css
+    }, {
+        .type    = LM_WFUNCTION_TYPE_NATIVE,
+        .purpose = LM_WFUNCTION_PURPOSE_PARSER,
+        .name = "utf8conv",
+        .fn.native_parser = &lm_parser_utf8conv
     },
 };
 

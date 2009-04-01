@@ -59,6 +59,7 @@ libmetha_la_SOURCES = \
 	builtin.h   \
 	ftpparse.h  \
 	attr.c \
+	utf8conv.c \
 	filter.h
 
 include_HEADERS = \

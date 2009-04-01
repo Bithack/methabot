@@ -1,5 +1,6 @@
 #!/bin/bash
 
+touch config.rpath
 aclocal &&
 autoconf &&
 libtoolize &&

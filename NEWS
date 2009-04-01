@@ -16,19 +16,21 @@ http://bithack.se/projects/methabot/
 Changes and new features:
 * Support for converting between character encodings through libiconv
 * New parser utf8conv for converting almost any character encoding to utf8
+* New  parser  entityconv,  converts  html   entities  such  as  &auml;  to  the
+  corresponding utf-8 character
 * The configuration system has been  moved to a seperate library, libmethaconfig
-* Various improvements to the  configuration  loader, such as dynamically adding 
+* Various improvements to  the configuration  loader, such as dynamically adding
   and changing classes and scopes
 * Lots of memory usage optimizations and cleanup fixes
-* Bugfix, a syntax error would  in  some  rare  cases  occur when parsing integer
+* Bugfix, a syntax error would  in  some  rare  cases occur when parsing integer
   values in configuration files
-* Bugfix, when javascript filetype parsers did not return a value, it was treated
-  as a string, "undefined", and used as a relative URL
-* Support for  filetype attributes.  Parsers can now set custom data that will be
-  associated with a parsed file.  Attributes' primary area of use is when you are 
-  connected to a Methanol system and want to store meta-data about a URL.
-* new Javascript  function set_attribute() for setting attributes for the current
-  URL
+* Bugfix, when javascript filetype parsers did not return a value, it was
+  treated as a string, "undefined", and used as a relative URL
+* Support for  filetype attributes.  Parsers can now set custom data that will
+  be associated with a parsed file.  Attributes' primary area of use is when you
+  are connected to a Methanol system and want to store meta-data about a URL.
+* new Javascript  function set_attribute() for setting attributes for the
+  current URL
 * API support for custom status, error/warning and target reporter functions
 * lmetha_global_setopt() is no longer available, replaced with lmetha_setopt()
   options

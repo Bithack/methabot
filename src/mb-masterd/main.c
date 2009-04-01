@@ -260,14 +260,18 @@ mbm_mysql_setup()
     if (!(r = mysql_store_result(srv.mysql)))
         return -1;
     if (!mysql_num_rows(r)) {
-        mysql_real_query(srv.mysql, SQL_ADD_DEFAULT_USER, sizeof(SQL_ADD_DEFAULT_USER)-1);
+        mysql_real_query(srv.mysql, SQL_ADD_DEFAULT_USER,
+                sizeof(SQL_ADD_DEFAULT_USER)-1);
         id = mysql_insert_id(srv.mysql);
         /* also send a message to the admin user telling him to
          * change his password as soon as possible */
         int  len;
-        len = sprintf(msg, "INSERT INTO nol_msg (`to`, `from`, `date`, `title`, `content`)"
-                           "VALUES (%d, NULL, NOW(), 'Password must be changed!', "
-                           "'You are currently logged in with the default account created on system startup. It is strongly recommended that you change your password.')",
+        len = sprintf(msg,
+                "INSERT INTO nol_msg (`to`, `from`, `date`, `title`, `content`)"
+                "VALUES (%d, NULL, NOW(), 'Password must be changed!', "
+                "'You are currently logged in with the default "
+                "account created on system startup. It is strongly "
+                "recommended that you change your password.')",
                            (int)id);
         mysql_real_query(srv.mysql, msg, len);
     }
@@ -378,14 +382,17 @@ mbm_reconfigure()
                 continue;
             }
 
-            len = sprintf(tq, "ALTER TABLE ft_%.60s ADD COLUMN %.60s", name, attr);
-            mysql_real_query(srv.mysql, tq, len);
-
-            if (type_n == ATTR_TYPE_TEXT) {
-                *(type-1) = '\0';
-                sprintf(tq, "ALTER TABLE ft_%.60s ADD FULLTEXT (%.60s)", name, attr);
-                mysql_real_query(srv.mysql, tq, len);
+            len = sprintf(tq, "ALTER TABLE ft_%.60s ADD COLUMN %.60s",
+                    name, attr);
+            if (mysql_real_query(srv.mysql, tq, len) == 0) {
+                if (type_n == ATTR_TYPE_TEXT) {
+                    *(type-1) = '\0';
+                    sprintf(tq, "ALTER TABLE ft_%.60s ADD FULLTEXT (%.60s)",
+                            name, attr);
+                    mysql_real_query(srv.mysql, tq, len);
+                }
             }
+
         }
     }
 

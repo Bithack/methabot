@@ -200,7 +200,7 @@ mbm_mysql_connect()
                     PRIMARY KEY (id), \
                     INDEX (`to`) \
                     )"
-#define SQL_SESSION_TBL "\
+#define SQL_SESS_TBL "\
             CREATE TABLE IF NOT EXISTS \
             nol_session ( \
                     id INT NOT NULL AUTO_INCREMENT, \
@@ -209,13 +209,18 @@ mbm_mysql_connect()
                     `date` DATETIME, \
                     PRIMARY KEY (id)\
                     )"
-#define SQL_SESSION_REL_TBL "\
+#define SQL_SESS_REL_UNIQ "\
+            ALTER TABLE nol_session_rel ADD UNIQUE (\
+                `session_id`, \
+                `target_id` \
+            );"
+#define SQL_SESS_REL_TBL "\
             CREATE TABLE IF NOT EXISTS \
             nol_session_rel ( \
                     session_id INT NOT NULL, \
                     filetype VARCHAR(64), \
-                    `target_id` INT, \
-                    PRIMARY KEY (id)\
+                    `target_id` INT NOT NULL, \
+                    INDEX (session_id)\
                     )"
 
 /*
@@ -234,7 +239,8 @@ mbm_mysql_connect()
                     )"
                     */
 #define SQL_USER_CHECK "SELECT null FROM nol_user LIMIT 0,1;"
-#define SQL_ADD_DEFAULT_USER "INSERT INTO nol_user (user, pass) VALUES ('admin', 'admin')"
+#define SQL_ADD_DEFAULT_USER \
+    "INSERT INTO nol_user (user, pass) VALUES ('admin', 'admin')"
 /** 
  * Set up all default tables
  **/
@@ -250,8 +256,12 @@ mbm_mysql_setup()
     mysql_real_query(srv.mysql, SQL_URL_TBL, sizeof(SQL_URL_TBL)-1);
     mysql_real_query(srv.mysql, SQL_ADDED_TBL, sizeof(SQL_ADDED_TBL)-1);
     mysql_real_query(srv.mysql, SQL_MSG_TBL, sizeof(SQL_MSG_TBL)-1);
-    mysql_real_query(srv.mysql, SQL_SESSION_TBL, sizeof(SQL_SESSION_TBL)-1);
-    mysql_real_query(srv.mysql, SQL_SESSION_REL_TBL, sizeof(SQL_SESSION_REL_TBL)-1);
+    mysql_real_query(srv.mysql, SQL_SESS_TBL, sizeof(SQL_SESS_TBL)-1);
+    if (mysql_real_query(srv.mysql, SQL_SESS_REL_TBL,
+            sizeof(SQL_SESS_REL_TBL)-1) == 0) {
+        mysql_real_query(srv.mysql, SQL_SESS_REL_UNIQ,
+                sizeof(SQL_SESS_REL_UNIQ)-1);
+    }
 
     /* if there's no user added to the user table, then we
      * must add the default one with admin:admin as login */
@@ -395,6 +405,8 @@ mbm_reconfigure()
 
         }
     }
+
+    lmc_destroy(lmc);
 
     return 0;
 }

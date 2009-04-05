@@ -22,8 +22,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <pthread.h>
+#include <metha/metha.h>
 #include "js.h"
-#include "../../libmetha/module.h"
 
 JSBool lmm_FileClass_construct(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
 JSBool lmm_FileClass_finalize(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);

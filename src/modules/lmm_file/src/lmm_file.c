@@ -24,7 +24,7 @@
  **/
 
 #include "js.h"
-#include "../../libmetha/module.h"
+#include <metha/metha.h>
 
 static M_CODE lmm_file_init(metha_t *m);
 static M_CODE lmm_file_uninit(metha_t *m);

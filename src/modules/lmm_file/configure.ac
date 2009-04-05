@@ -10,6 +10,7 @@ AC_PROG_CC
 AM_PROG_CC_STDC
 AC_HEADER_STDC
 
+LT_INIT([disable-static])
 AC_PROG_LIBTOOL
 
 AC_ARG_ENABLE(debug,
@@ -27,12 +28,21 @@ else
     AC_MSG_ERROR([metha-config not found])
 fi
 
+AC_PATH_PROG(METHA_CONFIG, metha-config)
+if test -f "${METHA_CONFIG}"; then
+    LDFLAGS="`${METHA_CONFIG} --libs` $LDFLAGS"
+    CFLAGS="`${METHA_CONFIG} --cflags` $CFLAGS"
+else
+    AC_MSG_ERROR([metha-config not found])
+fi
 
 AC_CHECK_FUNCS([strdup realloc strncasecmp memmem])
 AC_CHECK_HEADERS([stdint.h])
+AC_CHECK_HEADERS([metha/metha.h])
 
 libdir=$libdir/metha/modules
 
 AC_OUTPUT([
 Makefile
+src/Makefile
 ])

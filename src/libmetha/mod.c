@@ -47,6 +47,7 @@ lmetha_load_module(struct metha *m, const char *name)
 #endif
 
     if (!(n = lm_mod_load(m, path))) {
+        LM_ERROR(m, "%s", dlerror());
         free(path);
         return M_FAILED;
     }
@@ -67,7 +68,7 @@ lm_mod_load(struct metha *m, const char *file)
 
     if (!ret)
         return 0;
-    
+
     if (!(ret->handle = dlopen(file, RTLD_LAZY))) {
         free(ret);
         return 0;

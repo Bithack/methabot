@@ -332,6 +332,7 @@ get_and_send_url(struct client *cl)
     char *url;
     char *buf;
     int   id;
+    int   ret = 0;
     unsigned long *lengths;
     if (mysql_real_query(cl->mysql, Q_GET_NEW_URL, sizeof(Q_GET_NEW_URL)-1) != 0)
         return -1;
@@ -344,32 +345,37 @@ get_and_send_url(struct client *cl)
             return -1;
         }
 
+        if (sz < 256) sz = 256;
         id = atoi(row[0]);
-        buf = malloc(lengths[1]+8);
+        buf = malloc(sz);
 #ifdef DEBUG
-        syslog(LOG_DEBUG, "sending url '%.*s' to client '%.7s...'", lengths[1], row[1], cl->token);
+        syslog(LOG_DEBUG, "sending url '%.*s' to client '%.7s...'",
+                lengths[1], row[1], cl->token);
 #endif
         sz = sprintf(buf, "START %s\n", row[1]);
-
         send(((nolp_t *)(cl->no))->fd, buf, sz, 0);
+        /* create a session for this client, the session will last
+         * until the client is out of URLs and sends a STATUS 0 
+         * message */
+        sz = sprintf(buf,
+                "INSERT INTO `nol_session` (added_id, client_id, date)"
+                "VALUES (%d, '%.40s', NOW());",
+                id, cl->token
+                );
+        if (mysql_real_query(cl->mysql, buf, sz) == 0) {
+            cl->session_id = mysql_insert_id(cl->mysql);
+            sz = sprintf(buf, 
+                    "UPDATE nol_added "
+                    "SET date = DATE_ADD(NOW(), INTERVAL 1 DAY) "
+                    "WHERE id=%d LIMIT 1;",
+                    id);
+            if (mysql_real_query(cl->mysql, buf, sz) != 0)
+                ret = -1;
+        } else
+            ret = -1;
 
-        buf = realloc(buf, 128);
-        sz = sprintf(buf, 
-                "UPDATE nol_added "
-                "SET date = DATE_ADD(NOW(), INTERVAL 1 DAY) "
-                "WHERE id=%d LIMIT 1;",
-                id);
-        if (mysql_real_query(cl->mysql, buf, sz) != 0) {
-            free(buf);
-            return -1;
-        }
-        /*
-        sprintf(buf,
-                "INSERT INTO `nol_session` VALUES ()
-                )
-                */
         free(buf);
-        return 0;
+        return ret;
     }
     mysql_free_result(res);
 
@@ -472,7 +478,7 @@ on_target(nolp_t *no, char *buf,
     char *e = buf+size;
     char *url;
     char *filetype;
-    char q[size+32];
+    char q[size+96];
     int  len;
     int  x;
 
@@ -515,13 +521,25 @@ on_target(nolp_t *no, char *buf,
         return -1;
     }
 
+    cl->target_id = mysql_insert_id(cl->mysql);
+
+    /* link this target with the current session */
+    len = sprintf(q,
+            "INSERT IGNORE INTO nol_session_rel (session_id, filetype, target_id) "
+            "VALUES (%d, '%.64s', %d)",
+            cl->session_id, cl->filetype_name, cl->target_id);
+
+    if (mysql_real_query(cl->mysql, q, len) != 0) {
+        syslog(LOG_ERR, "insert to session_rel failed: %s",
+                mysql_error(cl->mysql));
+        return -1;
+    }
+
 #ifdef DEBUG
     syslog(LOG_DEBUG,
             "start receiving attributes for '%s' of type '%s'",
             url, cl->filetype_name);
 #endif
-
-    cl->target_id = mysql_insert_id(cl->mysql);
 
     nolp_expect(no, atoi(p+1), &on_target_recv);
     return 0;

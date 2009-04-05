@@ -47,7 +47,8 @@ static JSBool
 lmm_hash_md5(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
 {
     if (argc < 1) {
-//        LM_ERROR("not enough arguments for hash.md5()\n");
+        /* XXX: use LM_ERROR(m, "text"); */
+        fprintf(stderr, "not enough arguments for hash.md5()\n");
         return JS_FALSE;
     }
 
@@ -61,7 +62,7 @@ lmm_hash_md5(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
     MD5Update(&md5_cx, string, strlen(string));
     printf("%s\n", string);
 
-    //*ret = OBJECT_TO_JSVAL(fh);
+    *ret = STRING_TO_JSVAL(fh);
     return JS_TRUE;
 }
 

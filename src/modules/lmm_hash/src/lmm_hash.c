@@ -55,8 +55,6 @@ lmm_hash_prepare(metha_t *m)
     lmetha_init_jsclass(m, &HashClass, 0, 0, 0, &lmm_HashClass_functions, 0, 0);
     lmetha_register_worker_object(m, "hash", &HashClass);
 
-    LM_ERROR(m, "help");
-
     return M_OK;
 }
 

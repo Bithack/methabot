@@ -39,6 +39,15 @@ static void mbm_ev_sigint(EV_P_ ev_signal *w, int revents);
 static const char *_cfg_file;
 struct master srv;
 
+static M_CODE set_config_cb(void *unused, const char *val);
+static M_CODE set_listen_cb(void *unused, const char *val);
+
+#define NUM_OPTS (sizeof(opts)/sizeof(struct lmc_directive))
+static struct lmc_directive opts[] = {
+    {"listen", set_listen_cb},
+    {"config", set_config_cb},
+};
+
 int
 main(int argc, char **argv)
 {
@@ -426,7 +435,7 @@ int mbm_start()
     sock = socket(PF_INET, SOCK_STREAM, 0);
 
     int o = 1;
-    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, o, sizeof(o));
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &o, sizeof(o));
     if (bind(sock, (struct sockaddr*)&srv.addr, sizeof srv.addr) == -1) {
         syslog(LOG_ERR, "could not bind to %s:%hd",
                 inet_ntoa(srv.addr.sin_addr),
@@ -515,66 +524,47 @@ mbm_load_config()
     char *s;
     int len;
 
+    int x;
+    lmc_parser_t *lmc;
+
+    if (!(lmc = lmc_create(&srv)))
+        return 0;
+
+    for (x=0; x<NUM_OPTS; x++)
+        lmc_add_directive(lmc, &opts[x]);
+
     syslog(LOG_INFO, "loading '%s'", _cfg_file);
 
-    if (!(fp = fopen(_cfg_file, "r"))) {
-        syslog(LOG_ERR, "could not open configuration file");
+    if (lmc_parse_file(lmc, _cfg_file) != M_OK) {
+        syslog(LOG_ERR, "parsing config failed: %s", lmc->last_error?lmc->last_error:"");
+        lmc_destroy(lmc);
         return 1;
     }
 
-    /** 
-     * TODO: better syntax error handling 
-     **/
-    while (fgets(in, 256, fp)) {
-        if (in[0] == '#')
-            continue;
-        p = in;
-        in[strlen(in)-1] = '\0';
-        while (isspace(*p))
-            p++;
-        if (p = strchr(p, '=')) {
-            len = p-in;
-            while (isspace(in[len-1]))
-                len--;
-            do p++; while (isspace(*p));
-
-            int unknown = 1;
-            switch (len) {
-                case 6:
-                    if (strncmp(in, "listen", 6) == 0) {
-                        if ((s = strchr(p, ':'))) {
-                            srv.addr.sin_port = htons(atoi(s+1));
-                            *s = '\0';
-                        } else
-                            srv.addr.sin_port = htons(MBM_DEFAULT_PORT);
-                        srv.addr.sin_addr.s_addr = inet_addr(p);
-
-                        unknown = 0;
-                    } else if (strncmp(in, "config", 6) == 0) {
-                        srv.config_file = strdup(p);
-                        unknown = 0;
-                    }
-                    break;
-            }
-
-            if (unknown) {
-                for (s=in; isalnum(*s) || *s == '_'; s++)
-                    ;
-                *s = '\0';
-                syslog(LOG_ERR, "unknown option '%s'", in);
-                goto error;
-            }
-        } else {
-            syslog(LOG_ERR, "missing argument for '%s'", in);
-            goto error;
-        }
-    }
-
-    fclose(fp);
+    lmc_destroy(lmc);
     return 0;
+}
 
-error:
-    fclose(fp);
-    return 1;
+static M_CODE
+set_listen_cb(void *unused, const char *val)
+{
+    char *s;
+    if ((s = strchr(val, ':'))) {
+        srv.addr.sin_port = htons(atoi(s+1));
+        *s = '\0';
+    } else
+        srv.addr.sin_port = htons(MBM_DEFAULT_PORT);
+    srv.addr.sin_addr.s_addr = inet_addr(val);
+
+    return M_OK;
+}
+
+
+static M_CODE
+set_config_cb(void *unused, const char *val)
+{
+    if (!(srv.config_file = strdup(val)))
+        return M_OUT_OF_MEM;
+    return M_OK;
 }
 

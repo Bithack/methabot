@@ -160,6 +160,7 @@ M_CODE   lmetha_add_wfunction(metha_t *m, const char *name, uint8_t type, uint8_
 M_CODE   lmetha_add_filetype(metha_t *m, filetype_t *ft);
 M_CODE   lmetha_add_crawler(metha_t *m, crawler_t *cr);
 M_CODE   lmetha_register_worker_object(metha_t *m, const char *name, JSClass *class);
+M_CODE   lmetha_register_jsfunction(metha_t *m, const char *name, JSNative fun, unsigned argc);
 M_CODE   lmetha_init_jsclass(metha_t *m, JSClass *class, JSNative constructor, uintN nargs, JSPropertySpec *ps, JSFunctionSpec *fs, JSPropertySpec *static_ps, JSFunctionSpec *static_fs);
 M_CODE   lmetha_signal(metha_t *m, int sig);
 M_CODE   lmetha_start(metha_t *m);

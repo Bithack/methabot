@@ -9,3 +9,4 @@ lmetha_register_worker_object
 lmetha_start
 lmetha_signal
 lmetha_read_config
+lmetha_register_jsfunction

@@ -371,9 +371,13 @@ lmetha_create(void)
         return 0;
     }
 
-    JS_SetGlobalObject(m->e4x_cx, m->e4x_global);
-    JS_InitStandardClasses(m->e4x_cx, m->e4x_global);
+    /* set up functions */
+    if (JS_DefineFunctions(m->e4x_cx, m->e4x_global, &lm_js_allfunctions) == JS_FALSE) {
+        lmetha_destroy(m);
+        return 0;
+    }
 
+    JS_InitStandardClasses(m->e4x_cx, m->e4x_global);
     m->w_num_waiting = 0;
 
     /** 
@@ -782,6 +786,21 @@ lmetha_init_jsclass(metha_t *m, JSClass *class, JSNative constructor,
         return M_FAILED;
 
     return M_OK;
+}
+
+/** 
+ * Let modules register global javascript functions
+ **/
+M_CODE
+lmetha_register_jsfunction(metha_t *m, const char *name,
+                           JSNative fun, unsigned argc)
+{
+    M_CODE r;
+    JS_BeginRequest(m->e4x_cx);
+    r = JS_DefineFunction(m->e4x_cx, m->e4x_global,
+            name, fun, argc, 0) ? M_OK : M_ERROR;
+    JS_EndRequest(m->e4x_cx);
+    return r;
 }
 
 /** 

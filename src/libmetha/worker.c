@@ -914,23 +914,13 @@ lm_worker_init_e4x(worker_t *w)
 #ifdef DEBUG
     fprintf(stderr, "* worker:(%p) created new JS context %p\n", w, w->e4x_cx);
 #endif
+    JS_BeginRequest(w->e4x_cx);
 
     JS_SetOptions(w->e4x_cx, JSOPTION_VAROBJFIX | JSOPTION_XML);
     JS_SetVersion(w->e4x_cx, 0);
     JS_SetErrorReporter(w->e4x_cx, &lm_jserror);
-    
-    JS_BeginRequest(w->e4x_cx);
 
-    /* set up functions */
-    if (JS_DefineFunctions(w->e4x_cx, w->m->e4x_global, &lm_js_allfunctions) == JS_FALSE) {
-        LM_ERROR(w->m, "fatal: defining native javascript functions failed");
-        return M_FAILED;
-    }
-
-    if (JS_InitStandardClasses(w->e4x_cx, w->m->e4x_global) == JS_FALSE) {
-        LM_ERROR(w->m, "fatal: initializing javascript standard classes failed");
-        return M_FAILED;
-    }
+    JS_SetGlobalObject(w->e4x_cx, w->m->e4x_global);
 
     w->e4x_this = JS_NewObject(w->e4x_cx, &worker_jsclass, 0, 0);
     JS_DefineProperty(w->e4x_cx, w->e4x_this, "url", JSVAL_NULL, 0, 0, 0);

@@ -230,6 +230,8 @@ sl_status_parse(nolp_t *no, char *buf, int size)
     sl->xml.clients.buf = realloc(sl->xml.clients.buf, x);
     sl->xml.clients.sz = x;
 
+    check_sessions();
+
     return 0;
 }
 
@@ -252,20 +254,29 @@ check_sessions()
     MYSQL_RES *r;
     MYSQL_ROW row;
     long sess_id;
+    char q[128];
+
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "checking sessions");
+#endif
 
     mysql_query(srv.mysql,
             "SELECT id FROM nol_session "
-            "WHERE state='wait-postprocess' "
-            "LIMIT 0,1");
+            "WHERE state='wait-hook' ORDER BY date DESC");
     if (!(r = mysql_store_result(srv.mysql)))
         return;
 
-    if ((row = mysql_fetch_row(r))) {
+    while ((row = mysql_fetch_row(r))) {
         sess_id = atol(row[0]);
-#ifdef DEBUG
-        syslog(LOG_DEBUG, "calling session-complete hook for #%d");
+#ifdef DEBUG 
+        syslog(LOG_DEBUG, "calling session-complete hook for #%ld", sess_id);
 #endif
+        sprintf(q, "UPDATE `nol_session` SET state='hook' WHERE id=%d", sess_id);
+        mysql_query(srv.mysql, q);
         call_session_complete_hook(sess_id);
+        sprintf(q, "UPDATE `nol_session` SET state='done' WHERE id=%d", sess_id);
+        mysql_query(srv.mysql, q);
     }
     mysql_free_result(r);
 }
+

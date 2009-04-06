@@ -218,7 +218,7 @@ mbm_mysql_connect()
                     `added_id` INT, \
                     `client_id` INT, \
                     `date` DATETIME, \
-                    `state` DEFAULT 'running' ENUM('running','wait-hook','hook','done'), \
+                    `state` ENUM('running','wait-hook','hook','done') DEFAULT 'running', \
                     PRIMARY KEY (id)\
                     )"
 #define SQL_SESS_REL_UNIQ "\

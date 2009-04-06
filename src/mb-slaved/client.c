@@ -359,8 +359,8 @@ get_and_send_url(struct client *cl)
          * message */
         sz = sprintf(buf,
                 "INSERT INTO `nol_session` (added_id, client_id, date)"
-                "VALUES (%d, '%.40s', NOW());",
-                id, cl->token
+                "VALUES (%d, '%ld', NOW());",
+                id, cl->id
                 );
         if (mysql_real_query(cl->mysql, buf, sz) == 0) {
             cl->session_id = mysql_insert_id(cl->mysql);
@@ -390,10 +390,10 @@ on_status(nolp_t *no, char *buf, int size)
 {
     struct client *cl;
     int status;
+    char q[128];
 
     cl = (struct client*)no->private;
     status = atoi(buf);
-    ev_async_send(EV_DEFAULT_ &srv.client_status);
 
     /** 
      * if status goes to 0, we'll try to find a new
@@ -402,6 +402,12 @@ on_status(nolp_t *no, char *buf, int size)
      * URLs.
      **/
     if (status == 0) {
+        if (cl->session_id) {
+            sprintf(q, "UPDATE `nol_session` SET state='wait-hook' WHERE id=%ld",
+                    cl->session_id);
+            mysql_query(srv.mysql, q);
+        }
+
         if (get_and_send_url(cl) != 0) {
             ev_timer_init(&cl->timer, &timer_reached, 5.f, .0f);
             cl->timer.data = cl;
@@ -409,6 +415,8 @@ on_status(nolp_t *no, char *buf, int size)
             ev_timer_start(cl->loop, &cl->timer);
         }
     }
+
+    ev_async_send(EV_DEFAULT_ &srv.client_status);
     cl->running = status;
     return 0;
 }

@@ -31,8 +31,11 @@
 int mbm_create_slave_list_xml();
 
 static int sl_status_command(nolp_t *no, char *buf, int size);
+static int sl_session_complete_command(nolp_t *no, char *buf, int size);
 static int sl_status_parse(nolp_t *no, char *buf, int size);
 static int read_token(EV_P_ struct conn *conn);
+static int call_session_complete_hook(long sess_id);
+static void check_sessions();
 
 struct nolp_fn slave_commands[] = {
     {"STATUS", &sl_status_command},
@@ -230,3 +233,39 @@ sl_status_parse(nolp_t *no, char *buf, int size)
     return 0;
 }
 
+static int
+call_session_complete_hook(long sess_id)
+{
+    const char *run;
+    if (srv.hooks.session_complete) {
+        asprintf(&run, "%s %ld", srv.hooks.session_complete, sess_id);
+        system(run);
+        free(run);
+    }
+
+    return 0;
+}
+/* check if a session is marked as wait-postprocess */
+static void
+check_sessions()
+{
+    MYSQL_RES *r;
+    MYSQL_ROW row;
+    long sess_id;
+
+    mysql_query(srv.mysql,
+            "SELECT id FROM nol_session "
+            "WHERE state='wait-postprocess' "
+            "LIMIT 0,1");
+    if (!(r = mysql_store_result(srv.mysql)))
+        return;
+
+    if ((row = mysql_fetch_row(r))) {
+        sess_id = atol(row[0]);
+#ifdef DEBUG
+        syslog(LOG_DEBUG, "calling session-complete hook for #%d");
+#endif
+        call_session_complete_hook(sess_id);
+    }
+    mysql_free_result(r);
+}

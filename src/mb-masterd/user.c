@@ -32,6 +32,9 @@ static int user_client_info_command(nolp_t *no, char *buf, int size);
 static int user_show_config_command(nolp_t *no, char *buf, int size);
 static int user_log_command(nolp_t *no, char *buf, int size);
 static int user_add_command(nolp_t *no, char *buf, int size);
+static int user_useradd_command(nolp_t *no, char *buf, int size);
+static int user_userdel_command(nolp_t *no, char *buf, int size);
+static int user_passwd_command(nolp_t *no, char *buf, int size);
 
 struct nolp_fn user_commands[] = {
     {"LIST-SLAVES", &user_list_slaves_command},
@@ -41,6 +44,9 @@ struct nolp_fn user_commands[] = {
     {"SHOW-CONFIG", user_show_config_command},
     {"LOG", user_log_command},
     {"ADD", user_add_command},
+    {"USERADD", user_useradd_command},
+    {"USERDEL", user_userdel_command},
+    {"PASSWD", user_passwd_command},
     {0},
 };
 
@@ -264,5 +270,23 @@ user_add_command(nolp_t *no, char *buf, int size)
 
     send(no->fd, MSG100, sizeof(MSG100)-1, 0);
     return 0;
+}
+
+static int
+user_useradd_command(nolp_t *no, char *buf, int size)
+{
+    
+}
+
+static int
+user_userdel_command(nolp_t *no, char *buf, int size)
+{
+
+}
+
+static int
+user_passwd_command(nolp_t *no, char *buf, int size)
+{
+
 }
 

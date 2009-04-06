@@ -41,11 +41,13 @@ struct master srv;
 
 static M_CODE set_config_cb(void *unused, const char *val);
 static M_CODE set_listen_cb(void *unused, const char *val);
+static M_CODE set_session_complete_hook_cb(void *unused, const char *val);
 
 #define NUM_OPTS (sizeof(opts)/sizeof(struct lmc_directive))
 static struct lmc_directive opts[] = {
     {"listen", set_listen_cb},
     {"config", set_config_cb},
+    {"session_complete_hook", set_session_complete_hook_cb},
 };
 
 int
@@ -216,6 +218,7 @@ mbm_mysql_connect()
                     `added_id` INT, \
                     `client_id` INT, \
                     `date` DATETIME, \
+                    `state` DEFAULT 'running' ENUM('running','wait-hook','hook','done'), \
                     PRIMARY KEY (id)\
                     )"
 #define SQL_SESS_REL_UNIQ "\
@@ -564,6 +567,14 @@ static M_CODE
 set_config_cb(void *unused, const char *val)
 {
     if (!(srv.config_file = strdup(val)))
+        return M_OUT_OF_MEM;
+    return M_OK;
+}
+
+static M_CODE
+set_session_complete_hook_cb(void *unused, const char *val)
+{
+    if (!(srv.hooks.session_complete = strdup(val)))
         return M_OUT_OF_MEM;
     return M_OK;
 }

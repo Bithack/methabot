@@ -37,6 +37,10 @@ struct master {
             int   sz;
         } slave_list;
     } xml;
+
+    struct {
+        const char *session_complete;
+    } hooks;
 };
 
 extern struct master srv;

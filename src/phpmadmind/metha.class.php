@@ -65,6 +65,11 @@ class Metha
         return $this->get_sized_reply("SHOW-CONFIG");
     }
 
+    function session_report($id)
+    {
+        return $this->get_sized_reply("SESSION-REPORT $id");
+    }
+
     function list_slaves()
     {
         return $this->get_sized_reply("LIST-SLAVES 0");

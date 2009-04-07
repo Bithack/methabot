@@ -165,7 +165,13 @@ td.url {
     font-style: italic;
 }
 
+td.state {
+    text-transform: uppercase;
+    font-style: italic;
+}
+
 div.content-layer {
+    overflow: auto;
     margin-bottom: 1em;
 }
 

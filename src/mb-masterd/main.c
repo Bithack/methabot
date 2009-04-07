@@ -220,7 +220,7 @@ mbm_mysql_connect()
                     `date` DATETIME, \
                     `latest` DATETIME, \
                     `state` ENUM('running','wait-hook','hook','done') DEFAULT 'running', \
-                    `info` TEXT, \
+                    `report` TEXT, \
                     PRIMARY KEY (id)\
                     )"
 #define SQL_SESS_REL_UNIQ "\

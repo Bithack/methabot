@@ -335,7 +335,7 @@ user_session_info_command(nolp_t *no, char *buf, int size)
                     session_id, row[0], row[1],
                     row[2], row[3]
                     );
-            int len2 = sprintf(out+len, "100 %ud\n", len);
+            int len2 = sprintf(out+len, "100 %u\n", len);
             send(no->fd, out+len, len2, 0);
             send(no->fd, out, len, 0);
         } else
@@ -350,5 +350,35 @@ user_session_info_command(nolp_t *no, char *buf, int size)
 static int
 user_session_report_command(nolp_t *no, char *buf, int size)
 {
+    MYSQL_RES *r;
+    MYSQL_ROW row;
+    char b[56+12];
+    int  sz;
+    unsigned long *lengths;
 
+    sz = sprintf(b,
+            "SELECT `report` FROM `nol_session` "
+            "WHERE `id`=%d LIMIT 0,1",
+            atoi(buf));
+    if (mysql_real_query(srv.mysql, b, sz) != 0) {
+        syslog(LOG_ERR,
+                "fetching session report failed: %s", 
+                mysql_error(srv.mysql));
+        return -1;
+    }
+    if (!(r = mysql_store_result(srv.mysql))) {
+        send(no->fd, MSG300, sizeof(MSG300)-1, 0);
+        return -1;
+    }
+    if (row = mysql_fetch_row(r)) {
+        lengths = mysql_fetch_lengths(r);
+        sz = sprintf(b, "100 %d\n", (int)lengths[0]);
+        send(no->fd, b, sz, 0);
+        send(no->fd, row[0], (int)lengths[0], 0);
+    } else
+        send(no->fd, MSG203, sizeof(MSG203)-1, 0);
+
+    mysql_free_result(r);
+    return 0;
 }
+

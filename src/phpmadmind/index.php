@@ -12,6 +12,7 @@ $pages = Array("overview" => "overview.php",
                "slave-list" => "slave-list.php",
                "url-list" => "url-list.php",
                "session-info" => "session-info.php",
+               "session-list" => "session-list.php",
                "client-info" => "client-info.php");
 
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
@@ -72,6 +73,7 @@ if ($_SESSION['authenticated'] == 1) {
                     <!--</ul>
                     <h4>System</h4>
                     <ul>-->
+                        <li><a href="?p=session-list">Sessions</a></li>
                         <li><a href="?p=slave-list">Slave List</a></li>
                         <li><a href="?p=show-config">Configuration</a></li>
                     </ul>

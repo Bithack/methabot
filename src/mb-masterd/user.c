@@ -38,6 +38,7 @@ static int user_userdel_command(nolp_t *no, char *buf, int size);
 static int user_passwd_command(nolp_t *no, char *buf, int size);
 static int user_session_info_command(nolp_t *no, char *buf, int size);
 static int user_session_report_command(nolp_t *no, char *buf, int size);
+static int user_list_sessions_command(nolp_t *no, char *buf, int size);
 
 struct nolp_fn user_commands[] = {
     {"LIST-SLAVES", &user_list_slaves_command},
@@ -52,10 +53,14 @@ struct nolp_fn user_commands[] = {
     {"PASSWD", user_passwd_command},
     {"SESSION-INFO", user_session_info_command},
     {"SESSION-REPORT", user_session_report_command},
+    {"LIST-SESSIONS", user_list_sessions_command},
     {0},
 };
 
 #define MSG100 "100 OK\n"
+#define MSG200 "200 Denied\n"
+#define MSG201 "201 Bad Request\n"
+#define MSG202 "202 Login type unavailable\n"
 #define MSG203 "203 Not found\n"
 #define MSG300 "300 Internal Error\n"
 
@@ -379,6 +384,104 @@ user_session_report_command(nolp_t *no, char *buf, int size)
         send(no->fd, MSG203, sizeof(MSG203)-1, 0);
 
     mysql_free_result(r);
+    return 0;
+}
+
+/** 
+ * SESSION-LIST <start> <count>\n
+ **/
+static int
+user_list_sessions_command(nolp_t *no, char *buf, int size)
+{
+    int start, limit;
+    char *b;
+    MYSQL_RES *r;
+    MYSQL_ROW row;
+    int sz;
+
+    if (sscanf(buf, "%d %d", &start, &limit) != 2) {
+        send(no->fd, MSG201, sizeof(MSG201)-1, 0);
+        return -1;
+    }
+    if (limit > 100) limit = 100;
+    char **bufs = malloc(sizeof(char *)*limit);
+    int   *sizes = malloc(sizeof(int)*limit);
+
+    sz = asprintf(&b,
+            "SELECT "
+                "`S`.`id`, `S`.`latest`, `S`.`state`, "
+                "`A`.crawler, `A`.input , `C`.`token`"
+            "FROM `nol_session` as `S` "
+            "LEFT JOIN "
+                "`nol_added` as `A` "
+              "ON "
+                "`A`.`id` = `S`.`id` "
+            "LEFT JOIN "
+                "`nol_client` AS `C` "
+              "ON "
+                "`C`.`id` = `S`.`client_id` "
+            "ORDER BY "
+                "`S`.`latest` DESC "
+            "LIMIT %d, %d;",
+            start, limit);
+
+    if (!b) {
+        send(no->fd, MSG300, sizeof(MSG300)-1, 0);
+        syslog(LOG_ERR, "out of mem");
+        return -1;
+    }
+    if (mysql_real_query(srv.mysql, b, sz) != 0) {
+        syslog(LOG_ERR,
+                "LIST-SESSIONS failed: %s",
+                mysql_error(srv.mysql));
+        send(no->fd, MSG300, sizeof(MSG300)-1, 0);
+        free(b);
+        return -1;
+    }
+    free(b);
+
+    if ((r = mysql_store_result(srv.mysql))) {
+        int x = 0;
+        int total = 0;
+        while (row = mysql_fetch_row(r)) {
+            unsigned long *l;
+            l = mysql_fetch_lengths(r);
+            char *curr = malloc(l[0]+l[1]+l[2]+l[3]+l[4]+l[5]+
+                    sizeof("<session id=\"\"><latest></latest><state></state><crawler></crawler><input></input><client></client></session>"));
+            sz = sprintf(curr,
+                    "<session id=\"%d\">"
+                      "<latest>%s</latest>"
+                      "<state>%s</state>"
+                      "<crawler>%s</crawler>"
+                      "<input>%s</input>"
+                      "<client>%s</client>"
+                    "</session>",
+                    atoi(row[0]), row[1], row[2],
+                    row[3], row[4], row[5]);
+
+            bufs[x] = curr;
+            sizes[x] = sz;
+            total += sz;
+            x++;
+        }
+        limit = x;
+
+        char *tmp;
+        sz = asprintf(&tmp, "100 %d\n", total+sizeof("<session-list></session-list>")-1);
+        send(no->fd, tmp, sz, 0);
+        free(tmp);
+
+        send(no->fd, "<session-list>", sizeof("<session-list>")-1, 0);
+        for (x=0; x<limit; x++) {
+            send(no->fd, bufs[x], sizes[x], 0);
+            free(bufs[x]);
+        }
+        send(no->fd, "</session-list>", sizeof("</session-list>")-1, 0);
+    } else 
+        syslog(LOG_ERR, "mysql_store_result() failed");
+    free(bufs);
+    free(sizes);
+
     return 0;
 }
 

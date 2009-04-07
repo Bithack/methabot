@@ -75,6 +75,11 @@ class Metha
         return $this->get_sized_reply("LIST-SLAVES 0");
     }
 
+    function list_sessions()
+    {
+        return $this->get_sized_reply("LIST-SESSIONS 0 10");
+    }
+
     function slave_info($slave)
     {
         return $this->get_sized_reply("SLAVE-INFO $slave");

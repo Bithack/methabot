@@ -35,9 +35,9 @@ h2.error {
 h3 {
     font-family: sans-serif;
     margin: 0 0 0.4em 0;
-    font-size: 1.10em;
+    font-size: 1.00em;
     font-weight: bold;
-    padding: 0.2em;
+    padding: 0.1em;
     background-color: #eee;
     color: #222;
 }
@@ -45,6 +45,25 @@ h3 {
 a {
     color: #0000ff;
     text-decoration: none;
+}
+
+a.id {
+    font-family: monospace;
+    background-color: #cec !important;
+    font-size: 10px;
+}
+a.id:before {
+    content: "[";
+}
+a.id:after {
+    content: "]";
+}
+a.id:hover {
+    background-color: #dfd !important;
+}
+
+td.url-info {
+    border-right: 2px solid #bbb;
 }
 
 input {
@@ -141,19 +160,6 @@ tr.odd td {
     background-color: #eee;
 }
 
-span.type-id {
-    font-family: monospace;
-    background-color: #cec !important;
-    /*
-    border-bottom: 1px solid #9a9;
-    border-right: 1px solid #9a9;
-    border-top: 1px solid #bdb;
-    border-left: 1px solid #bdb;*/
-}
-span.type-id:hover {
-    background-color: #dfd !important;
-}
-
 table {
     padding: 0;
     margin: 0;
@@ -165,9 +171,19 @@ td.url {
     font-style: italic;
 }
 
-td.state {
+.state {
     text-transform: uppercase;
+    font-weight:bold;
+}
+
+td.session {
+    border-right: 2px solid #bbb;
+}
+
+span.input {
     font-style: italic;
+    text-decoration: underline;
+    font-weight:bold;
 }
 
 div.content-layer {

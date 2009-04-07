@@ -11,12 +11,13 @@ $pages = Array("overview" => "overview.php",
                "slave-info" => "slave-info.php",
                "slave-list" => "slave-list.php",
                "url-list" => "url-list.php",
+               "session-info" => "session-info.php",
                "client-info" => "client-info.php");
 
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
     if ($_GET['do'] == "login") {
         $m = new Metha;
-        if ($m->connect($config['master']['host']) 
+        if ($m->connect($config['master']) 
                && $m->authenticate($_POST['user'], $_POST['pass'])) {
             $_SESSION['authenticated'] = 1;
             $_SESSION['user'] = $_POST['user'];
@@ -32,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 
 if ($_SESSION['authenticated'] == 1) {
     $m = new Metha;
-    if (!$m->connect($config['master']['host']))
+    if (!$m->connect($config['master']))
         $page = "disconnected.php";
     else if (!$m->authenticate($_SESSION['user'], $_SESSION['pass']))
         $page = "login.php";
@@ -60,7 +61,7 @@ if ($_SESSION['authenticated'] == 1) {
         <div id="container">
             <div id="header">
                 <?php if ($_SESSION['authenticated'] == 1) { ?><span id="header-info">Logged in as <strong><?=$_SESSION['user']?></strong> [<a href="#">Log out</a>]</span><?php } ?>
-                <h1><?=$config["header"]["text"]?></h1>
+                <h1><?=$config["header"]?></h1>
             </div>
             <div id="content">
                 <div id="left">

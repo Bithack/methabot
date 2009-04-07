@@ -23,6 +23,7 @@
 #include "master.h"
 #include "nolp.h"
 
+#include <syslog.h>
 #include <stdio.h>
 
 static int user_list_clients_command(nolp_t *no, char *buf, int size);
@@ -35,6 +36,8 @@ static int user_add_command(nolp_t *no, char *buf, int size);
 static int user_useradd_command(nolp_t *no, char *buf, int size);
 static int user_userdel_command(nolp_t *no, char *buf, int size);
 static int user_passwd_command(nolp_t *no, char *buf, int size);
+static int user_session_info_command(nolp_t *no, char *buf, int size);
+static int user_session_report_command(nolp_t *no, char *buf, int size);
 
 struct nolp_fn user_commands[] = {
     {"LIST-SLAVES", &user_list_slaves_command},
@@ -47,6 +50,8 @@ struct nolp_fn user_commands[] = {
     {"USERADD", user_useradd_command},
     {"USERDEL", user_userdel_command},
     {"PASSWD", user_passwd_command},
+    {"SESSION-INFO", user_session_info_command},
+    {"SESSION-REPORT", user_session_report_command},
     {0},
 };
 
@@ -290,3 +295,60 @@ user_passwd_command(nolp_t *no, char *buf, int size)
 
 }
 
+static int
+user_session_info_command(nolp_t *no, char *buf, int size)
+{
+    uint32_t session_id;
+    MYSQL_RES *r;
+    MYSQL_ROW row;
+    session_id = atoi(buf);
+    char out[16+10+19+20+19+40+sizeof("<session-info for=\"\"><started></started><latest></latest><client></client><state></state></session-info>")];
+    int  len;
+
+    len = sprintf(out, 
+            "SELECT "
+                "`date`, `latest`, `state`, "
+                "`cl`.`token` "
+            "FROM "
+                "`nol_session` "
+            "LEFT JOIN "
+                "`nol_client` as `cl` "
+              "ON "
+                "`cl`.`id` = `nol_session`.`client_id`"
+            "WHERE `nol_session`.`id` = %u LIMIT 0,1;",
+            session_id);
+    if (mysql_real_query(srv.mysql, out, len) != 0) {
+        syslog(LOG_ERR, "selecting session info failed: %s",
+                mysql_error(srv.mysql));
+        return -1;
+    }
+    r = mysql_store_result(srv.mysql);
+    if (r) {
+        if ((row = mysql_fetch_row(r))) {
+            len = sprintf(out,
+                    "<session-info for=\"%u\">"
+                      "<started>%.19s</started>"
+                      "<latest>%.19s</latest>"
+                      "<state>%.20s</state>"
+                      "<client>%40s</client>"
+                    "</session-info>",
+                    session_id, row[0], row[1],
+                    row[2], row[3]
+                    );
+            int len2 = sprintf(out+len, "100 %ud\n", len);
+            send(no->fd, out+len, len2, 0);
+            send(no->fd, out, len, 0);
+        } else
+            send(no->fd, MSG203, sizeof(MSG203)-1, 0);
+        mysql_free_result(r);
+    } else
+        send(no->fd, MSG300, sizeof(MSG300)-1, 0);
+
+    return 0;
+}
+
+static int
+user_session_report_command(nolp_t *no, char *buf, int size)
+{
+
+}

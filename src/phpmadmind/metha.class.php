@@ -80,6 +80,11 @@ class Metha
         return $this->get_sized_reply("CLIENT-INFO $hash");
     }
 
+    function session_info($id)
+    {
+        return $this->get_sized_reply("SESSION-INFO $id");
+    }
+
     function list_clients($slave)
     {
         return $this->get_sized_reply("LIST-CLIENTS ".$slave);

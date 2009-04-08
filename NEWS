@@ -41,6 +41,8 @@ Changes and new features:
 * mb-masterd is the master server, responsible  for statistics and system-global
   signaling
 * phpMadMind is a web interface for administrating a Methanol system
+* --external option set to false can no longer be circumvented using a HTTP-
+  redirect
 
 1.6.0
 =====

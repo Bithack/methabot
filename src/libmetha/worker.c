@@ -808,8 +808,21 @@ lm_worker_perform(worker_t *w)
                 w->redirects = 0;
                 return M_OK;
             }
-            ue_revert(w->ue_h, w->io_h->transfer.headers.location,
-                      strlen(w->io_h->transfer.headers.location));
+            /* add the value of the location header to a 
+             * temporary new URL structure, we'll compare it 
+             * to the current host name and call ue_move_to_secondary
+             * if it is external, otherwise redirect this worker
+             * to the URL */
+            url_t tmp;
+            lm_url_init(&tmp);
+            lm_url_set(&tmp,
+                    w->io_h->transfer.headers.location,
+                    strlen(w->io_h->transfer.headers.location));
+            if (lm_url_hostcmp(&tmp, w->ue_h->current) == 0)
+                ue_revert(w->ue_h, tmp.str, tmp.sz);
+            else
+                ue_move_to_secondary(w->ue_h, &tmp);
+            lm_url_uninit(&tmp);
             return M_OK;
         }
     }

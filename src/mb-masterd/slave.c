@@ -89,7 +89,6 @@ mbm_create_slave(const char *user)
     r->client_conn = 0;
     r->clients = 0;
 
-    mbm_create_slave_list_xml();
     syslog(LOG_INFO, "registered slave: %s-%d", r->name, r->id);
     
     return r;
@@ -105,8 +104,8 @@ mbm_create_slave_list_xml()
         realloc(
             srv.xml.slave_list.buf, 
             srv.num_slaves*
-              (64+20+20+ /* name length + id length + num clients */
-               sizeof("<slave id=\"\"><user></user><num-clients></num-clients></slave>")-1
+              (64+20+20+15+ /* name length + id length + num clients + addr length */
+               sizeof("<slave id=\"\"><user></user><num-clients></num-clients><address></address></slave>")-1
               )+
               sizeof("<slave-list></slave-list>")
             );
@@ -117,10 +116,12 @@ mbm_create_slave_list_xml()
                 "<slave id=\"%d\">"
                   "<user>%.64s</user>"
                   "<num-clients>%d</num-clients>"
+                  "<address>%.15s</address>"
                 "</slave>",
                 srv.slaves[x].id,
                 srv.slaves[x].name,
-                srv.slaves[x].num_clients
+                srv.slaves[x].num_clients,
+                inet_ntoa(srv.slaves[x].conn->addr.sin_addr)
                 );
     p+=sprintf(p, "</slave-list>");
     srv.xml.slave_list.sz = p-srv.xml.slave_list.buf;
@@ -231,6 +232,7 @@ sl_status_parse(nolp_t *no, char *buf, int size)
     sl->xml.clients.sz = x;
 
     check_sessions();
+    mbm_create_slave_list_xml();
 
     return 0;
 }
@@ -240,7 +242,7 @@ call_session_complete_hook(long sess_id)
 {
     const char *run;
     if (srv.hooks.session_complete) {
-        asprintf(&run, "%s %ld", srv.hooks.session_complete, sess_id);
+        asprintf(&run, "%s %d", srv.hooks.session_complete, sess_id);
         system(run);
         free(run);
     }

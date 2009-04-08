@@ -358,8 +358,8 @@ get_and_send_url(struct client *cl)
          * until the client is out of URLs and sends a STATUS 0 
          * message */
         sz = sprintf(buf,
-                "INSERT INTO `nol_session` (added_id, client_id, date)"
-                "VALUES (%d, '%ld', NOW());",
+                "INSERT INTO `nol_session` (added_id, client_id, date, latest)"
+                "VALUES (%d, '%ld', NOW(), NOW());",
                 id, cl->id
                 );
         if (mysql_real_query(cl->mysql, buf, sz) == 0) {
@@ -403,7 +403,7 @@ on_status(nolp_t *no, char *buf, int size)
      **/
     if (status == 0) {
         if (cl->session_id) {
-            sprintf(q, "UPDATE `nol_session` SET state='wait-hook' WHERE id=%ld",
+            sprintf(q, "UPDATE `nol_session` SET state='wait-hook', latest=NOW() WHERE id=%ld",
                     cl->session_id);
             mysql_query(srv.mysql, q);
         }
@@ -440,6 +440,10 @@ on_url(nolp_t *no, char *buf, int size)
     int            sz;
     int            ret = 0;
     cl = (struct client*)no->private;
+
+    if (!cl->session_id)
+        return -1;
+
     sz = size+sizeof(Q_URL_1 Q_URL_2);
     if (!(q = malloc(sz)))
         return -1;
@@ -490,6 +494,14 @@ on_target(nolp_t *no, char *buf,
     int  len;
     int  x;
 
+    cl = ((struct client *)no->private);
+    if (!cl->session_id) {
+        /* client shouldnt send any target info if 
+         * a session hasnt been started, disconnect the
+         * client */
+        return -1;
+    }
+
     if (!(p = memchr(p, ' ', e-p)))
         return -1;
     url = p+1;
@@ -501,7 +513,6 @@ on_target(nolp_t *no, char *buf,
     if (!(p = memchr(p, ' ', e-p)))
         return -1;
 
-    cl = ((struct client *)no->private);
     if (p-filetype > 63)
         len = 63;
     else

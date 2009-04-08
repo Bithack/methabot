@@ -62,6 +62,10 @@ a.id:hover {
     background-color: #dfd !important;
 }
 
+td.sep {
+    border-right: 2px solid #bbb;
+}
+
 td.url-info {
     border-right: 2px solid #bbb;
 }

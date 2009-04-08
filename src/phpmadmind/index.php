@@ -10,7 +10,7 @@ $pages = Array("overview" => "overview.php",
                "show-config" => "show-config.php",
                "slave-info" => "slave-info.php",
                "slave-list" => "slave-list.php",
-               "url-list" => "url-list.php",
+               "input-list" => "input-list.php",
                "session-info" => "session-info.php",
                "session-list" => "session-list.php",
                "client-info" => "client-info.php");
@@ -69,7 +69,7 @@ if ($_SESSION['authenticated'] == 1) {
                     <h4>Navigation</h4>
                     <ul>
                         <li><a href="?p=overview">Overview</a></li>
-                        <li><a href="?p=url-list">URLs</a></li>
+                        <li><a href="?p=input-list">Input Data</a></li>
                     <!--</ul>
                     <h4>System</h4>
                     <ul>-->

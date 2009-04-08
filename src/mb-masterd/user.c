@@ -424,6 +424,7 @@ user_list_sessions_command(nolp_t *no, char *buf, int size)
                 "`S`.`latest` DESC "
             "LIMIT %d, %d;",
             start, limit);
+    syslog(LOG_DEBUG, b);
 
     if (!b) {
         send(no->fd, MSG300, sizeof(MSG300)-1, 0);
@@ -456,8 +457,8 @@ user_list_sessions_command(nolp_t *no, char *buf, int size)
                       "<input>%s</input>"
                       "<client>%s</client>"
                     "</session>",
-                    atoi(row[0]), row[1], row[2],
-                    row[3], row[4], row[5]);
+                    atoi(row[0]), row[1]?row[1]:"", row[2]?row[2]:"",
+                    row[3]?row[3]:"", row[4]?row[4]:"", row[5]?row[5]:"");
 
             bufs[x] = curr;
             sizes[x] = sz;

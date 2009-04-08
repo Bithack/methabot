@@ -315,6 +315,7 @@ upgrade_conn(struct conn *conn, const char *user)
             conn->slave_n = srv.num_slaves-1;
             ev_set_cb(&conn->fd_ev, &slave_read);
             sl->conn = conn;
+            mbm_create_slave_list_xml();
 
             if (!(no = nolp_create(slave_commands, sock)))
                 return -1;

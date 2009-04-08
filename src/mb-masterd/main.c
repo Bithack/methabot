@@ -229,7 +229,7 @@ mbm_mysql_connect()
                 `target_id` \
             );"
 #define SQL_SESS_REL_TBL "\
-            CREATE TABLE IF NOT EXISTS \
+            CREATE TABLE \
             nol_session_rel ( \
                     session_id INT NOT NULL, \
                     filetype VARCHAR(64), \

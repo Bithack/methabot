@@ -130,6 +130,8 @@ lmc_destroy(lmc_parser_t *lmc)
 
     if (lmc->last_error)
         free(lmc->last_error);
+
+    free(lmc);
 }
 
 /** 

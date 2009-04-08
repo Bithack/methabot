@@ -84,7 +84,11 @@ ue_uninit(ue_t *ue)
 
     pthread_mutex_destroy(&ue->pending_lk);
 
-    /* TODO: free the pending stack */
+    /*
+    for (x=0; x<ue->pending.sz; x++)
+        ue_hostent_free(ue->pending.st[x]);
+        */
+    free(ue->pending.st);
 }
 
 /** 
@@ -556,6 +560,7 @@ ue_hostent_free(struct host_ent *p)
 {
     pthread_mutex_destroy(&p->lock);
     mtrie_cleanup(&p->cache);
+    lm_ulist_uninit(&p->list);
     free(p->str);
     free(p);
 }

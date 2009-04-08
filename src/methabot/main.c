@@ -738,8 +738,9 @@ mb_error_cb(metha_t *m, const char *s, ...)
 
     memcpy(s2, "[E] ", 4);
     strcpy(s2+4, s);
-    *(s2+strlen(s2)) = '\n';
-    *(s2+strlen(s2)+1) = '\0';
+    sz = strlen(s2);
+    *(s2+sz) = '\n';
+    *(s2+sz+1) = '\0';
 
     vfprintf(stderr, s2, va);
     free(s2);
@@ -762,8 +763,9 @@ mb_warning_cb(metha_t *m, const char *s, ...)
 
     memcpy(s2, "[W] ", 4);
     strcpy(s2+4, s);
-    *(s2+strlen(s2)) = '\n';
-    *(s2+strlen(s2)+1) = '\0';
+    sz = strlen(s2);
+    *(s2+sz) = '\n';
+    *(s2+sz+1) = '\0';
 
     vfprintf(stderr, s2, va);
     free(s2);

@@ -28,7 +28,22 @@
 void 
 lm_ftindex_destroy(ftindex_t *i)
 {
+    int x;
+    htpos_t *htp, *prev;
+
     lm_mimetb_uninit(&i->m_index);
+
+    /* free all entries in the file extension
+     * hash table */
+    for (x=0; x<16; x++) {
+        htp = i->e_index[x];
+
+        while (htp) {
+            prev = htp;
+            htp = htp->next;
+            free(prev);
+        }
+    }
 
     if (i->ft_list)
         free(i->ft_list);

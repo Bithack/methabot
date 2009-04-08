@@ -177,6 +177,16 @@ mbs_client_init(void *in)
     /* remove this client from the client list, 
      * if it's been added to it earlier */
     if (this) {
+        /* if a session was started but not stopped, we'll mark it as done 
+         * right now */
+        if (this->session_id) {
+            char *q = malloc(128);
+            int   sz;
+            sz = sprintf(q, "UPDATE `nol_session` SET state='done', latest=NOW() WHERE id=%d",
+                    this->session_id);
+            mysql_real_query(this->mysql, q, sz);
+            free(q);
+        }
         pthread_mutex_lock(&srv.clients_lk);
         for (x=0; x<srv.num_clients; x++) {
             if (srv.clients[x] == this) {
@@ -405,7 +415,7 @@ on_status(nolp_t *no, char *buf, int size)
         if (cl->session_id) {
             sprintf(q, "UPDATE `nol_session` SET state='wait-hook', latest=NOW() WHERE id=%ld",
                     cl->session_id);
-            mysql_query(srv.mysql, q);
+            mysql_query(cl->mysql, q);
         }
 
         if (get_and_send_url(cl) != 0) {

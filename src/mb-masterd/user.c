@@ -415,7 +415,7 @@ user_list_sessions_command(nolp_t *no, char *buf, int size)
             "LEFT JOIN "
                 "`nol_added` as `A` "
               "ON "
-                "`A`.`id` = `S`.`id` "
+                "`A`.`id` = `S`.`added_id` "
             "LEFT JOIN "
                 "`nol_client` AS `C` "
               "ON "
@@ -424,7 +424,6 @@ user_list_sessions_command(nolp_t *no, char *buf, int size)
                 "`S`.`latest` DESC "
             "LIMIT %d, %d;",
             start, limit);
-    syslog(LOG_DEBUG, b);
 
     if (!b) {
         send(no->fd, MSG300, sizeof(MSG300)-1, 0);

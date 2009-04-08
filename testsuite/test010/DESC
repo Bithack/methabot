@@ -1,0 +1,3 @@
+REQUIRE="httpd"
+RUN="mb -s :test010 http://127.0.0.1:9999/index.html"
+INFO="entityconv parser"

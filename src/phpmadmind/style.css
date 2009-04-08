@@ -42,6 +42,37 @@ h3 {
     color: #222;
 }
 
+h4 {
+    padding: 0;
+    font-family: sans-serif;
+    margin: 0;
+    font-size: 1em;
+    font-weight: bold;
+    text-decoration: none;
+    border-bottom: 1px solid #bbb;
+}
+
+h5 {
+    padding: 0;
+    margin: 0;
+    font-family: sans-serif;
+    font-weight: bold;
+    text-decoration: underline;
+    font-size: 1em;
+}
+
+div.report {
+    margin: .2em;
+}
+
+div.box {
+    float:left;
+    padding: 0.5em;
+    margin: 0.5em;
+    background-color: #efe;
+    border: 1px dotted #dfd;
+}
+
 a {
     color: #0000ff;
     text-decoration: none;

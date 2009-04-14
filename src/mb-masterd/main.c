@@ -36,6 +36,7 @@
 int mbm_main();
 int mbm_cleanup();
 static void mbm_ev_sigint(EV_P_ ev_signal *w, int revents);
+static void mbm_ev_sigterm(EV_P_ ev_signal *w, int revents);
 const char* master_init_cb(void);
 const char* master_start_cb(void);
 
@@ -59,11 +60,9 @@ struct lmc_scope master_scope =
 int
 main(int argc, char **argv)
 {
-    FILE  *fp = 0;
     int    x;
     lmc_parser_t *lmc;
 
-    openlog("mb-masterd", 0, 0);
     signal(SIGPIPE, SIG_IGN);
 
     if (argc > 1)
@@ -113,24 +112,26 @@ main(int argc, char **argv)
 
 
     mbm_cleanup();
-    closelog();
     return 0;
 
 error:
     mbm_cleanup();
-    if (fp)
-        fclose(fp);
-    closelog();
     return 1;
 }
 
 /* initialise the server, return 0 on success or a pointer
- * to a static error buffer on failure */
+ * to a static error buffer on failure
+ *
+ * this will be run by the forked process, and called from
+ * nol_server_launch()
+ * */
 const char *
 master_init_cb(void)
 {
     FILE *fp;
     char *s;
+    int o = 1, sock;
+    openlog("mb-masterd", LOG_PID, LOG_DAEMON);
 
     if (!opt_vals.config_file)
         return "no configuration file";
@@ -141,6 +142,7 @@ master_init_cb(void)
     } else
         srv.addr.sin_port = htons(NOL_MASTER_DEFAULT_PORT);
     srv.addr.sin_addr.s_addr = inet_addr(opt_vals.listen);
+    srv.addr.sin_family = AF_INET;
 
     /* load the configuration file */
     if (!(fp = fopen(opt_vals.config_file, "rb")))
@@ -171,55 +173,64 @@ master_init_cb(void)
     if (mbm_reconfigure() != 0)
         return "settings up filetype tables failed";
 
-    return 0;
-}
-
-const char*
-master_start_cb()
-{
-    struct ev_loop *loop;
-    int sock;
-
-    ev_io     io_listen;
-    ev_signal sigint_listen;
-    
-    if (!(loop = ev_default_loop(EVFLAG_AUTO)))
-        return 1;
-
-    srv.addr.sin_family = AF_INET;
     sock = socket(PF_INET, SOCK_STREAM, 0);
-
-    int o = 1;
     setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &o, sizeof(o));
+
     if (bind(sock, (struct sockaddr*)&srv.addr, sizeof srv.addr) == -1) {
         syslog(LOG_ERR, "could not bind to %s:%hd",
                 inet_ntoa(srv.addr.sin_addr),
                 ntohs(srv.addr.sin_port));
-        return 1;
+        return "bind() failed";
     }
-
     if (listen(sock, 1024) == -1) {
         syslog(LOG_ERR, "could not listen on %s:%hd",
                 inet_ntoa(srv.addr.sin_addr),
                 ntohs(srv.addr.sin_port));
-        return 1;
+        return "listen() failed";
     }
+
+    srv.listen_sock = sock;
+    return 0;
+}
+
+/** 
+ * start the event loop and begin accepting
+ * connections
+ *
+ * called by nol_server_launch()
+ **/
+const char*
+master_start_cb()
+{
+    struct ev_loop *loop;
+    ev_signal       sigint_listen;
+    ev_signal       sigterm_listen;
+    ev_io           io_listen;
+    
+    if (!(loop = ev_default_loop(EVFLAG_AUTO)))
+        return 1;
 
     syslog(LOG_INFO, "listening on %s:%hd",
             inet_ntoa(srv.addr.sin_addr),
             ntohs(srv.addr.sin_port));
 
-    ev_signal_init(&sigint_listen, &mbm_ev_sigint, SIGINT);
-    ev_io_init(&io_listen, &mbm_ev_conn_accept, sock, EV_READ);
+    ev_signal_init(&sigint_listen,
+            &mbm_ev_sigint, SIGINT);
+    ev_signal_init(&sigterm_listen,
+            &mbm_ev_sigterm, SIGTERM);
+    ev_io_init(&io_listen, &mbm_ev_conn_accept,
+            srv.listen_sock, EV_READ);
 
     /* catch SIGINT */
     ev_signal_start(loop, &sigint_listen);
+    ev_signal_start(loop, &sigterm_listen);
     ev_io_start(loop, &io_listen);
 
     ev_loop(loop, 0);
-    close(sock);
+    close(srv.listen_sock);
     ev_default_destroy();
 
+    closelog();
     return 0;
 }
 
@@ -507,7 +518,31 @@ mbm_ev_sigint(EV_P_ ev_signal *w, int revents)
 
     ev_signal_stop(EV_A_ w);
 
-    syslog(LOG_INFO, "SIGINT received\n");
+    syslog(LOG_INFO, "SIGINT received");
+
+    if (srv.num_conns) {
+        for (x=0; x<srv.num_conns; x++) {
+            close(srv.pool[x]->sock); 
+            free(srv.pool[x]);
+        }
+
+        free(srv.pool);
+    }
+
+    ev_unloop(EV_A_ EVUNLOOP_ALL);
+}
+
+/** 
+ * Called when sigterm is recevied
+ **/
+static void
+mbm_ev_sigterm(EV_P_ ev_signal *w, int revents)
+{
+    int x;
+
+    ev_signal_stop(EV_A_ w);
+
+    syslog(LOG_INFO, "SIGTERM received");
 
     if (srv.num_conns) {
         for (x=0; x<srv.num_conns; x++) {

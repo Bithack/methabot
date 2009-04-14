@@ -20,23 +20,22 @@ struct opt_val_list {
     char *session_complete_hook;
 };
 
+/* run-time generated information */
 struct master {
-    MYSQL *mysql;
+    MYSQL             *mysql;
     struct sockaddr_in addr;
-    char *config_buf;
-    int   config_sz;
+    int                listen_sock;
+    char              *config_buf;
+    int                config_sz;
 
-    struct conn **pool;
-    unsigned num_conns;
-
-    struct slave *slaves;
-    unsigned num_slaves;
-
-    struct crawler **crawlers;
-    unsigned         num_crawlers;
-
-    struct filetype **filetypes;
-    unsigned         num_filetypes;
+    struct conn      **pool;
+    unsigned           num_conns;
+    struct slave      *slaves;
+    unsigned           num_slaves;
+    struct filetype  **filetypes;
+    unsigned           num_filetypes;
+    struct crawler   **crawlers;
+    unsigned           num_crawlers;
 
     struct {
         struct {

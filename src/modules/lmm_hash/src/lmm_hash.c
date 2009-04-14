@@ -26,6 +26,13 @@
 #include "js.h"
 #include <metha/metha.h>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "md5.h"
+
+
 static M_CODE lmm_hash_init(metha_t *m);
 static M_CODE lmm_hash_uninit(metha_t *m);
 static M_CODE lmm_hash_prepare(metha_t *m);
@@ -46,15 +53,16 @@ lm_mod_properties =
 static M_CODE
 lmm_hash_init(metha_t *m)
 {
+    /* register global javascript functions */
+    lmetha_register_jsfunction(m, "md5", &lmm_hash_md5, 1);
+    lmetha_register_jsfunction(m, "md5_file", &lmm_hash_md5_file, 1);
+
     return M_OK;
 }
 
 static M_CODE
 lmm_hash_prepare(metha_t *m)
 {
-    lmetha_init_jsclass(m, &HashClass, 0, 0, 0, &lmm_HashClass_functions, 0, 0);
-    lmetha_register_worker_object(m, "hash", &HashClass);
-
     return M_OK;
 }
 
@@ -63,4 +71,3 @@ lmm_hash_uninit(metha_t *m)
 {
     return M_OK;
 }
-

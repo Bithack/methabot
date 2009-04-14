@@ -21,33 +21,38 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <pthread.h>
 #include <metha/metha.h>
 #include "js.h"
 #include "md5.h"
 
-JSBool lmm_HashClass_construct(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
-JSBool lmm_HashClass_finalize(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
-static JSBool lmm_hash_md5(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
+static M_CODE
+str_to_md5(const char *string, char *buf)
+{
+    if (!buf || !string) {
+        return M_ERROR;
+    }
 
-struct JSClass HashClass = {
-    "FileHandle",
-    JSCLASS_HAS_PRIVATE,
-    JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_PropertyStub,
-    JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, lmm_HashClass_finalize,
-    0, 0, 0, lmm_HashClass_construct, 0, 0, 0, 0
-};
+    md5_state_t state;
+    md5_byte_t digest[16];
+    unsigned int i;
 
-JSFunctionSpec lmm_HashClass_functions[] = {
-    {"md5",        lmm_hash_md5,      1},
-    0
-};
+    md5_init(&state);
+    md5_append(&state, (const md5_byte_t*)string, strlen(string));
+    md5_finish(&state, digest);
 
-static JSBool
+    for (i = 0; i < 16; ++i) {
+        sprintf(buf+2*i, "%02x", digest[i]);
+    }
+
+    return M_OK;
+}
+
+JSBool
 lmm_hash_md5(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
 {
     if (argc < 1) {
-        /* XXX: use LM_ERROR(m, "text"); */
         fprintf(stderr, "not enough arguments for hash.md5()\n");
         return JS_FALSE;
     }
@@ -55,26 +60,74 @@ lmm_hash_md5(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
     const char *string = JS_GetStringBytes(JSVAL_TO_STRING(argv[0]));
     if (!string) return JS_FALSE;
 
-    struct MD5Context md5_cx;
+    char *buf = malloc(33);
 
-    MD5Init(&md5_cx);
-    printf("%s\n", string);
-    MD5Update(&md5_cx, string, strlen(string));
-    printf("%s\n", string);
+    str_to_md5(string, buf);
 
-    *ret = STRING_TO_JSVAL(fh);
+    JSString *tmp = JS_NewStringCopyN(cx, buf, strlen(buf));
+    if (tmp == NULL) {
+        fprintf(stderr, "out of mem\n");
+        return JS_FALSE;
+    }
+
+    *ret = STRING_TO_JSVAL(tmp);
+
+    free(buf);
     return JS_TRUE;
 }
 
 JSBool
-lmm_HashClass_construct(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
+lmm_hash_md5_file(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
 {
-    return JS_TRUE;
-}
+    if (argc < 1) {
+        fprintf(stderr, "not enough arguments for md5()\n");
+        return JS_FALSE;
+    }
 
-JSBool
-lmm_HashClass_finalize(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
-{
+    const char *filename = JS_GetStringBytes(JSVAL_TO_STRING(argv[0]));
+    if (!filename) return JS_FALSE;
+
+    FILE  *fh;
+    char  *string;
+    char  *buf = malloc(33);
+    long   filesize;
+    size_t res;
+    
+    fh = fopen(filename, "r");
+    if (fh == NULL) {
+        fprintf(stderr, "unable to open file\n");
+        return JS_FALSE;
+    }
+
+    fseek(fh, 0, SEEK_END);
+    filesize = ftell(fh);
+    rewind(fh);
+
+    string = malloc(filesize);
+    if (!string) {
+        fprintf(stderr, "out of mem\n");
+        return JS_FALSE;
+    }
+
+    res = fread(string, 1, filesize, fh);
+    if (res != filesize) {
+        fprintf(stderr, "reading error\n");
+        fclose(fh);
+        return JS_FALSE;
+    }
+    *(string+filesize-1) = '\0';
+
+    str_to_md5(string, buf);
+
+    JSString *tmp = JS_NewStringCopyN(cx, buf, strlen(buf));
+    if (tmp == NULL) {
+        fprintf(stderr, "out of mem\n");
+        return JS_FALSE;
+    }
+
+    *ret = STRING_TO_JSVAL(tmp);
+
+    free(buf);
     return JS_TRUE;
 }
 

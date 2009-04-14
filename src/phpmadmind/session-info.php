@@ -11,14 +11,18 @@ if ($info) {
   </table>
   <table style="float:left;">
     <tr><th>Client</th><td><a class="id" href="?p=client-info&id=<?=$info->client?>"><?=$info->client?></a></td></tr>
-    <tr><th>Input</th><td>http://metha-sys.org/</td></tr>
-    <tr><th>Crawler</th><td>default</td></tr>
+    <tr><th>Input</th><td><?=$info->crawler?> &lt;- <span class="input"><?=htmlspecialchars($info->input)?></span></td></tr>
   </table>
 </div>
 <div class="content-layer">
   <h3>Session Report</h3>
   <div class="report">
-  <?=$m->session_report($id)?>
+  <?php
+  $s = $m->session_report($id);
+  if ($s === false || !strlen($s))
+      echo "<em>No session report was generated.</em>";
+  else echo $s;
+  ?>
   </div>
 </div>
 <?php

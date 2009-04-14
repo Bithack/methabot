@@ -307,19 +307,23 @@ user_session_info_command(nolp_t *no, char *buf, int size)
     MYSQL_RES *r;
     MYSQL_ROW row;
     session_id = atoi(buf);
-    char out[16+10+19+20+19+40+sizeof("<session-info for=\"\"><started></started><latest></latest><client></client><state></state></session-info>")];
+    char *out;
     int  len;
 
-    len = sprintf(out, 
+    len = asprintf(&out, 
             "SELECT "
-                "`date`, `latest`, `state`, "
-                "`cl`.`token` "
+                "`nol_session`.`date`, `latest`, `state`, "
+                "`cl`.`token`, `a`.`crawler`, `a`.`input` "
             "FROM "
                 "`nol_session` "
             "LEFT JOIN "
                 "`nol_client` as `cl` "
               "ON "
-                "`cl`.`id` = `nol_session`.`client_id`"
+                "`cl`.`id` = `nol_session`.`client_id` "
+            "LEFT JOIN "
+                "`nol_added` as `a` "
+              "ON "
+                "`a`.`id` = `nol_session`.`added_id` "
             "WHERE `nol_session`.`id` = %u LIMIT 0,1;",
             session_id);
     if (mysql_real_query(srv.mysql, out, len) != 0) {
@@ -327,22 +331,28 @@ user_session_info_command(nolp_t *no, char *buf, int size)
                 mysql_error(srv.mysql));
         return -1;
     }
+    free(out);
     r = mysql_store_result(srv.mysql);
     if (r) {
         if ((row = mysql_fetch_row(r))) {
-            len = sprintf(out,
+            len = asprintf(&out,
                     "<session-info for=\"%u\">"
                       "<started>%.19s</started>"
                       "<latest>%.19s</latest>"
                       "<state>%.20s</state>"
                       "<client>%40s</client>"
+                      "<crawler>%.64s</crawler>"
+                      "<input>%s</input>"
                     "</session-info>",
                     session_id, row[0], row[1],
-                    row[2], row[3]
+                    row[2], row[3], row[4],
+                    row[5]
                     );
-            int len2 = sprintf(out+len, "100 %u\n", len);
-            send(no->fd, out+len, len2, 0);
+            char tmp[64];
+            int len2 = sprintf(tmp, "100 %u\n", len);
+            send(no->fd, tmp, len2, 0);
             send(no->fd, out, len, 0);
+            free(out);
         } else
             send(no->fd, MSG203, sizeof(MSG203)-1, 0);
         mysql_free_result(r);

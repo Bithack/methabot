@@ -187,6 +187,8 @@ mbs_client_init(void *in)
             mysql_real_query(this->mysql, q, sz);
             free(q);
         }
+        mysql_close(this->mysql);
+
         pthread_mutex_lock(&srv.clients_lk);
         for (x=0; x<srv.num_clients; x++) {
             if (srv.clients[x] == this) {
@@ -260,8 +262,6 @@ mbs_client_main(struct client *this, int sock)
     ev_io_stop(loop, &io);
     ev_async_stop(loop, &this->async);
     ev_loop_destroy(loop);
-
-    mysql_close(this->mysql);
     syslog(LOG_INFO, "client disconnected");
 }
 
@@ -472,7 +472,7 @@ on_url(nolp_t *no, char *buf, int size)
     memcpy(q+sizeof(Q_URL_1)-1+size,
            Q_URL_2, sizeof(Q_URL_2));
     if (mysql_real_query(cl->mysql, q, sz) != 0) {
-        syslog(LOG_ERR, "updating _url table failed: %s", mysql_error(cl->mysql));
+        syslog(LOG_ERR, "updating nol_url table failed: %s", mysql_error(cl->mysql));
         ret = -1;
     }
     free(q);

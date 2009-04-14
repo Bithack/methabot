@@ -25,10 +25,7 @@
 
 #include <jsapi.h>
 
-extern struct JSClass HashClass;
-
-extern JSFunctionSpec lmm_HashClass_functions[];
-
-JSBool lmm_HashClass_construct(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
+JSBool lmm_hash_md5(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
+JSBool lmm_hash_md5_file(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
 
 #endif

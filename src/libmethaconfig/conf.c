@@ -592,13 +592,16 @@ lmc_parse(lmc_parser_t *lmc,
                 while (isalnum(*(p+x)) || *(p+x) == '-' || *(p+x) == '_')
                     x++;
 
+                struct lmc_opt *opts =
+                    (scope ? &((struct lmc_scope*)curr)->opts
+                     : curr->opts);
                 found = 0;
-                for (y=0; curr->opts[y].name; y++) {
-                    if (strncmp(p, curr->opts[y].name, x) == 0
-                            && curr->opts[y].name[x] == '\0') {
+                for (y=0; opts[y].name; y++) {
+                    if (strncmp(p, opts[y].name, x) == 0
+                            && opts[y].name[x] == '\0') {
                         found = 1;
                         p += x-1;
-                        curr_opt = &curr->opts[y];
+                        curr_opt = &opts[y];
                         break;
                     }
                 }

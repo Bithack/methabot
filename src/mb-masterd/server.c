@@ -26,6 +26,9 @@
 #include "lmc.h"
 #include "server.h"
 
+#define CHILD_SUCCESS 0
+#define CHILD_FAILURE 1
+
 /** 
  * Function used by both mb-masterd and mb-slaved.
  *
@@ -56,8 +59,9 @@ nol_server_launch(const char *config,
     pid_t pid;
     const char *err;
     int   fds[2];
-    char  buf[256];
+    char  buf[257];
     int   n;
+    char  c;
 
     /* set up the pipe so we can communicate with
      * the child process, and keep track of whether
@@ -81,32 +85,40 @@ nol_server_launch(const char *config,
         /* now we'll configure and write any
          * error message to the pipe */
         if (lmc_parse_file(lmc, config) != M_OK) {
-            n = strlen(lmc->last_error);
-            if (n > 255) n = 255;
-            write(fds[1], lmc->last_error, n);
-        } else {
-            if ((err = init_cb())) {
-                n = strlen(err);
-                if (n > 255) n = 255;
-                write(fds[1], err, n);
-            } else
-                run_cb();
+            err = lmc->last_error;
+            goto child_fail;
         }
+        if ((err = init_cb()) != 0)
+            goto child_fail;
 
+        c = CHILD_SUCCESS;
+        write(fds[1], &c, 1);
         close(fds[1]);
+
+        run_cb();
         exit(0);
+
+child_fail: /* set 'err' to an error buffer before jumping here */
+        n = strlen(err);
+        if (n > 255) n = 255;
+        c = CHILD_FAILURE;
+        write(fds[1], &c, 1);
+        write(fds[1], err, n);
+        close(fds[1]);
+        exit(1);
     }
 
     /* child doesn't reach here */
     close(fds[1]);
-    if ((n = read(fds[0], &buf, 255)) == 0) {
+    if ((n = read(fds[0], &buf, 255)) <= 0)
+        fprintf(stderr, "failed: no data from child, possible crash?\n");
+    else if (*buf == CHILD_SUCCESS) {
         close(fds[0]);
         return 0;
     } else if (n > 0) {
         buf[n] = '\0';
-        fprintf(stderr, "failed: %s\n", buf);
-    } else
-        fprintf(stderr, "reading from child failed, possibly started?\n");
+        fprintf(stderr, "failed: %s\n", buf+1);
+    }
 
     close(fds[0]);
     return -1;

@@ -2,7 +2,7 @@
  * main.c
  * This file is part of mb-masterd
  *
- * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
+ * Copyright (c) 2008, 2009, Emil Romanus <emil.romanus@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -36,25 +36,24 @@
 int mbm_main();
 int mbm_cleanup();
 static void mbm_ev_sigint(EV_P_ ev_signal *w, int revents);
-const char* master_init(void);
-const char* master_start(void);
+const char* master_init_cb(void);
+const char* master_start_cb(void);
 
 static const char *_cfg_file;
-struct master srv;
+struct master       srv;
+struct opt_val_list opt_vals;
 
-static M_CODE set_config_cb(void *unused, const char *val);
-static M_CODE set_listen_cb(void *unused, const char *val);
-static M_CODE set_session_complete_hook_cb(void *unused, const char *val);
-static M_CODE set_user_cb(void *unused, const char *val);
-static M_CODE set_group_cb(void *unused, const char *val);
-
-#define NUM_OPTS (sizeof(opts)/sizeof(struct lmc_directive))
-static struct lmc_directive opts[] = {
-    {"listen", set_listen_cb},
-    {"config", set_config_cb},
-    {"session_complete_hook", set_session_complete_hook_cb},
-    {"user", set_user_cb},
-    {"group", set_group_cb},
+struct lmc_scope master_scope =
+{
+    "master",
+    {
+        LMC_OPT_STRING("listen", &opt_vals.listen),
+        LMC_OPT_STRING("config_file", &opt_vals.config_file),
+        LMC_OPT_STRING("session_complete_hook", &opt_vals.session_complete_hook),
+        LMC_OPT_STRING("user", &opt_vals.user),
+        LMC_OPT_STRING("group", &opt_vals.user),
+        LMC_OPT_END,
+    }
 };
 
 int
@@ -77,10 +76,9 @@ main(int argc, char **argv)
         return 1;
     }
 
-    for (x=0; x<NUM_OPTS; x++)
-        lmc_add_directive(lmc, &opts[x]);
+    lmc_add_scope(lmc, &master_scope);
 
-    if (nol_server_launch(_cfg_file, lmc, 0, 0, &master_init, &master_start) == 0)
+    if (nol_server_launch(_cfg_file, lmc, 0, 0, &master_init_cb, &master_start_cb) == 0)
         fprintf(stdout, "started\n");
 
     lmc_destroy(lmc);
@@ -92,8 +90,8 @@ main(int argc, char **argv)
     close(STDERR_FILENO);*/
 
     struct group *g;
-    if (!(g = getgrnam(srv.group))) {
-        syslog(LOG_ERR, "could not get GID for '%s'", srv.group);
+    if (!(g = getgrnam(opt_vals.group))) {
+        syslog(LOG_ERR, "could not get GID for '%s'", opt_vals.group);
         goto error;
     }
 
@@ -103,8 +101,8 @@ main(int argc, char **argv)
     }
 
     struct passwd *p;
-    if (!(p = getpwnam(srv.user))) {
-        syslog(LOG_ERR, "could not get UID for '%s'", srv.user);
+    if (!(p = getpwnam(opt_vals.user))) {
+        syslog(LOG_ERR, "could not get UID for '%s'", opt_vals.user);
         goto error;
     }
 
@@ -129,14 +127,23 @@ error:
 /* initialise the server, return 0 on success or a pointer
  * to a static error buffer on failure */
 const char *
-master_init(void)
+master_init_cb(void)
 {
     FILE *fp;
+    char *s;
 
-    if (!srv.config_file)
+    if (!opt_vals.config_file)
         return "no configuration file";
+
+    if ((s = strchr(opt_vals.listen, ':'))) {
+        srv.addr.sin_port = htons(atoi(s+1));
+        *s = '\0';
+    } else
+        srv.addr.sin_port = htons(NOL_MASTER_DEFAULT_PORT);
+    srv.addr.sin_addr.s_addr = inet_addr(opt_vals.listen);
+
     /* load the configuration file */
-    if (!(fp = fopen(srv.config_file, "rb")))
+    if (!(fp = fopen(opt_vals.config_file, "rb")))
         return "could not open configuration file";
 
     /* calculate the file length */
@@ -168,8 +175,51 @@ master_init(void)
 }
 
 const char*
-master_start()
+master_start_cb()
 {
+    struct ev_loop *loop;
+    int sock;
+
+    ev_io     io_listen;
+    ev_signal sigint_listen;
+    
+    if (!(loop = ev_default_loop(EVFLAG_AUTO)))
+        return 1;
+
+    srv.addr.sin_family = AF_INET;
+    sock = socket(PF_INET, SOCK_STREAM, 0);
+
+    int o = 1;
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &o, sizeof(o));
+    if (bind(sock, (struct sockaddr*)&srv.addr, sizeof srv.addr) == -1) {
+        syslog(LOG_ERR, "could not bind to %s:%hd",
+                inet_ntoa(srv.addr.sin_addr),
+                ntohs(srv.addr.sin_port));
+        return 1;
+    }
+
+    if (listen(sock, 1024) == -1) {
+        syslog(LOG_ERR, "could not listen on %s:%hd",
+                inet_ntoa(srv.addr.sin_addr),
+                ntohs(srv.addr.sin_port));
+        return 1;
+    }
+
+    syslog(LOG_INFO, "listening on %s:%hd",
+            inet_ntoa(srv.addr.sin_addr),
+            ntohs(srv.addr.sin_port));
+
+    ev_signal_init(&sigint_listen, &mbm_ev_sigint, SIGINT);
+    ev_io_init(&io_listen, &mbm_ev_conn_accept, sock, EV_READ);
+
+    /* catch SIGINT */
+    ev_signal_start(loop, &sigint_listen);
+    ev_io_start(loop, &io_listen);
+
+    ev_loop(loop, 0);
+    close(sock);
+    ev_default_destroy();
+
     return 0;
 }
 
@@ -378,7 +428,7 @@ mbm_reconfigure()
 
     lmc_add_class(lmc, &mbm_filetype_class);
     lmc_add_class(lmc, &mbm_crawler_class);
-    lmc_parse_file(lmc, srv.config_file);
+    lmc_parse_file(lmc, opt_vals.config_file);
 
     for (n=0; n<srv.num_filetypes; n++) {
         name = srv.filetypes[n]->name;
@@ -447,54 +497,6 @@ mbm_reconfigure()
     return 0;
 }
 
-int mbm_start()
-{
-    struct ev_loop *loop;
-    int sock;
-
-    ev_io     io_listen;
-    ev_signal sigint_listen;
-    
-    if (!(loop = ev_default_loop(EVFLAG_AUTO)))
-        return 1;
-
-    srv.addr.sin_family = AF_INET;
-    sock = socket(PF_INET, SOCK_STREAM, 0);
-
-    int o = 1;
-    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &o, sizeof(o));
-    if (bind(sock, (struct sockaddr*)&srv.addr, sizeof srv.addr) == -1) {
-        syslog(LOG_ERR, "could not bind to %s:%hd",
-                inet_ntoa(srv.addr.sin_addr),
-                ntohs(srv.addr.sin_port));
-        return 1;
-    }
-
-    if (listen(sock, 1024) == -1) {
-        syslog(LOG_ERR, "could not listen on %s:%hd",
-                inet_ntoa(srv.addr.sin_addr),
-                ntohs(srv.addr.sin_port));
-        return 1;
-    }
-
-    syslog(LOG_INFO, "listening on %s:%hd", inet_ntoa(srv.addr.sin_addr), ntohs(srv.addr.sin_port));
-
-    ev_signal_init(&sigint_listen, &mbm_ev_sigint, SIGINT);
-    ev_io_init(&io_listen, &mbm_ev_conn_accept, sock, EV_READ);
-
-    /* catch SIGINT */
-    ev_signal_start(loop, &sigint_listen);
-    ev_io_start(loop, &io_listen);
-
-    ev_loop(loop, 0);
-
-    close(sock);
-
-    ev_default_destroy();
-
-    return 0;
-}
-
 /** 
  * Called when sigint is recevied
  **/
@@ -536,59 +538,13 @@ mbm_cleanup()
         free(srv.crawlers);
     }
 
-    if (srv.config_file)
-        free(srv.config_file);
+    if (opt_vals.config_file)
+        free(opt_vals.config_file);
     if (srv.config_sz)
         free(srv.config_buf);
-    if (srv.user)
-        free(srv.user);
-    if (srv.group)
-        free(srv.group);
+    if (opt_vals.user)
+        free(opt_vals.user);
+    if (opt_vals.group)
+        free(opt_vals.group);
 }
 
-static M_CODE
-set_listen_cb(void *unused, const char *val)
-{
-    char *s;
-    if ((s = strchr(val, ':'))) {
-        srv.addr.sin_port = htons(atoi(s+1));
-        *s = '\0';
-    } else
-        srv.addr.sin_port = htons(MBM_DEFAULT_PORT);
-    srv.addr.sin_addr.s_addr = inet_addr(val);
-
-    return M_OK;
-}
-
-
-static M_CODE
-set_config_cb(void *unused, const char *val)
-{
-    if (!(srv.config_file = strdup(val)))
-        return M_OUT_OF_MEM;
-    return M_OK;
-}
-
-static M_CODE
-set_session_complete_hook_cb(void *unused, const char *val)
-{
-    if (!(srv.hooks.session_complete = strdup(val)))
-        return M_OUT_OF_MEM;
-    return M_OK;
-}
-
-static M_CODE
-set_user_cb(void *unused, const char *val)
-{
-    if (!(srv.user = strdup(val)))
-        return M_OUT_OF_MEM;
-    return M_OK;
-}
-
-static M_CODE
-set_group_cb(void *unused, const char *val)
-{
-    if (!(srv.group = strdup(val)))
-        return M_OUT_OF_MEM;
-    return M_OK;
-}

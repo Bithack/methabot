@@ -241,8 +241,8 @@ static int
 call_session_complete_hook(long sess_id)
 {
     const char *run;
-    if (srv.hooks.session_complete) {
-        asprintf(&run, "%s %d", srv.hooks.session_complete, sess_id);
+    if (opt_vals.session_complete_hook) {
+        asprintf(&run, "%s %d", opt_vals.session_complete_hook, sess_id);
         system(run);
         free(run);
     }

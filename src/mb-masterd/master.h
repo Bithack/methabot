@@ -7,20 +7,24 @@
 #include "conn.h"
 #include "mysql.h"
 
-#define MBM_DEFAULT_PORT 5505
+#define NOL_MASTER_DEFAULT_PORT 5505
 
 struct crawler;
 struct filetype;
 
+struct opt_val_list {
+    char *listen;
+    char *config_file;
+    char *user;
+    char *group;
+    char *session_complete_hook;
+};
+
 struct master {
     MYSQL *mysql;
     struct sockaddr_in addr;
-    char *config_file;
     char *config_buf;
     int   config_sz;
-
-    char *user;
-    char *group;
 
     struct conn **pool;
     unsigned num_conns;
@@ -40,13 +44,10 @@ struct master {
             int   sz;
         } slave_list;
     } xml;
-
-    struct {
-        const char *session_complete;
-    } hooks;
 };
 
 extern struct master srv;
+extern struct opt_val_list opt_vals;
 
 void *mbm_conn_main(void *in);
 void strrmsq(char *s);

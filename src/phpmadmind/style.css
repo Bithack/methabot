@@ -8,7 +8,7 @@ body {
 h1 {
     font-family: sans-serif;
     font-size: 1.8em;
-    color: #555;
+    color: #222;
     margin: 0px;
 }
 
@@ -108,6 +108,7 @@ input {
 #container {
     background-color: #f2f2f2;
     padding: 0.6em;
+    max-width: 1024px;
     overflow: auto;
 }
 
@@ -120,11 +121,21 @@ input {
 }
 
 #content-inner {
+    border-left: 1px solid #bbb;
     margin:0 0;
-    padding: 1em;
+    margin-top: 1.5em;
+    margin-bottom: 1.5em;
+    padding: 0em 1.5em 1.5em 1.5em;
     float:left;
-    border-left: 1px solid #dedeee;
+    min-height: 60px;
 }
+
+#content-login {
+    margin:0 0;
+    padding: 1.5em;
+    float:left;
+}
+
 
 label {
     width: 100px;
@@ -137,7 +148,7 @@ input.submit {
 }
 
 #header {
-height: 48px;
+    min-height: 48px;
 }
 
 #header h1 {
@@ -151,33 +162,31 @@ height: 48px;
 }
 
 #left {
+    padding-top: 0.2em;
     font-family: sans-serif;
-    margin-right: 1em;
     background-color: #fff;
     float:left;
-    width: 128px;
-    height: 100%;
+    margin:0.5em;
+    line-height: 16px;
 }
 
-#left h4 {
-    font-family: serif;
-    color: #444;
-    text-transform: uppercase;
-    margin: 0px;
-    margin-left: 12px;
-    margin-top: 1em;
-    background-color: #eee;
-    margin-bottom:1px;
-    text-align: center;
+a img {
+    border-style: none;
 }
 
 #left ul {
-    list-style-type: square;
-    padding-left: 1.5em;
-    margin-top: 0px;
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
 }
 
 #left ul li {
+    border-bottom: 1px dotted #aaa;
+}
+
+#left ul li a {
+    color: #000;
+    font-weight: bold;
 }
 
 th {

@@ -15,21 +15,30 @@ $pages = Array("overview" => "overview.php",
                "session-list" => "session-list.php",
                "client-info" => "client-info.php");
 
-if ($_SERVER['REQUEST_METHOD'] == "POST") {
-    if ($_GET['do'] == "login") {
-        $m = new Metha;
-        if ($m->connect($config['master']) 
-               && $m->authenticate($_POST['user'], $_POST['pass'])) {
-            $_SESSION['authenticated'] = 1;
-            $_SESSION['user'] = $_POST['user'];
-            $_SESSION['pass'] = $_POST['pass'];
-        } else {
-            $_SESSION['authenticated'] = 0;
-            $_SESSION['user'] = 0;
-            $_SESSION['pass'] = 0;
-            $page = "login.php";
-        }
+if (isset($_GET['do'])) {
+    switch ($_GET['do']) {
+        case "login":
+            if ($_SERVER['REQUEST_METHOD'] == "POST") {
+                $m = new Metha;
+                if ($m->connect($config['master']) 
+                       && $m->authenticate($_POST['user'], $_POST['pass'])) {
+                    $_SESSION['authenticated'] = 1;
+                    $_SESSION['user'] = $_POST['user'];
+                    $_SESSION['pass'] = $_POST['pass'];
+                } else {
+                    $_SESSION['authenticated'] = 0;
+                    $_SESSION['user'] = 0;
+                    $_SESSION['pass'] = 0;
+                    $page = "login.php";
+                }
+            }
+            break;
+
+        case "logout":
+            session_destroy();
+            break;
     }
+
 }
 
 if ($_SESSION['authenticated'] == 1) {
@@ -54,31 +63,32 @@ if ($_SESSION['authenticated'] == 1) {
  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
     <head>
-        <title>phpMadmind Control Panel</title>
+        <title><?=$config["title"]?></title>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
         <link rel="stylesheet" type="text/css" href="style.css" />
     </head> 
     <body>
         <div id="container">
             <div id="header">
-                <?php if ($_SESSION['authenticated'] == 1) { ?><span id="header-info">Logged in as <strong><?=$_SESSION['user']?></strong> [<a href="#">Log out</a>]</span><?php } ?>
+                <?php if ($_SESSION['authenticated'] == 1) { ?><span id="header-info">Logged in as <strong><?=$_SESSION['user']?></strong> [<a href="?do=logout">Log out</a>]</span><?php } ?>
+                <img src="img/methanol_48x48.png" />
                 <h1><?=$config["header"]?></h1>
             </div>
             <div id="content">
+            <?php if ($_SESSION['authenticated'] == 1) { ?>
                 <div id="left">
-                    <h4>Navigation</h4>
                     <ul>
-                        <li><a href="?p=overview">Overview</a></li>
-                        <li><a href="?p=input-list">Input Data</a></li>
-                    <!--</ul>
-                    <h4>System</h4>
-                    <ul>-->
-                        <li><a href="?p=session-list">Sessions</a></li>
-                        <li><a href="?p=slave-list">Slave List</a></li>
-                        <li><a href="?p=show-config">Configuration</a></li>
+                        <li><a href="?p=overview"><img src="img/overview.png" /> Overview</a></li>
+                        <li><a href="?p=input-list"><img src="img/input-data.png" /> Input Data</a></li>
+                        <li><a href="?p=session-list"><img src="img/sessions.png" /> Sessions</a></li>
+                        <li><a href="?p=slave-list"><img src="img/slave-list.png" /> Slave List</a></li>
+                        <li><a href="?p=show-config"><img src="img/configuration.png" /> Configuration</a></li>
                     </ul>
                 </div>
                 <div id="content-inner">
+            <?php } else { ?>
+                <div id="content-login">
+            <?php } ?>
                     <?php include ($page); ?>
                 </div>
             </div>

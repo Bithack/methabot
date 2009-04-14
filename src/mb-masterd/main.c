@@ -25,16 +25,19 @@
 #include <syslog.h>
 #include <string.h>
 #include <errno.h>
+#include <pwd.h>
+#include <grp.h>
 
 #include "master.h"
 #include "conn.h"
 #include "conf.h"
 #include "../libmetha/libev/ev.c"
 
-int mbm_load_config();
 int mbm_main();
 int mbm_cleanup();
 static void mbm_ev_sigint(EV_P_ ev_signal *w, int revents);
+const char* master_init(void);
+const char* master_start(void);
 
 static const char *_cfg_file;
 struct master srv;
@@ -42,102 +45,74 @@ struct master srv;
 static M_CODE set_config_cb(void *unused, const char *val);
 static M_CODE set_listen_cb(void *unused, const char *val);
 static M_CODE set_session_complete_hook_cb(void *unused, const char *val);
+static M_CODE set_user_cb(void *unused, const char *val);
+static M_CODE set_group_cb(void *unused, const char *val);
 
 #define NUM_OPTS (sizeof(opts)/sizeof(struct lmc_directive))
 static struct lmc_directive opts[] = {
     {"listen", set_listen_cb},
     {"config", set_config_cb},
     {"session_complete_hook", set_session_complete_hook_cb},
+    {"user", set_user_cb},
+    {"group", set_group_cb},
 };
 
 int
 main(int argc, char **argv)
 {
-    pid_t pid, sid;
-    FILE *fp = 0;
+    FILE  *fp = 0;
+    int    x;
+    lmc_parser_t *lmc;
 
-    /*
-
-    pid = fork();
-    if (pid < 0)
-        exit(EXIT_FAILURE);
-    if (pid > 0)
-        exit(EXIT_SUCCESS);
-
-    umask(0);
-    sid = setsid();
-
-    if (sid < 0)
-        exit(EXIT_FAILURE);
-        */
+    openlog("mb-masterd", 0, 0);
+    signal(SIGPIPE, SIG_IGN);
 
     if (argc > 1)
         _cfg_file = argv[1];
     else
         _cfg_file = "/etc/mb-masterd.conf";
 
-    signal(SIGPIPE, SIG_IGN);
-    openlog("mb-masterd", 0, 0);
-    syslog(LOG_INFO, "started");
+    if (!(lmc = lmc_create(&srv))) {
+        fprintf(stderr, "out of mem\n");
+        return 1;
+    }
+
+    for (x=0; x<NUM_OPTS; x++)
+        lmc_add_directive(lmc, &opts[x]);
+
+    if (nol_server_launch(_cfg_file, lmc, 0, 0, &master_init, &master_start) == 0)
+        fprintf(stdout, "started\n");
+
+    lmc_destroy(lmc);
+
+    exit(1);
 
     /*close(STDIN_FILENO);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);*/
 
-    if (mbm_load_config() != 0) {
-        syslog(LOG_ERR, "loading configuration file failed");
+    struct group *g;
+    if (!(g = getgrnam(srv.group))) {
+        syslog(LOG_ERR, "could not get GID for '%s'", srv.group);
         goto error;
     }
 
-    if (srv.config_file) {
-        /* load the configuration file */
-        if (!(fp = fopen(srv.config_file, "rb"))) {
-            syslog(LOG_ERR, "could not open file '%s'", srv.config_file);
-            goto error;
-        }
-
-        /* calculate the file length */
-        fseek(fp, 0, SEEK_END);
-        srv.config_sz = ftell(fp);
-        fseek(fp, 0, SEEK_SET);
-
-        if (!(srv.config_buf = malloc(srv.config_sz))) {
-            syslog(LOG_ERR, "out of mem");
-            goto error;
-        }
-
-        if ((size_t)srv.config_sz != fread(srv.config_buf, 1, srv.config_sz, fp)) {
-            syslog(LOG_ERR, "read error");
-            goto error;
-        }
-
-        fclose(fp);
-        fp = 0;
-
-        if (mbm_mysql_connect() != 0) {
-            syslog(LOG_ERR, "could not connect to mysql server");
-            goto error;
-        }
-        if (mbm_mysql_setup() != 0) {
-            syslog(LOG_ERR, "setting up mysql tables failed");
-            goto error;
-        }
-        if (mbm_reconfigure() != 0) {
-            syslog(LOG_ERR, "setting up filetype tables failed");
-            goto error;
-        }
-
-        mbm_start();
-    } else {
-        syslog(LOG_ERR, "no configuration file, exiting");
+    if (setgid(g->gr_gid) != 0) {
+        syslog(LOG_ERR, "could not change GID: %s", strerror(errno));
         goto error;
     }
-    /*
-    if (mkfifo("/var/run/mb-masterd/mb-masterd.sock", 770) != 0) {
-        fprintf("error: unable to create mb-masterd.sock\n");
-        return 1;
+
+    struct passwd *p;
+    if (!(p = getpwnam(srv.user))) {
+        syslog(LOG_ERR, "could not get UID for '%s'", srv.user);
+        goto error;
     }
-    */
+
+    if (setuid(p->pw_uid) != 0) {
+        syslog(LOG_ERR, "could not change UID: %s", strerror(errno));
+        goto error;
+    }
+
 
     mbm_cleanup();
     closelog();
@@ -149,6 +124,53 @@ error:
         fclose(fp);
     closelog();
     return 1;
+}
+
+/* initialise the server, return 0 on success or a pointer
+ * to a static error buffer on failure */
+const char *
+master_init(void)
+{
+    FILE *fp;
+
+    if (!srv.config_file)
+        return "no configuration file";
+    /* load the configuration file */
+    if (!(fp = fopen(srv.config_file, "rb")))
+        return "could not open configuration file";
+
+    /* calculate the file length */
+    fseek(fp, 0, SEEK_END);
+    srv.config_sz = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    if (!(srv.config_buf = malloc(srv.config_sz))) {
+        fclose(fp);
+        return "out of mem";
+    }
+
+    if ((size_t)srv.config_sz != fread(srv.config_buf, 1, srv.config_sz, fp)) {
+        fclose(fp);
+        return "read error";
+    }
+
+    fclose(fp);
+    fp = 0;
+
+    if (mbm_mysql_connect() != 0)
+        return "could not connect to mysql server";
+    if (mbm_mysql_setup() != 0)
+        return "settings up mysql tables failed";
+    if (mbm_reconfigure() != 0)
+        return "settings up filetype tables failed";
+
+    return 0;
+}
+
+const char*
+master_start()
+{
+    return 0;
 }
 
 int
@@ -518,36 +540,10 @@ mbm_cleanup()
         free(srv.config_file);
     if (srv.config_sz)
         free(srv.config_buf);
-}
-
-int
-mbm_load_config()
-{
-    FILE *fp;
-    char in[256];
-    char *p;
-    char *s;
-    int len;
-
-    int x;
-    lmc_parser_t *lmc;
-
-    if (!(lmc = lmc_create(&srv)))
-        return 0;
-
-    for (x=0; x<NUM_OPTS; x++)
-        lmc_add_directive(lmc, &opts[x]);
-
-    syslog(LOG_INFO, "loading '%s'", _cfg_file);
-
-    if (lmc_parse_file(lmc, _cfg_file) != M_OK) {
-        syslog(LOG_ERR, "parsing config failed: %s", lmc->last_error?lmc->last_error:"");
-        lmc_destroy(lmc);
-        return 1;
-    }
-
-    lmc_destroy(lmc);
-    return 0;
+    if (srv.user)
+        free(srv.user);
+    if (srv.group)
+        free(srv.group);
 }
 
 static M_CODE
@@ -581,3 +577,18 @@ set_session_complete_hook_cb(void *unused, const char *val)
     return M_OK;
 }
 
+static M_CODE
+set_user_cb(void *unused, const char *val)
+{
+    if (!(srv.user = strdup(val)))
+        return M_OUT_OF_MEM;
+    return M_OK;
+}
+
+static M_CODE
+set_group_cb(void *unused, const char *val)
+{
+    if (!(srv.group = strdup(val)))
+        return M_OUT_OF_MEM;
+    return M_OK;
+}

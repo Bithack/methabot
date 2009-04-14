@@ -8,7 +8,9 @@ mb_masterd_SOURCES = \
 	slave.c \
 	user.c \
 	main.c \
-	master.h
+	master.h \
+	server.c \
+	server.h
 
 AM_CFLAGS = -I/usr/include/mysql -I../libmetha/ -I../libmethaconfig/
 AM_LDFLAGS = -lmysqlclient

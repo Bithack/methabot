@@ -7,7 +7,7 @@
 #include "conn.h"
 #include "mysql.h"
 
-#define MBM_DEFAULT_PORT 5304
+#define MBM_DEFAULT_PORT 5505
 
 struct crawler;
 struct filetype;
@@ -18,6 +18,9 @@ struct master {
     char *config_file;
     char *config_buf;
     int   config_sz;
+
+    char *user;
+    char *group;
 
     struct conn **pool;
     unsigned num_conns;

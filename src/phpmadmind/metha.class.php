@@ -14,7 +14,7 @@ class Metha
         $this->disconnect();
     }
 
-    function connect($host="127.0.0.1", $port=5304)
+    function connect($host="127.0.0.1", $port=5505)
     {
         if ($this->connected)
             return false;

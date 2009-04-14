@@ -7,6 +7,7 @@ mb_slaved_LDADD = ../libmethaconfig/libmethaconfig.la
 mb_slaved_SOURCES = \
 	main.c \
 	client.c \
+	../mb-masterd/server.c \
 	client.h \
 	slave.h
 

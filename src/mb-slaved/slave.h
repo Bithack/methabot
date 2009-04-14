@@ -8,7 +8,7 @@
 
 #include "../libmetha/libev/ev.h"
 
-#define MBS_DEFAULT_PORT 5305
+#define NOL_SLAVE_DEFAULT_PORT 5506
 #define MAX_NUM_PENDING  128
 
 enum {
@@ -16,12 +16,20 @@ enum {
     SLAVE_MSTATE_RECV_CONF,
 };
 
+struct opt_vals {
+    char *listen;
+    char *master;
+    char *user;
+    char *group;
+} opt_vals;
+
 struct slave {
     int                 mstate;
     MYSQL              *mysql;
 
-    struct sockaddr_in addr;
-    struct sockaddr_in master;
+    int                 listen_sock;
+    struct sockaddr_in  addr;
+    struct sockaddr_in  master;
 
     char *config_buf;
     unsigned int   config_sz;
@@ -45,6 +53,7 @@ struct slave {
 };
 
 extern struct slave srv;
+extern struct opt_vals opt_vals;
 
 int sock_getline(int fd, char *buf, int max);
 MYSQL *mbs_dup_mysql_conn(void);

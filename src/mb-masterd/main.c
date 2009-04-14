@@ -25,8 +25,6 @@
 #include <syslog.h>
 #include <string.h>
 #include <errno.h>
-#include <pwd.h>
-#include <grp.h>
 
 #include "master.h"
 #include "conn.h"
@@ -52,7 +50,7 @@ struct lmc_scope master_scope =
         LMC_OPT_STRING("config_file", &opt_vals.config_file),
         LMC_OPT_STRING("session_complete_hook", &opt_vals.session_complete_hook),
         LMC_OPT_STRING("user", &opt_vals.user),
-        LMC_OPT_STRING("group", &opt_vals.user),
+        LMC_OPT_STRING("group", &opt_vals.group),
         LMC_OPT_END,
     }
 };
@@ -60,9 +58,8 @@ struct lmc_scope master_scope =
 int
 main(int argc, char **argv)
 {
-    int    x;
     lmc_parser_t *lmc;
-
+    int           r;
     signal(SIGPIPE, SIG_IGN);
 
     if (argc > 1)
@@ -77,46 +74,18 @@ main(int argc, char **argv)
 
     lmc_add_scope(lmc, &master_scope);
 
-    if (nol_server_launch(_cfg_file, lmc, 0, 0, &master_init_cb, &master_start_cb) == 0)
+    if ((r = nol_server_launch(
+                _cfg_file,
+                lmc,
+                &opt_vals.user,
+                &opt_vals.group,
+                &master_init_cb,
+                &master_start_cb)) == 0)
         fprintf(stdout, "started\n");
 
     lmc_destroy(lmc);
-
-    exit(1);
-
-    /*close(STDIN_FILENO);
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);*/
-
-    struct group *g;
-    if (!(g = getgrnam(opt_vals.group))) {
-        syslog(LOG_ERR, "could not get GID for '%s'", opt_vals.group);
-        goto error;
-    }
-
-    if (setgid(g->gr_gid) != 0) {
-        syslog(LOG_ERR, "could not change GID: %s", strerror(errno));
-        goto error;
-    }
-
-    struct passwd *p;
-    if (!(p = getpwnam(opt_vals.user))) {
-        syslog(LOG_ERR, "could not get UID for '%s'", opt_vals.user);
-        goto error;
-    }
-
-    if (setuid(p->pw_uid) != 0) {
-        syslog(LOG_ERR, "could not change UID: %s", strerror(errno));
-        goto error;
-    }
-
-
     mbm_cleanup();
-    return 0;
-
-error:
-    mbm_cleanup();
-    return 1;
+    return r;
 }
 
 /* initialise the server, return 0 on success or a pointer

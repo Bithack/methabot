@@ -21,7 +21,13 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <errno.h>
 #include <syslog.h>
+#include <pwd.h>
+#include <grp.h>
 
 #include "lmc.h"
 #include "server.h"
@@ -51,8 +57,8 @@
 int
 nol_server_launch(const char *config,
                   lmc_parser_t *lmc,
-                  const char *user,
-                  const char *group, 
+                  const char **user,
+                  const char **group, 
                   const char *(*init_cb)(void),
                   const char *(*run_cb)(void))
 {
@@ -62,13 +68,15 @@ nol_server_launch(const char *config,
     char  buf[257];
     int   n;
     char  c;
+    struct group  *g;
+    struct passwd *p;
 
     /* set up the pipe so we can communicate with
      * the child process, and keep track of whether
      * it succeeds or not */
     if (pipe(fds) == -1) {
         fprintf(stderr, "pipe() failed\n");
-        return -1;
+        return 1;
     }
 
     pid = fork();
@@ -76,27 +84,57 @@ nol_server_launch(const char *config,
         close(fds[1]);
         close(fds[0]);
         fprintf(stderr, "fork() failed\n");
-        return -1;
+        return 1;
     }
     if (pid == 0) {
+        close(STDIN_FILENO);
+        close(STDOUT_FILENO);
+        close(STDERR_FILENO);
         /* we're the child... close the read pipe */
         close(fds[0]);
 
-        /* now we'll configure and write any
-         * error message to the pipe */
-        if (lmc_parse_file(lmc, config) != M_OK) {
-            err = lmc->last_error;
-            goto child_fail;
-        }
-        if ((err = init_cb()) != 0)
-            goto child_fail;
+        do {
+            /* now we'll configure and write any
+             * error message to the pipe */
+            if (lmc_parse_file(lmc, config) != M_OK) {
+                err = lmc->last_error;
+                break;
+            }
+            if ((err = init_cb()) != 0)
+                break;
+            if (group && *group) {
+                if (!(g = getgrnam(*group))) {
+                    snprintf(buf, 255, "could not get GID for '%s'", *group);
+                    err = buf;
+                    break;
+                }
+                if (setgid(g->gr_gid) != 0) {
+                    snprintf(buf, 255, "could not change GID: %s",
+                            strerror(errno));
+                    err = buf;
+                    break;
+                }
+            }
+            if (user && *user) {
+                if (!(p = getpwnam(*user))) {
+                    snprintf(buf, 255, "could not get UID for '%s'", *user);
+                    err = buf;
+                    break;
+                }
+                if (setuid(p->pw_uid) != 0) {
+                    snprintf(buf, 255, "could not change UID: %s",
+                            strerror(errno));
+                    err = buf;
+                    break;
+                }
+            }
+            c = CHILD_SUCCESS;
+            write(fds[1], &c, 1);
+            close(fds[1]);
 
-        c = CHILD_SUCCESS;
-        write(fds[1], &c, 1);
-        close(fds[1]);
-
-        run_cb();
-        exit(0);
+            run_cb();
+            exit(0);
+        } while (0);
 
 child_fail: /* set 'err' to an error buffer before jumping here */
         n = strlen(err);
@@ -121,6 +159,6 @@ child_fail: /* set 'err' to an error buffer before jumping here */
     }
 
     close(fds[0]);
-    return -1;
+    return 1;
 }
 

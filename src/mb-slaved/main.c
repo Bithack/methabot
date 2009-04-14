@@ -27,10 +27,11 @@
 #include <pthread.h>
 #include <errno.h>
 
+#include "lmc.h"
+#include "../mb-masterd/server.h"
 #include "client.h"
 #include "slave.h"
 
-int mbs_main();
 int mbs_cleanup();
 static void mbs_ev_sigint(EV_P_ ev_signal *w, int revents);
 static int mbs_load_config();
@@ -41,84 +42,148 @@ static void mbs_ev_conn_accept(EV_P_ ev_io *w, int revents);
 static void mbs_ev_master_timer(EV_P_ ev_io *w, int revents);
 static void mbs_ev_client_status(EV_P_ ev_async *w, int revents);
 
-struct slave srv = {
-};
+const char *slave_init_cb(void);
+const char *slave_run_cb(void);
+void set_defaults(void);
+
+const char     *_cfg_file;
+struct slave    srv;
+struct opt_vals opt_vals;
 
 #include "../libmetha/libev/ev.c"
+
+struct lmc_scope slave_scope =
+{
+    "slave",
+    {
+        LMC_OPT_STRING("listen", &opt_vals.listen),
+        LMC_OPT_STRING("master", &opt_vals.master),
+        LMC_OPT_STRING("user", &opt_vals.user),
+        LMC_OPT_STRING("group", &opt_vals.group),
+        LMC_OPT_END,
+    }
+};
 
 int
 main(int argc, char **argv)
 {
-    int r=0;
-
-    openlog("mb-slaved", 0, 0);
-    syslog(LOG_INFO, "started");
-
-    close(STDIN_FILENO);
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);
-
+    lmc_parser_t *lmc;
+    int           r;
     signal(SIGPIPE, SIG_IGN);
 
-    if (!(srv.mysql = mbs_dup_mysql_conn()))
-        abort();
+    if (argc > 1)
+        _cfg_file = argv[1];
+    else
+        _cfg_file = "/etc/mb-slaved.conf";
 
-    do {
-        pthread_mutex_init(&srv.pending_lk, 0);
-        pthread_mutex_init(&srv.clients_lk, 0);
+    if (!(lmc = lmc_create(&srv))) {
+        fprintf(stderr, "out of mem\n");
+        return 1;
+    }
 
-        if ((r = mbs_load_config()) != 0)
-            break;
-        if ((r = mbs_master_connect()) != 0)
-            break;
-        if ((r = mbs_master_login()) != 0)
-            break;
-        if ((r = mbs_main()) != 0)
-            break;
-    } while (0);
+    lmc_add_scope(lmc, &slave_scope);
+    if ((r = nol_server_launch(
+                _cfg_file,
+                lmc,
+                &opt_vals.user,
+                &opt_vals.group,
+                &slave_init_cb,
+                &slave_run_cb)) == 0)
+        fprintf(stdout, "started\n");
+    /* if nol_server_launch() does not return 0,
+     * it should have printed an error message to stderr already */
 
+    lmc_destroy(lmc);
     mbs_cleanup();
-    closelog();
     return r;
 }
 
-int mbs_main()
+/* called by nol_server_launch(), return 0 on success */
+const char *
+slave_init_cb(void)
 {
-    struct ev_loop *loop;
-    int sock;
+    char *s;
+    int   sock;
 
-    ev_io     io_listen;
-    ev_signal sigint_listen;
-    
-    if (!(loop = ev_default_loop(EVFLAG_AUTO)))
-        return 1;
+    openlog("mb-slaved", LOG_PID, LOG_DAEMON);
+    set_defaults();
 
+    if ((s = strchr(opt_vals.master, ':'))) {
+        srv.master.sin_port = htons(atoi(s+1));
+        *s = '\0';
+    } else
+        srv.master.sin_port = htons(5505);
+    srv.master.sin_addr.s_addr = inet_addr(opt_vals.master);
+
+    if ((s = strchr(opt_vals.listen, ':'))) {
+        srv.addr.sin_port = htons(atoi(s+1));
+        *s = '\0';
+    } else
+        srv.addr.sin_port = htons(NOL_SLAVE_DEFAULT_PORT);
+    srv.addr.sin_addr.s_addr = inet_addr(opt_vals.listen);
     srv.addr.sin_family = AF_INET;
     sock = socket(PF_INET, SOCK_STREAM, 0);
-
     if (bind(sock, (struct sockaddr*)&srv.addr, sizeof srv.addr) == -1) {
         syslog(LOG_ERR, "could not bind to %s:%hd",
                 inet_ntoa(srv.addr.sin_addr),
                 ntohs(srv.addr.sin_port));
-        return 1;
+        return "bind() failed";
     }
-
     if (listen(sock, 1024) == -1) {
         syslog(LOG_ERR, "could not listen on %s:%hd",
                 inet_ntoa(srv.addr.sin_addr),
                 ntohs(srv.addr.sin_port));
-        return 1;
+        return "listen() failed";
     }
 
-    syslog(LOG_INFO, "listening on %s:%hd", inet_ntoa(srv.addr.sin_addr), ntohs(srv.addr.sin_port));
+    if (!(srv.mysql = mbs_dup_mysql_conn()))
+        return "could not connect to mysql server";
+    if (mbs_master_connect() != 0)
+        return "could not connect to master server";
+    if (mbs_master_login() != 0)
+        return "loggin in to master failed";
 
+    srv.listen_sock = sock;
+
+    return 0;
+}
+
+/* set all options to their default values */
+void
+set_defaults(void)
+{
+    if (!opt_vals.listen)
+        opt_vals.listen = "127.0.0.1";
+    if (!opt_vals.master)
+        opt_vals.master = "127.0.0.1";
+
+    srv.user = strdup("default");
+    srv.pass = strdup("default");
+}
+
+const char*
+slave_run_cb(void)
+{
+    struct ev_loop *loop;
+    ev_io           io_listen;
+    ev_signal       sigint_listen;
+    ev_signal       sigterm_listen;
+
+    pthread_mutex_init(&srv.pending_lk, 0);
+    pthread_mutex_init(&srv.clients_lk, 0);
+    if (!(loop = ev_default_loop(EVFLAG_AUTO)))
+        return 1;
+
+    syslog(LOG_INFO, "listening on %s:%hd", inet_ntoa(srv.addr.sin_addr), ntohs(srv.addr.sin_port));
     ev_signal_init(&sigint_listen, &mbs_ev_sigint, SIGINT);
-    ev_io_init(&io_listen, &mbs_ev_conn_accept, sock, EV_READ);
+    ev_signal_init(&sigterm_listen, &mbs_ev_sigint, SIGTERM);
+    ev_io_init(&io_listen, &mbs_ev_conn_accept, srv.listen_sock, EV_READ);
     ev_io_init(&srv.master_io, &mbs_ev_master, srv.master_sock, EV_READ);
     ev_async_init(&srv.client_status, &mbs_ev_client_status);
 
     /* catch SIGINT so we can close connections and clean up properly */
     ev_signal_start(loop, &sigint_listen);
+    ev_signal_start(loop, &sigterm_listen);
     ev_io_start(loop, &io_listen);
     ev_io_start(loop, &srv.master_io);
     ev_async_start(loop, &srv.client_status);
@@ -128,10 +193,12 @@ int mbs_main()
      * the master.
      **/
     ev_loop(loop, 0);
-    close(sock);
+    close(srv.listen_sock);
 
     ev_default_destroy();
-
+    closelog();
+    pthread_mutex_destroy(&srv.pending_lk);
+    pthread_mutex_destroy(&srv.clients_lk);
     return 0;
 }
 
@@ -434,94 +501,11 @@ mbs_master_login()
 int
 mbs_cleanup()
 {
-    pthread_mutex_destroy(&srv.pending_lk);
-    pthread_mutex_destroy(&srv.clients_lk);
+    if (opt_vals.listen) free(opt_vals.listen);
+    if (opt_vals.master) free(opt_vals.master);
+    if (opt_vals.user) free(opt_vals.user);
+    if (opt_vals.group) free(opt_vals.group);
     if (srv.user) free(srv.user);
     if (srv.pass) free(srv.pass);
 }
 
-static int
-mbs_load_config()
-{
-    FILE *fp;
-    char in[256];
-    char *p;
-    char *s;
-    int len;
-
-    if (!(fp = fopen("/etc/mb-slaved.conf", "r"))) {
-        syslog(LOG_ERR, "could not open configuration file");
-        return 1;
-    }
-
-    while (fgets(in, 256, fp)) {
-        if (in[0] == '#')
-            continue;
-        p = in;
-        in[strlen(in)-1] = '\0';
-        while (isspace(*p))
-            p++;
-        s = p;
-        if (p = strchr(p, '=')) {
-            len = p-in;
-            while (isspace(in[len-1]))
-                len--;
-            do p++; while (isspace(*p));
-
-            int unknown = 1;
-            switch (len) {
-                case 5:
-                    if (strncmp(in, "login", 5) == 0) {
-                        if (!(s = strchr(p, ':'))) {
-                            syslog(LOG_ERR, "login syntax incorrect (user:pwd)");
-                            goto error;
-                        }
-                        *s = '\0';
-                        srv.user = strdup(p);
-                        srv.pass = strdup(s+1);
-                        unknown = 0;
-                    }
-                    break;
-                case 6:
-                    if (strncmp(in, "master", 6) == 0) {
-                        if ((s = strchr(p, ':'))) {
-                            srv.master.sin_port = htons(atoi(s+1));
-                            *s = '\0';
-                        } else
-                            srv.master.sin_port = htons(5304);
-                        srv.master.sin_addr.s_addr = inet_addr(p);
-
-                        unknown = 0;
-                    } else if (strncmp(in, "listen", 6) == 0) {
-                        if ((s = strchr(p, ':'))) {
-                            srv.addr.sin_port = htons(atoi(s+1));
-                            *s = '\0';
-                        } else
-                            srv.addr.sin_port = htons(MBS_DEFAULT_PORT);
-                        srv.addr.sin_addr.s_addr = inet_addr(p);
-
-                        unknown = 0;
-                    }
-                    break;
-            }
-
-            if (unknown) {
-                for (s=in; isalnum(*s) || *s == '_'; s++)
-                    ;
-                *s = '\0';
-                syslog(LOG_ERR, "unknown option '%s'", in);
-                goto error;
-            }
-        } else if (strlen(s)) {
-            syslog(LOG_ERR, "missing argument for '%s'", in);
-            goto error;
-        }
-    }
-
-    fclose(fp);
-    return 0;
-
-error:
-    fclose(fp);
-    return 1;
-}

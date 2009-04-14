@@ -8,7 +8,7 @@ if ($info) {
     <table>
     <tr><th>Address</th><td><?=$info->address?></td></tr>
     <tr><th>Username</th><td><?=$info->user?></td></tr>
-    <tr><th>Slave</th><td>[<a href="?p=slave-info&id=<?=substr($info->slave, strpos($info->slave, "-")+1)?>"><?=$info->slave?></a>]</td></tr>
+    <tr><th>Slave</th><td><a class="id" href="?p=slave-info&id=<?=substr($info->slave, strpos($info->slave, "-")+1)?>"><?=$info->slave?></a></td></tr>
     <tr><th>Last activity</th><td>1 second ago</td></tr>
     <tr><th>Connected</th><td>2008-08-08 23:23:23</td></tr>
     <tr><th>Status</th><td><em>running</em></td></tr>

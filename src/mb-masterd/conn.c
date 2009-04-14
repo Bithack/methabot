@@ -410,7 +410,7 @@ mbm_token_reply(nolp_t *no, char *buf, int size)
     if (atoi(buf) == 100) {
         sz = sprintf(out, "TOKEN %.40s-%s:%hd\n", buf+4,
                 inet_ntoa(conn->addr.sin_addr),
-                5305);
+                5506);
         send(client->sock, out, sz, 0);
     }
 

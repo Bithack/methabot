@@ -406,7 +406,7 @@ mbc_master_connect()
         syslog(LOG_ERR, "socket() failed: %s\n", strerror(errno));
     else {
         mbc.master.sin_family      = AF_INET;
-        mbc.master.sin_port        = htons(5304);
+        mbc.master.sin_port        = htons(5505);
         mbc.master.sin_addr.s_addr = inet_addr(master);
 
         return connect(mbc.sock, (struct sockaddr*)&mbc.master, sizeof(struct sockaddr_in));

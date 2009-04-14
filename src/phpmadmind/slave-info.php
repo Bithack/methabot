@@ -30,7 +30,7 @@ foreach ($clients->client as $c) {
     $id = $c->attributes()->id;
     printf(
             "<tr%s>".
-              "<td class=\"type-id\">[<a href=\"?p=client-info&amp;id=%s\">%s</a>]</td>".
+              "<td><a class=\"id\" href=\"?p=client-info&amp;id=%s\">%s</a></td>".
               "<td>%s</td>".
             "</tr>",
             $x?" class=\"odd\"":"",

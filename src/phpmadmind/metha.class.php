@@ -80,6 +80,11 @@ class Metha
         return $this->get_sized_reply("LIST-SESSIONS 0 10");
     }
 
+    function list_input()
+    {
+        return $this->get_sized_reply("LIST-INPUT");
+    }
+
     function slave_info($slave)
     {
         return $this->get_sized_reply("SLAVE-INFO $slave");

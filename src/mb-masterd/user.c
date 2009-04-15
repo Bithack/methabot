@@ -39,6 +39,7 @@ static int user_passwd_command(nolp_t *no, char *buf, int size);
 static int user_session_info_command(nolp_t *no, char *buf, int size);
 static int user_session_report_command(nolp_t *no, char *buf, int size);
 static int user_list_sessions_command(nolp_t *no, char *buf, int size);
+static int user_list_input_command(nolp_t *no, char *buf, int size);
 
 struct nolp_fn user_commands[] = {
     {"LIST-SLAVES", &user_list_slaves_command},
@@ -54,6 +55,7 @@ struct nolp_fn user_commands[] = {
     {"SESSION-INFO", user_session_info_command},
     {"SESSION-REPORT", user_session_report_command},
     {"LIST-SESSIONS", user_list_sessions_command},
+    {"LIST-INPUT", user_list_input_command},
     {0},
 };
 
@@ -173,9 +175,9 @@ user_client_info_command(nolp_t *no, char *buf, int size)
     int  found;
     int  sz;
     char out[256];
-    struct client *c;
     struct slave  *sl;
     struct conn   *conn;
+    struct client *c;
 
     if (size != 40)
         return -1; /* return -1 to close the connection */
@@ -487,6 +489,75 @@ user_list_sessions_command(nolp_t *no, char *buf, int size)
             free(bufs[x]);
         }
         send(no->fd, "</session-list>", sizeof("</session-list>")-1, 0);
+    } else 
+        syslog(LOG_ERR, "mysql_store_result() failed");
+    free(bufs);
+    free(sizes);
+
+    return 0;
+}
+
+/** 
+ * LIST-INPUT\n
+ *
+ * list the input data by the current user
+ **/
+static int
+user_list_input_command(nolp_t *no, char *buf, int size)
+{
+    MYSQL_RES *r;
+    MYSQL_ROW row;
+    char b[128];
+    struct conn *conn = (struct conn*)no->private;
+    int  sz;
+    char **bufs = malloc(sizeof(char *)*10);
+    int   *sizes = malloc(sizeof(int)*10);
+    int  count;
+
+    sz = sprintf(b, "SELECT id, crawler, input FROM nol_added WHERE user_id=%d ORDER BY `date` DESC LIMIT 0,10", conn->user_id);
+
+    if (mysql_real_query(srv.mysql, b, sz) != 0) {
+        syslog(LOG_ERR,
+                "LIST-INPUT failed: %s",
+                mysql_error(srv.mysql));
+        send(no->fd, MSG300, sizeof(MSG300)-1, 0);
+        return -1;
+    }
+
+    if ((r = mysql_store_result(srv.mysql))) {
+        int x = 0;
+        int total = 0;
+        while (row = mysql_fetch_row(r)) {
+            unsigned long *l;
+            l = mysql_fetch_lengths(r);
+            char *curr = malloc(l[0]+l[1]+l[2]+
+                    sizeof("<input id=\"\"><crawler></crawler><value></value></input>"));
+            sz = sprintf(curr,
+                    "<input id=\"%d\">"
+                      "<crawler>%s</crawler>"
+                      "<value>%s</value>"
+                    "</input>",
+                    atoi(row[0]), row[1]?row[1]:"",
+                    row[2]?row[2]:""
+                    );
+            bufs[x] = curr;
+            sizes[x] = sz;
+            total += sz;
+            x++;
+        }
+        count = x;
+
+        char *tmp;
+        sz = asprintf(&tmp, "100 %d\n", total+sizeof("<input-list></input-list>")-1);
+        send(no->fd, tmp, sz, 0);
+        free(tmp);
+
+        send(no->fd, "<input-list>", sizeof("<input-list>")-1, 0);
+        for (x=0; x<count; x++) {
+            send(no->fd, bufs[x], sizes[x], 0);
+            free(bufs[x]);
+        }
+        send(no->fd, "</input-list>", sizeof("</input-list>")-1, 0);
     } else 
         syslog(LOG_ERR, "mysql_store_result() failed");
     free(bufs);

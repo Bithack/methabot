@@ -60,7 +60,8 @@ nol_server_launch(const char *config,
                   const char **user,
                   const char **group, 
                   const char *(*init_cb)(void),
-                  const char *(*run_cb)(void))
+                  const char *(*run_cb)(void),
+                  int dofork)
 {
     pid_t pid;
     const char *err;
@@ -71,27 +72,28 @@ nol_server_launch(const char *config,
     struct group  *g;
     struct passwd *p;
 
-    /* set up the pipe so we can communicate with
-     * the child process, and keep track of whether
-     * it succeeds or not */
-    if (pipe(fds) == -1) {
-        fprintf(stderr, "pipe() failed\n");
-        return 1;
-    }
-
-    pid = fork();
-    if (pid == -1) {
-        close(fds[1]);
-        close(fds[0]);
-        fprintf(stderr, "fork() failed\n");
-        return 1;
-    }
-    if (pid == 0) {
-        close(STDIN_FILENO);
+    if (dofork) {
+        /* set up the pipe so we can communicate with
+         * the child process, and keep track of whether
+         * it succeeds or not */
+        if (pipe(fds) == -1) {
+            fprintf(stderr, "pipe() failed\n");
+            return 1;
+        }
+        if ((pid = fork()) == -1) {
+            close(fds[1]);
+            close(fds[0]);
+            fprintf(stderr, "fork() failed\n");
+            return 1;
+        }
+    } else
+        pid = 0;
+    if (pid == 0) { /* if we are the child or dofork was set to 0 */
+        /*close(STDIN_FILENO);
         close(STDOUT_FILENO);
-        close(STDERR_FILENO);
-        /* we're the child... close the read pipe */
-        close(fds[0]);
+        close(STDERR_FILENO);*/
+        if (dofork)
+            close(fds[0]);
 
         do {
             /* now we'll configure and write any
@@ -128,21 +130,26 @@ nol_server_launch(const char *config,
                     break;
                 }
             }
-            c = CHILD_SUCCESS;
-            write(fds[1], &c, 1);
-            close(fds[1]);
+            if (dofork) {
+                c = CHILD_SUCCESS;
+                write(fds[1], &c, 1);
+                close(fds[1]);
+            }
 
             run_cb();
             exit(0);
         } while (0);
 
-child_fail: /* set 'err' to an error buffer before jumping here */
+        /* reach here on error */
         n = strlen(err);
-        if (n > 255) n = 255;
-        c = CHILD_FAILURE;
-        write(fds[1], &c, 1);
-        write(fds[1], err, n);
-        close(fds[1]);
+        if (dofork) {
+            if (n > 255) n = 255;
+            c = CHILD_FAILURE;
+            write(fds[1], &c, 1);
+            write(fds[1], err, n);
+            close(fds[1]);
+        } else 
+            fprintf(stderr, "failed: %s\n", err);
         exit(1);
     }
 

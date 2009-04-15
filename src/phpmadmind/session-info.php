@@ -14,6 +14,7 @@ if ($info) {
     <tr><th>Input</th><td><?=$info->crawler?> &lt;- <span class="input"><?=htmlspecialchars($info->input)?></span></td></tr>
   </table>
 </div>
+<?php if ($info->state == 'done') { ?>
 <div class="content-layer">
   <h3>Session Report</h3>
   <div class="report">
@@ -25,6 +26,10 @@ if ($info) {
   ?>
   </div>
 </div>
+<?php
+}
+?>
+
 <?php
 } else {
     echo "<em>No such session.</em>";

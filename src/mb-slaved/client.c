@@ -98,6 +98,7 @@ mbs_client_create(const char *addr, const char *user)
             memcpy(cl->token, row[0], 40);
         else
             return 0;
+        cl->token[40] = (char)0;
 
         mysql_free_result(res);
 
@@ -112,6 +113,7 @@ mbs_client_create(const char *addr, const char *user)
             return 0;
         }
         cl->id = (long)mysql_insert_id(srv.mysql);
+        cl->session_id = 0;
 
         syslog(LOG_INFO,"new client %d:'%.6s...' from %s", (int)cl->id, cl->token, addr);
     }

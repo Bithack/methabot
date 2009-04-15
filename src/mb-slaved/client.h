@@ -32,7 +32,7 @@ struct client {
     long               id;
     long               session_id;
     long               target_id;
-    char               token[TOKEN_SIZE];
+    char               token[TOKEN_SIZE+1];
     int                running;
     char              *user;
     struct in_addr     addr;

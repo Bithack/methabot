@@ -60,12 +60,16 @@ main(int argc, char **argv)
 {
     lmc_parser_t *lmc;
     int           r;
+    int           nofork = 0;
     signal(SIGPIPE, SIG_IGN);
 
-    if (argc > 1)
-        _cfg_file = argv[1];
-    else
-        _cfg_file = "/etc/mb-masterd.conf";
+    _cfg_file = "/etc/mb-masterd.conf";
+    if (argc > 1) {
+        if (strcmp(argv[1], "--no-fork") == 0)
+            nofork=1;
+        else
+            _cfg_file = argv[1];
+    }
 
     if (!(lmc = lmc_create(&srv))) {
         fprintf(stderr, "out of mem\n");
@@ -80,7 +84,8 @@ main(int argc, char **argv)
                 &opt_vals.user,
                 &opt_vals.group,
                 &master_init_cb,
-                &master_start_cb)) == 0)
+                &master_start_cb,
+                nofork==1?0:1)) == 0)
         fprintf(stdout, "started\n");
 
     lmc_destroy(lmc);

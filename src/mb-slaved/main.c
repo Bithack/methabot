@@ -239,8 +239,8 @@ mbs_dup_mysql_conn(void)
  *
  * Output buffer sent to the master will look like:
  * STATUS <x>\n
- * <token> <address> <user> <state>\n
- * <token> <address> <user> <state>\n
+ * <token> <address> <user> <state> <sess-id>\n
+ * <token> <address> <user> <state> <sess-id>\n
  * ...
  *
  * Where x is the size in bytes of the list of 
@@ -260,11 +260,12 @@ mbs_ev_client_status(EV_P_ ev_async *w,
     if (!(p = out = malloc(32+(srv.num_clients*(40+3+65+16)))))
         abort();
     for (x=0; x<srv.num_clients; x++)
-        p += sprintf(p, "%.40s %s %s %d\n",
+        p += sprintf(p, "%.40s %s %s %u %u\n",
                 srv.clients[x]->token,
                 inet_ntoa(srv.clients[x]->addr),
                 srv.clients[x]->user,
-                (srv.clients[x]->running & 1));
+                (srv.clients[x]->running & 1),
+                srv.clients[x]->session_id);
     pthread_mutex_unlock(&srv.clients_lk);
     len = p-out;
     x = sprintf(p, "STATUS %d\n", len);

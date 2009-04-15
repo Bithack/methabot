@@ -209,6 +209,8 @@ mbs_client_init(void *in)
         pthread_mutex_unlock(&srv.clients_lk);
         ev_async_send(EV_DEFAULT_ &srv.client_status);
         mbs_client_free(this);
+
+        ev_async_send(EV_DEFAULT_ &srv.client_status);
     }
 
     return 0;
@@ -252,8 +254,8 @@ mbs_client_main(struct client *this, int sock)
     /* notify the main thread that we chagned the client list,
      * the slave in turn will update the master with the new 
      * list */
+    this->running = 0;
     ev_async_send(EV_DEFAULT_ &srv.client_status);
-    this->running = 1;
 
     /* notify the login success to the client, and then send
      * the configuration file */
@@ -405,7 +407,7 @@ on_status(nolp_t *no, char *buf, int size)
     char q[128];
 
     cl = (struct client*)no->private;
-    status = atoi(buf);
+    cl->running = status = atoi(buf);
 
     /** 
      * if status goes to 0, we'll try to find a new
@@ -429,7 +431,6 @@ on_status(nolp_t *no, char *buf, int size)
     }
 
     ev_async_send(EV_DEFAULT_ &srv.client_status);
-    cl->running = status;
     return 0;
 }
 
@@ -453,7 +454,7 @@ on_url(nolp_t *no, char *buf, int size)
     int            ret = 0;
     cl = (struct client*)no->private;
 
-    if (!cl->session_id)
+    if (!cl->running || !cl->session_id)
         return -1;
 
     sz = size+sizeof(Q_URL_1 Q_URL_2);
@@ -507,7 +508,7 @@ on_target(nolp_t *no, char *buf,
     int  x;
 
     cl = ((struct client *)no->private);
-    if (!cl->session_id) {
+    if (!cl->running || !cl->session_id) {
         /* client shouldnt send any target info if 
          * a session hasnt been started, disconnect the
          * client */

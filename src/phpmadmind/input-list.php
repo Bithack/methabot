@@ -1,7 +1,17 @@
+<?php
+if ($_SERVER['REQUEST_METHOD'] == "POST") {
+    if (@$_GET['do'] == "add-input") {
+        if ($m->add_url($_POST["url"], $_POST['crawler']))
+            echo "<div class=\"msg\">The URL '".htmlspecialchars($_POST['url'])."' was added successfully.</div>";
+        else
+            echo "<div class=\"error\">An error occurred when attempting to add URL '".htmlspecialchars($_POST['url'])."'.</div>";
+    }
+}
+?>
 <h2>[master]/input-list</h2>
 <div class="content-layer">
 <h3>Add URL</h3>
-<form method="post" action="?p=overview&amp;do=add-url">
+<form method="post" action="?p=input-list&amp;do=add-input">
   <p>
     <input name="url" type="text" value="http://" />
     <a href="#" onclick="document.getElementById('adv').style.display='block'; this.style.display='none'; return false;">Advanced options &raquo;</a>

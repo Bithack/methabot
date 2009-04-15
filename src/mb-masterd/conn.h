@@ -39,8 +39,9 @@ struct client {
     char  token[40];
     char *user;
     char *addr;
-    int   status;
-    int   state;
+    unsigned int status;
+    unsigned int state;
+    unsigned int session_id;
 };
 
 struct slave {

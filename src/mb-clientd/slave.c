@@ -50,9 +50,9 @@ mbc_slave_on_start(nolp_t *no, char *buf, int size)
 #ifdef DEBUG
     syslog(LOG_DEBUG, "received url '%s' from slave", buf);
 #endif
+    send(mbc.sock, "STATUS 1\n", 9, 0);
     lmetha_wakeup_worker(mbc.m, "default", buf);
     lmetha_signal(mbc.m, LM_SIGNAL_CONTINUE);
-
     return 0;
 }
 

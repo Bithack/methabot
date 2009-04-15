@@ -25,6 +25,8 @@
 
 #include <syslog.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 static int user_list_clients_command(nolp_t *no, char *buf, int size);
 static int user_list_slaves_command(nolp_t *no, char *buf, int size);
@@ -211,14 +213,15 @@ user_client_info_command(nolp_t *no, char *buf, int size)
             "<client id=\"%.40s\">"
               "<user>%.64s</user>"
               "<slave>%.64s-%d</slave>"
-              "<status>%d</status>"
+              "<status>%u</status>"
               "<address>%.15s</address>"
+              "<session>%u</session>"
             "</client>",
             c->token,
             c->user,
             sl->name, sl->id,
             (c->status & 1),
-            c->addr);
+            c->addr, c->session_id);
     x = sprintf(out+sz, "100 %d\n", sz);
 
     send(conn->sock, out+sz, x, 0);
@@ -509,12 +512,10 @@ user_list_input_command(nolp_t *no, char *buf, int size)
     MYSQL_ROW row;
     char b[128];
     struct conn *conn = (struct conn*)no->private;
-    int  sz;
-    char **bufs = malloc(sizeof(char *)*10);
-    int   *sizes = malloc(sizeof(int)*10);
-    int  count;
+    int   sz;
+    long  count;
 
-    sz = sprintf(b, "SELECT id, crawler, input FROM nol_added WHERE user_id=%d ORDER BY `date` DESC LIMIT 0,10", conn->user_id);
+    sz = sprintf(b, "SELECT id, crawler, input FROM nol_added WHERE user_id=%d ORDER BY `id` DESC LIMIT 0,1000", conn->user_id);
 
     if (mysql_real_query(srv.mysql, b, sz) != 0) {
         syslog(LOG_ERR,
@@ -523,10 +524,16 @@ user_list_input_command(nolp_t *no, char *buf, int size)
         send(no->fd, MSG300, sizeof(MSG300)-1, 0);
         return -1;
     }
-
+    char **bufs;
+    int   *sizes;
     if ((r = mysql_store_result(srv.mysql))) {
+        count = (long)mysql_num_rows(r);
+        bufs = malloc(sizeof(char *)*count);
+        sizes = malloc(sizeof(int)*count);
         int x = 0;
         int total = 0;
+        if (!bufs || !sizes)
+            return -1;
         while (row = mysql_fetch_row(r)) {
             unsigned long *l;
             l = mysql_fetch_lengths(r);
@@ -545,10 +552,10 @@ user_list_input_command(nolp_t *no, char *buf, int size)
             total += sz;
             x++;
         }
-        count = x;
+        count = (long)x;
 
         char *tmp;
-        sz = asprintf(&tmp, "100 %d\n", total+sizeof("<input-list></input-list>")-1);
+        sz = asprintf(&tmp, "100 %u\n", (unsigned int)total+sizeof("<input-list></input-list>")-1);
         send(no->fd, tmp, sz, 0);
         free(tmp);
 

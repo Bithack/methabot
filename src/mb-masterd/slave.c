@@ -144,6 +144,8 @@ mbm_create_slave_list_xml()
 static int
 sl_status_command(nolp_t *no, char *buf, int size)
 {
+    if (atoi(buf) == 0)
+        return sl_status_parse(no, buf, 0);
     return nolp_expect(no, atoi(buf), &sl_status_parse);
 }
 
@@ -185,9 +187,9 @@ sl_status_parse(nolp_t *no, char *buf, int size)
         if (!(sl->clients = realloc(sl->clients, sizeof(struct client)*(sl->num_clients+1))))
             return -1;
         curr = &sl->clients[sl->num_clients];
-        sscanf(rp, "%40s%15s%64s%d",
+        sscanf(rp, "%40s%15s%64s%u%u",
                 &curr->token, &address, &user,
-                &curr->status);
+                &curr->status, &curr->session_id);
         curr->user = strdup(user);
         curr->addr = strdup(address);
         sl->num_clients ++;

@@ -105,6 +105,11 @@ class Metha
         return $this->get_sized_reply("LIST-CLIENTS ".$slave);
     }
 
+    function kill_all($id)
+    {
+        return $this->send("KILL-ALL $id");
+    }
+
     private function send($msg)
     {
         return @fwrite($this->fp, "$msg\n");

@@ -356,7 +356,6 @@ sock_getline(int fd, char *buf, int max)
 static void
 mbs_ev_master(EV_P_ ev_io *w, int revents)
 {
-
     if ((revents & EV_ERROR) || nolp_recv(srv.m_nolp) != 0) {
         /* reach here if connection was closed or a socket error occured */
         syslog(LOG_WARNING, "master has gone away, reconnecting in 5s");

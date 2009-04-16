@@ -234,6 +234,7 @@ mbs_client_main(struct client *this, int sock)
 
     ev_io_init(&io, &client_event, sock, EV_READ);
     ev_async_init(&this->async, &thr_signal);
+    this->async.data = this;
 
     /* move 'this' into the global list of clients
      * at srv.clients, this allows the main thread 

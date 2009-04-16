@@ -215,9 +215,11 @@ MYSQL *
 mbs_dup_mysql_conn(void)
 {
     MYSQL *ret;
+    my_bool reconnect = 1;
 
     if (!(ret = mysql_init(0)))
         return 0;
+    mysql_options(ret, MYSQL_OPT_RECONNECT, &reconnect);
     if (!(mysql_real_connect(ret,
                     "localhost",
                     "methanol",

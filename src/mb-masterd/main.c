@@ -211,11 +211,16 @@ master_start_cb()
 int
 mbm_mysql_connect()
 {
-    if (!(srv.mysql = mysql_init(0))
-            || !(mysql_real_connect(srv.mysql, "localhost",
-                            "methanol", "test", "methanol",
-                            0, "/var/run/mysqld/mysqld.sock", 0)))
+    my_bool reconnect = 1;
+    if (!(srv.mysql = mysql_init(0)))
         return -1;
+    mysql_options(srv.mysql, MYSQL_OPT_RECONNECT, &reconnect);
+    if (!(mysql_real_connect(srv.mysql, "localhost",
+                    "methanol", "test", "methanol",
+                    0, "/var/run/mysqld/mysqld.sock", 0))) {
+        mysql_close(srv.mysql);
+        return 0;
+    }
 
     return 0;
 }

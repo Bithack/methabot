@@ -130,7 +130,6 @@ mbc_lm_status_cb(metha_t *m, worker_t *w, url_t *url)
         p = buf;
     len = sprintf(p, "URL %s\n", url->str);
     send(mbc.sock, p, len, 0);
-    /*printf("URL: %s\n", url->str);*/
 
     if (p != buf)
         free(p);

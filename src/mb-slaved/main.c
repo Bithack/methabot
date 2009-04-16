@@ -384,11 +384,13 @@ mbs_ev_master(EV_P_ ev_io *w, int revents)
             buf[sz-1] = '\0';
 
             if (strncmp(buf, "CONFIG", 6) == 0) {
+                if (srv.config_buf) free(srv.config_buf);
                 if (!(srv.config_buf = malloc(atoi(buf+6)))) {
                     syslog(LOG_ERR, "out of mem");
                     abort();
                 }
 
+                srv.config_sz = 0;
                 srv.config_cap = atoi(buf+6);
                 srv.mstate = SLAVE_MSTATE_RECV_CONF;
             } else if (strncmp(buf, "CLIENT", 6) == 0) {
@@ -432,12 +434,11 @@ mbs_ev_master(EV_P_ ev_io *w, int revents)
     return;
 
 closed:
-/*
-        ev_io_stop(EV_A_ w);
-        ev_timer_init(&srv.master_timer, &mbs_ev_master_timer, 20.0f, 0.f);
-        ev_timer_start(EV_A_ &srv.master_timer);*/
-    syslog(LOG_WARNING, "master has gone away");
     ev_io_stop(EV_A_ w);
+    ev_timer_init(&srv.master_timer, &mbs_ev_master_timer, 5.0f, 0.f);
+    srv.master_timer.repeat = 5;
+    ev_timer_start(EV_A_ &srv.master_timer);
+    syslog(LOG_WARNING, "master has gone away");
     return;
 
 data_error:
@@ -448,7 +449,20 @@ data_error:
 static void
 mbs_ev_master_timer(EV_P_ ev_io *w, int revents)
 {
+    if (mbs_master_connect() == 0) {
+        if (mbs_master_login() != 0)
+            close(srv.master_sock);
+        else {
+            ev_timer_stop(EV_A_ &srv.master_timer);
+            memset(&srv.master_io, 0, sizeof(ev_io));
+            srv.mstate = SLAVE_MSTATE_COMMAND;
+            ev_io_init(&srv.master_io, &mbs_ev_master, srv.master_sock, EV_READ);
+            ev_io_start(loop, &srv.master_io);
+            return;
+        }
+    }
 
+    ev_timer_again(EV_A_ &srv.master_timer);
 }
 
 static void

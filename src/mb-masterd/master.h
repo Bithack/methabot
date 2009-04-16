@@ -18,6 +18,12 @@ struct opt_val_list {
     char *user;
     char *group;
     char *session_complete_hook;
+    char *mysql_host;
+    unsigned int mysql_port;
+    char *mysql_sock;
+    char *mysql_user;
+    char *mysql_pass;
+    char *mysql_db;
 };
 
 /* run-time generated information */

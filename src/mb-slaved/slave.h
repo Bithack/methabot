@@ -21,6 +21,12 @@ struct opt_vals {
     char *master;
     char *user;
     char *group;
+    char *mysql_host;
+    unsigned int mysql_port;
+    char *mysql_sock;
+    char *mysql_user;
+    char *mysql_pass;
+    char *mysql_db;
 } opt_vals;
 
 struct slave {

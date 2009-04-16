@@ -51,6 +51,12 @@ struct lmc_scope master_scope =
         LMC_OPT_STRING("session_complete_hook", &opt_vals.session_complete_hook),
         LMC_OPT_STRING("user", &opt_vals.user),
         LMC_OPT_STRING("group", &opt_vals.group),
+        LMC_OPT_STRING("mysql_host", &opt_vals.mysql_host),
+        LMC_OPT_STRING("mysql_sock", &opt_vals.mysql_sock),
+        LMC_OPT_STRING("mysql_user", &opt_vals.mysql_user),
+        LMC_OPT_STRING("mysql_pass", &opt_vals.mysql_pass),
+        LMC_OPT_STRING("mysql_db", &opt_vals.mysql_db),
+        LMC_OPT_UINT("mysql_port", &opt_vals.mysql_port),
         LMC_OPT_END,
     }
 };
@@ -215,9 +221,11 @@ mbm_mysql_connect()
     if (!(srv.mysql = mysql_init(0)))
         return -1;
     mysql_options(srv.mysql, MYSQL_OPT_RECONNECT, &reconnect);
-    if (!(mysql_real_connect(srv.mysql, "localhost",
-                    "methanol", "test", "methanol",
-                    0, "/var/run/mysqld/mysqld.sock", 0))) {
+    if (!(mysql_real_connect(srv.mysql,
+                    opt_vals.mysql_host, opt_vals.mysql_user,
+                    opt_vals.mysql_pass, opt_vals.mysql_db,
+                    opt_vals.mysql_port, opt_vals.mysql_sock,
+                    0))) {
         mysql_close(srv.mysql);
         return 0;
     }
@@ -560,5 +568,10 @@ mbm_cleanup()
         free(opt_vals.user);
     if (opt_vals.group)
         free(opt_vals.group);
+    if (opt_vals.mysql_host) free(opt_vals.mysql_host);
+    if (opt_vals.mysql_sock) free(opt_vals.mysql_sock);
+    if (opt_vals.mysql_user) free(opt_vals.mysql_user);
+    if (opt_vals.mysql_pass) free(opt_vals.mysql_pass);
+    if (opt_vals.mysql_db) free(opt_vals.mysql_db);
 }
 

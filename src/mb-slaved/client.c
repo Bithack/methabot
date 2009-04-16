@@ -55,6 +55,7 @@ struct nolp_fn client_commands[] = {
     {"TARGET", &on_target},
     {0}
 };
+
 /** 
  * Create a new client with a random login-token
  *
@@ -70,10 +71,10 @@ mbs_client_create(const char *addr, const char *user)
 {
     struct client* cl;
     time_t now;
-    int a, x;
-    char *p;
-    char q[128];
-    int qlen;
+    int    a, x;
+    char  *p;
+    char   q[128];
+    int    qlen;
 
     MYSQL_RES *res;
     MYSQL_ROW *row;
@@ -298,12 +299,18 @@ client_event(EV_P_ ev_io *w, int revents)
 }
 
 /** 
- * receive signals from main thread
+ * Receive signal from main thread. The main thread will set the
+ * variable client->msg and then invoke this signal.
  **/
 static void
 thr_signal(EV_P_ ev_async *w, int revents)
 {
-
+    struct client *cl = (struct client*)w->data;
+    switch (cl->msg) {
+        case NOL_CLIENT_MSG_KILL:
+            ev_unloop(EV_A_ EVUNLOOP_ONE);
+            break;
+    }
 }
 
 /* see on_status() for why the timer is used */

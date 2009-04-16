@@ -28,12 +28,20 @@
 
 #define TOKEN_SIZE 40
 
+enum {
+    NOL_CLIENT_MSG_KILL,
+    NOL_CLIENT_MSG_STOP,
+    NOL_CLIENT_MSG_PAUSE,
+    NOL_CLIENT_MSG_CONTINUE,
+};
+
 struct client {
     long               id;
     long               session_id;
     long               target_id;
     char               token[TOKEN_SIZE+1];
     int                running;
+    int                msg; /* set externally before the 'async' ev is invoked */
     char              *user;
     struct in_addr     addr;
     struct ev_loop    *loop;

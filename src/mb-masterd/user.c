@@ -42,6 +42,7 @@ static int user_session_info_command(nolp_t *no, char *buf, int size);
 static int user_session_report_command(nolp_t *no, char *buf, int size);
 static int user_list_sessions_command(nolp_t *no, char *buf, int size);
 static int user_list_input_command(nolp_t *no, char *buf, int size);
+static int user_kill_all_command(nolp_t *no, char *buf, int size);
 
 struct nolp_fn user_commands[] = {
     {"LIST-SLAVES", &user_list_slaves_command},
@@ -58,6 +59,7 @@ struct nolp_fn user_commands[] = {
     {"SESSION-REPORT", user_session_report_command},
     {"LIST-SESSIONS", user_list_sessions_command},
     {"LIST-INPUT", user_list_input_command},
+    {"KILL-ALL", user_kill_all_command},
     {0},
 };
 
@@ -570,6 +572,35 @@ user_list_input_command(nolp_t *no, char *buf, int size)
     free(bufs);
     free(sizes);
 
+    return 0;
+}
+
+/** 
+ * KILL-ALL <slave>\n
+ *
+ * Disconnects all clients connected to the given slave 
+ * TODO: check permissions
+ **/
+static int
+user_kill_all_command(nolp_t *no, char *buf, int size)
+{
+    int           id;
+    int           x;
+    struct slave *sl = 0;
+
+    id = atoi(buf);
+    for (x=0; x<srv.num_slaves; x++) {
+        if (srv.slaves[x].id == id) {
+            sl = &srv.slaves[x];
+            break;
+        }
+    }
+    if (!sl) {
+        send(sl->conn->sock, MSG203, sizeof(MSG203)-1, 0);
+        return 0;
+    }
+
+    send(sl->conn->sock, "KILL-ALL\n", 9, 0);
     return 0;
 }
 

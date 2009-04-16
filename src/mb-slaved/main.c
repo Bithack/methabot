@@ -49,6 +49,7 @@ void set_defaults(void);
 const char     *_cfg_file;
 struct slave    srv;
 struct opt_vals opt_vals;
+struct nolp_fn master_commands[];
 
 #include "../libmetha/libev/ev.c"
 
@@ -93,12 +94,9 @@ main(int argc, char **argv)
 
     lmc_add_scope(lmc, &slave_scope);
     if ((r = nol_server_launch(
-                _cfg_file,
-                lmc,
-                &opt_vals.user,
-                &opt_vals.group,
-                &slave_init_cb,
-                &slave_run_cb,
+                _cfg_file, lmc,
+                &opt_vals.user, &opt_vals.group,
+                &slave_init_cb, &slave_run_cb,
                 nofork==1?0:1)) == 0)
         fprintf(stdout, "started\n");
     /* if nol_server_launch() does not return 0,
@@ -115,10 +113,13 @@ slave_init_cb(void)
 {
     char *s;
     int   sock;
+    int   o = 1;
 
     openlog("mb-slaved", LOG_PID, LOG_DAEMON);
     set_defaults();
 
+    if (!(srv.master_io.data = srv.m_nolp = nolp_create(&master_commands, 0)))
+        return "nolp init failed";
     if ((s = strchr(opt_vals.master, ':'))) {
         srv.master.sin_port = htons(atoi(s+1));
         *s = '\0';
@@ -134,6 +135,7 @@ slave_init_cb(void)
     srv.addr.sin_addr.s_addr = inet_addr(opt_vals.listen);
     srv.addr.sin_family = AF_INET;
     sock = socket(PF_INET, SOCK_STREAM, 0);
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &o, sizeof(o));
     if (bind(sock, (struct sockaddr*)&srv.addr, sizeof srv.addr) == -1) {
         syslog(LOG_ERR, "could not bind to %s:%hd",
                 inet_ntoa(srv.addr.sin_addr),
@@ -355,95 +357,17 @@ static void
 mbs_ev_master(EV_P_ ev_io *w, int revents)
 {
 
-    char buf[256];
-    char *e, *p;
-    int sz;
-
-    if (revents & EV_ERROR) {
+    if ((revents & EV_ERROR) || nolp_recv(srv.m_nolp) != 0) {
+        /* reach here if connection was closed or a socket error occured */
+        syslog(LOG_WARNING, "master has gone away, reconnecting in 5s");
         close(w->fd);
-        goto closed;
+        ev_io_stop(EV_A_ w);
+        ev_timer_init(&srv.master_timer,
+                &mbs_ev_master_timer,
+                5.0f, 0.f);
+        srv.master_timer.repeat = 5;
+        ev_timer_start(EV_A_ &srv.master_timer);
     }
-
-    switch (srv.mstate) {
-        case SLAVE_MSTATE_RECV_CONF:
-            if ((sz = recv(w->fd, srv.config_buf, srv.config_cap-srv.config_sz, 0)) == -1)
-                goto closed;
-            if (!sz)
-                goto closed;
-            srv.config_sz+=sz;
-            if (srv.config_sz == srv.config_cap) {
-                syslog(LOG_INFO, "read config from master");
-                srv.mstate = SLAVE_MSTATE_COMMAND;
-            }
-            break;
-
-        case SLAVE_MSTATE_COMMAND:
-            if ((sz = sock_getline(w->fd, buf, 255)) <= 0)
-                goto closed;
-
-            buf[sz-1] = '\0';
-
-            if (strncmp(buf, "CONFIG", 6) == 0) {
-                if (srv.config_buf) free(srv.config_buf);
-                if (!(srv.config_buf = malloc(atoi(buf+6)))) {
-                    syslog(LOG_ERR, "out of mem");
-                    abort();
-                }
-
-                srv.config_sz = 0;
-                srv.config_cap = atoi(buf+6);
-                srv.mstate = SLAVE_MSTATE_RECV_CONF;
-            } else if (strncmp(buf, "CLIENT", 6) == 0) {
-                char out[TOKEN_SIZE+5];
-                char *s = strchr(buf+7, ' ');
-                struct client *cl;
-                int ok = 0;
-                
-                if (!s)
-                    goto data_error;
-                cl = mbs_client_create(buf+7, s+1);
-
-                pthread_mutex_lock(&srv.pending_lk);
-                if (cl && srv.num_pending < MAX_NUM_PENDING) {
-                    ok = 1;
-
-                    /* add this client to the pending list */
-                    if (!(srv.pending = realloc(srv.pending,
-                                    (srv.num_pending+1)*sizeof(struct client*)))) {
-                        syslog(LOG_ERR, "out of mem");
-                        abort();
-                    }
-
-                    srv.pending[srv.num_pending] = cl;
-                    srv.num_pending ++;
-                }
-                pthread_mutex_unlock(&srv.pending_lk);
-
-                if (!ok) {
-                    send(w->fd, "400\n", 3, 0);
-                    mbs_client_free(cl);
-                } else {
-                    sz = sprintf(out, "100 %40s\n", cl->token);
-                    send(w->fd, out, sz, 0);
-                }
-            } else
-                goto data_error;
-            break;
-    }
-
-    return;
-
-closed:
-    ev_io_stop(EV_A_ w);
-    ev_timer_init(&srv.master_timer, &mbs_ev_master_timer, 5.0f, 0.f);
-    srv.master_timer.repeat = 5;
-    ev_timer_start(EV_A_ &srv.master_timer);
-    syslog(LOG_WARNING, "master has gone away");
-    return;
-
-data_error:
-    syslog(LOG_ERR, "weird data from master");
-    abort();
 }
 
 static void
@@ -455,7 +379,6 @@ mbs_ev_master_timer(EV_P_ ev_io *w, int revents)
         else {
             ev_timer_stop(EV_A_ &srv.master_timer);
             memset(&srv.master_io, 0, sizeof(ev_io));
-            srv.mstate = SLAVE_MSTATE_COMMAND;
             ev_io_init(&srv.master_io, &mbs_ev_master, srv.master_sock, EV_READ);
             ev_io_start(loop, &srv.master_io);
             return;
@@ -483,6 +406,7 @@ mbs_master_connect()
         return 1;
 
     srv.master.sin_family = AF_INET;
+    srv.m_nolp->fd = srv.master_sock;
 
     if (connect(srv.master_sock, &srv.master, sizeof(struct sockaddr_in)) != 0) {
         syslog(LOG_ERR, "could not connect to master: %s\n", strerror(errno));
@@ -526,6 +450,7 @@ mbs_master_login()
 int
 mbs_cleanup()
 {
+    if (srv.m_nolp) nolp_free(srv.m_nolp);
     if (opt_vals.listen) free(opt_vals.listen);
     if (opt_vals.master) free(opt_vals.master);
     if (opt_vals.mysql_host) free(opt_vals.mysql_host);

@@ -110,17 +110,17 @@ a.button {
     font-weight: bold;
     font-size: 0.9em;
     padding: 0.2em;
-    background-color: #ddd;
+    background-color: #eee;
     display: inline-block;
     color: #000;
-    border-top: 1px solid #bbb;
-    border-left: 1px solid #bbb;
-    border-bottom: 1px solid #666;
-    border-right: 1px solid #666;
+    border-top: 1px solid #ddd;
+    border-left: 1px solid #ddd;
+    border-bottom: 1px solid #aaa;
+    border-right: 1px solid #aaa;
 }
 
 a.button:hover {
-    background-color: #eee;
+    background-color: #fff;
 }
 
 #container {
@@ -249,6 +249,7 @@ span.input {
 }
 
 div.content-layer {
+    clear: both;
     margin-bottom: 1em;
 }
 

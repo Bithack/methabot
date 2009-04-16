@@ -36,12 +36,13 @@ foreach ($clients->client as $c) {
     printf(
             "<tr%s>".
               "<td><a class=\"id\" href=\"?p=client-info&amp;id=%s\">%s</a></td>".
-              "<td>%s</td>".
+              "<td class=\"sep\">%s@%s</td>".
+              "<td><em>%s</em></td>".
             "</tr>",
             $x?" class=\"odd\"":"",
             $id,
             $id,
-            $c->user);
+            $c->user, $c->address, $c->status==1?"running":"idle");
     $x = !$x;
 }
 ?>

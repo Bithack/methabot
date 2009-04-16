@@ -213,7 +213,8 @@ mbc_set_active(EV_P_ int which)
         case MBC_NONE:
             /* Start a timer so we don't freeze, this timer
              * will reconnect to the master after 5 secs */
-            ev_timer_start(EV_A_ &mbc.timer_ev);
+            mbc.state = MBC_STATE_DISCONNECTED;
+            ev_timer_start(mbc.loop, &mbc.timer_ev);
             break;
 
         case MBC_MASTER:
@@ -276,7 +277,6 @@ mbc_ev_master(EV_P_ ev_io *w, int revents)
 
     if ((sz = sock_getline(w->fd, buf, 256)) <= 0) {
         /* disconnected from master before reply? */
-        close(w->fd);
         syslog(LOG_ERR, "master has gone away");
         fail = 1;
     } else {
@@ -311,8 +311,8 @@ mbc_ev_master(EV_P_ ev_io *w, int revents)
     }
 
     if (fail) {
-        close(mbc.sock);
-        mbc_set_active(EV_A_ MBC_NONE);
+        close(w->fd);
+        mbc_set_active(mbc.loop, MBC_NONE);
     }
 }
 

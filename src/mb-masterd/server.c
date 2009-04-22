@@ -155,14 +155,18 @@ nol_server_launch(const char *config,
 
     /* child doesn't reach here */
     close(fds[1]);
-    if ((n = read(fds[0], &buf, 255)) <= 0)
+    if ((n = read(fds[0], &buf, 1)) <= 0)
         fprintf(stderr, "failed: no data from child, possible crash?\n");
     else if (*buf == CHILD_SUCCESS) {
         close(fds[0]);
         return 0;
-    } else if (n > 0) {
-        buf[n] = '\0';
-        fprintf(stderr, "failed: %s\n", buf+1);
+    } else if (n == 1) {
+        if ((n = read(fds[0], &buf, 255)) <= 0)
+            fprintf(stderr, "failed: unknown error in child\n");
+        else {
+            buf[n] = '\0';
+            fprintf(stderr, "failed: %s\n", buf);
+        }
     }
 
     close(fds[0]);

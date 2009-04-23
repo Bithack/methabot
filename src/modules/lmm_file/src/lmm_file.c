@@ -46,15 +46,19 @@ lm_mod_properties =
 static M_CODE
 lmm_file_init(metha_t *m)
 {
+    /* register global javascript functions */
+    lmetha_register_jsfunction(m, "fopen",    &lmm_file_open, 2);
+    lmetha_register_jsfunction(m, "fwrite",   &lmm_file_write, 2);
+    lmetha_register_jsfunction(m, "fread",    &lmm_file_read, 1);
+    lmetha_register_jsfunction(m, "fclose",   &lmm_file_close, 2);
+    lmetha_register_jsfunction(m, "fremove",  &lmm_file_remove, 1);
+
     return M_OK;
 }
 
 static M_CODE
 lmm_file_prepare(metha_t *m)
 {
-    lmetha_init_jsclass(m, &FileClass, 0, 0, 0, &lmm_FileClass_functions, 0, 0);
-    lmetha_register_worker_object(m, "file", &FileClass);
-
     return M_OK;
 }
 

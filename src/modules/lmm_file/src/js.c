@@ -25,32 +25,7 @@
 #include <metha/metha.h>
 #include "js.h"
 
-JSBool lmm_FileClass_construct(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
-JSBool lmm_FileClass_finalize(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
-static JSBool lmm_file_open(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
-static JSBool lmm_file_write(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
-static JSBool lmm_file_close(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
-static JSBool lmm_file_read(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
-static JSBool lmm_file_remove(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
-
-struct JSClass FileClass = {
-    "FileHandle",
-    JSCLASS_HAS_PRIVATE,
-    JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_PropertyStub,
-    JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, lmm_FileClass_finalize,
-    0, 0, 0, lmm_FileClass_construct, 0, 0, 0, 0
-};
-
-JSFunctionSpec lmm_FileClass_functions[] = {
-    {"open",        lmm_file_open,      2},
-    {"write",       lmm_file_write,     2},
-    {"close",       lmm_file_close,     1},
-    {"read",        lmm_file_read,      2},
-    {"remove",      lmm_file_remove,    1},
-    0
-};
-
-static JSBool
+JSBool
 lmm_file_open(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
 {
     if (argc < 2) {
@@ -69,7 +44,7 @@ lmm_file_open(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret
     return JS_TRUE;
 }
 
-static JSBool
+JSBool
 lmm_file_write(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
 {
     if (argc < 2) {
@@ -87,7 +62,7 @@ lmm_file_write(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *re
     return JS_TRUE;
 }
 
-static JSBool
+JSBool
 lmm_file_close(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
 {
     if (argc < 1) {
@@ -104,7 +79,7 @@ lmm_file_close(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *re
     return JS_TRUE;
 }
 
-static JSBool
+JSBool
 lmm_file_read(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
 {
     if (argc < 2) {
@@ -143,7 +118,7 @@ lmm_file_read(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret
     return JS_TRUE;
 }
 
-static JSBool
+JSBool
 lmm_file_remove(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
 {
     if (argc < 1) {
@@ -164,16 +139,3 @@ lmm_file_remove(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *r
 
     return JS_TRUE;
 }
-
-JSBool
-lmm_FileClass_construct(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
-{
-    return JS_TRUE;
-}
-
-JSBool
-lmm_FileClass_finalize(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
-{
-    return JS_TRUE;
-}
-

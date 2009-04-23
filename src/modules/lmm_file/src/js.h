@@ -30,5 +30,8 @@ JSBool lmm_file_write(JSContext *cx, JSObject *this, uintN argc, jsval *argv, js
 JSBool lmm_file_close(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
 JSBool lmm_file_read(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
 JSBool lmm_file_remove(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
+JSBool lmm_file_opendir(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
+JSBool lmm_file_readdir(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
+JSBool lmm_file_closedir(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
 
 #endif

@@ -33,7 +33,7 @@ static M_CODE lmm_file_prepare(metha_t *m);
 lm_mod_properties =
 {
     .name      = "lmm_file",
-    .version   = "0.1.0",
+    .version   = "0.2.0",
     .init      = &lmm_file_init,
     .uninit    = &lmm_file_uninit,
     .prepare   = &lmm_file_prepare,
@@ -47,11 +47,14 @@ static M_CODE
 lmm_file_init(metha_t *m)
 {
     /* register global javascript functions */
-    lmetha_register_jsfunction(m, "fopen",    &lmm_file_open, 2);
-    lmetha_register_jsfunction(m, "fwrite",   &lmm_file_write, 2);
-    lmetha_register_jsfunction(m, "fread",    &lmm_file_read, 1);
-    lmetha_register_jsfunction(m, "fclose",   &lmm_file_close, 2);
-    lmetha_register_jsfunction(m, "fremove",  &lmm_file_remove, 1);
+    lmetha_register_jsfunction(m, "fopen",    &lmm_file_open,     2);
+    lmetha_register_jsfunction(m, "fwrite",   &lmm_file_write,    2);
+    lmetha_register_jsfunction(m, "fread",    &lmm_file_read,     1);
+    lmetha_register_jsfunction(m, "fclose",   &lmm_file_close,    2);
+    lmetha_register_jsfunction(m, "fremove",  &lmm_file_remove,   1);
+    lmetha_register_jsfunction(m, "opendir",  &lmm_file_opendir,  1);
+    lmetha_register_jsfunction(m, "readdir",  &lmm_file_readdir,  1);
+    lmetha_register_jsfunction(m, "closedir", &lmm_file_closedir, 1);
 
     return M_OK;
 }

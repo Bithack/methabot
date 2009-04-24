@@ -92,6 +92,6 @@ lm_ev_exit(EV_P_ ev_io *w, int revents)
 {
     metha_t *m = w->data;
 
-    ev_unloop(EV_A_ EVUNLOOP_ALL);
+    ev_unloop(EV_A_ EVUNLOOP_ONE);
 }
 

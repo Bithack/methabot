@@ -774,7 +774,7 @@ lm_iothr_event_cb(EV_P_ ev_io *w, int r_events)
             /* TODO: expand error handling */
             default:
                 io->error = M_SOCKET_ERROR;
-                ev_unloop(EV_A_ EVUNLOOP_ALL);
+                ev_unloop(EV_A_ EVUNLOOP_ONE);
 
                 return;
         }
@@ -797,7 +797,7 @@ lm_iothr_event_cb(EV_P_ ev_io *w, int r_events)
 static void
 lm_iothr_stop_cb(EV_P_ ev_async *w, int r_events)
 {
-    ev_unloop(EV_A_ EVUNLOOP_ALL);
+    ev_unloop(EV_A_ EVUNLOOP_ONE);
 }
 
 /** 

@@ -8,12 +8,12 @@ if ($info) {
   <?php $x=1; foreach ($info->session as $s) { ?>
     <tr<?=$x=!$x?" class=\"odd\"":""?>>
       <td class="session">
-        <strong><a class="id" href="?p=session-info&amp;id=<?=$s->attributes()->id?>">#<?=$s->attributes()->id?></a></strong>
+        <strong><a class="id" href="?p=session-info&amp;id=<?=$s->attributes()->id?>">session #<?=$s->attributes()->id?></a></strong>
         <?=$s->latest?>
         <span class="state"><?=$s->state?></span>
       </td>
       <td class="url-info"><?=$s->crawler." &lt;- <span class=\"input\">".$s->input."</span>"?></td>
-      <td><a class="id" href="?p=client-info&amp;id=<?=$s->client?>"><?=$s->client?></a></td>
+      <td>client: <a class="id" href="?p=client-info&amp;id=<?=$s->client?>"><?=substr($s->client, 0, 3)."...".substr($s->client, -3)?></a></td>
     </tr>
   <?php } ?>
   </table>

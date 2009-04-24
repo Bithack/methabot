@@ -46,13 +46,25 @@ struct nolp_fn sl_commands[] = {
 static int
 mbc_slave_on_start(nolp_t *no, char *buf, int size)
 {
+    char *p;
     buf[size] = '\0';
+    if (!(p = strchr(buf, ' '))) {
+        syslog(LOG_ERR, "weird START format from slave");
+        return -1;
+    }
+    *p = '\0';
+    p++;
 #ifdef DEBUG
-    syslog(LOG_DEBUG, "received url '%s' from slave", buf);
+    syslog(LOG_DEBUG, "received url '%s' from slave", p);
 #endif
+
+    lmetha_reset(mbc.m);
+    if (lmetha_setopt(mbc.m, LMOPT_INITIAL_CRAWLER, buf) != M_OK) {
+        syslog(LOG_ERR, "unknown crawler '%s' from slave", buf);
+        return -1;
+    }
     send(mbc.sock, "STATUS 1\n", 9, 0);
-    lmetha_wakeup_worker(mbc.m, "default", buf);
-    lmetha_signal(mbc.m, LM_SIGNAL_CONTINUE);
+    lmetha_exec_async(mbc.m, 1, &p);
     return 0;
 }
 
@@ -65,18 +77,21 @@ mbc_slave_on_stop(nolp_t *no, char *buf, int size)
 static int
 mbc_slave_on_continue(nolp_t *no, char *buf, int size)
 {
+    lmetha_signal(mbc.m, LM_SIGNAL_CONTINUE);
     return 0;
 }
 
 static int
 mbc_slave_on_pause(nolp_t *no, char *buf, int size)
 {
+    lmetha_signal(mbc.m, LM_SIGNAL_PAUSE);
     return 0;
 }
 
 static int
 mbc_slave_on_exit(nolp_t *no, char *buf, int size)
 {
+    lmetha_signal(mbc.m, LM_SIGNAL_EXIT);
     return 0;
 }
 
@@ -102,15 +117,15 @@ mbc_slave_on_config_recv(nolp_t *no, char *buf, int size)
             syslog(LOG_ERR, "preparing libmetha object failed: %s", lm_strerror(r));
             return -1;
         }
-        if ((r = lmetha_start(mbc.m)) != M_OK) {
-            syslog(LOG_ERR, "start libmetha session failed: %s", lm_strerror(r));
-            return -1;
-        }
     } else {
         syslog(LOG_WARNING, "can not reload configuration");
     }
 
-    config_read = 1;
+    /* notify the slave that we're idle, this will hopefully
+     * make the slave send us a START command with URL and
+     * crawler info */
+    send(mbc.sock, "STATUS 0\n", 9, 0);
 
+    config_read = 1;
     return 0;
 }

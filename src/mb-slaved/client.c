@@ -86,7 +86,9 @@ mbs_client_create(const char *addr, const char *user)
             free(cl);
             return 0;
         }
-        qlen = sprintf(q, "SELECT SHA1(CONCAT(CONCAT(CONCAT('%s', NOW()), RAND()), RAND()))", addr);
+        qlen = sprintf(q,
+                "SELECT SHA1(CONCAT(CONCAT(CONCAT('%s', NOW()), RAND()), RAND()))",
+                addr);
         if (mysql_real_query(srv.mysql, q, qlen) != 0
                 || !(res = mysql_store_result(srv.mysql))
                 || !(mysql_num_rows(res))
@@ -108,7 +110,9 @@ mbs_client_create(const char *addr, const char *user)
          * integer identifier to be used when adding URLs to the log
          * and save target urls
          **/
-        qlen = sprintf(q, "INSERT INTO nol_client (token) VALUES ('%.40s');", cl->token);
+        qlen = sprintf(q,
+                "INSERT INTO nol_client (token) VALUES ('%.40s');",
+                cl->token);
         if (mysql_real_query(srv.mysql, q, qlen) != 0) {
             free(cl);
             return 0;
@@ -116,7 +120,8 @@ mbs_client_create(const char *addr, const char *user)
         cl->id = (long)mysql_insert_id(srv.mysql);
         cl->session_id = 0;
 
-        syslog(LOG_INFO,"new client %d:'%.6s...' from %s", (int)cl->id, cl->token, addr);
+        syslog(LOG_INFO,"new client %d:'%.6s...' from %s",
+                (int)cl->id, cl->token, addr);
     }
 
     return cl;
@@ -268,7 +273,7 @@ mbs_client_main(struct client *this, int sock)
     ev_io_stop(loop, &io);
     ev_async_stop(loop, &this->async);
     ev_loop_destroy(loop);
-    syslog(LOG_INFO, "client disconnected");
+    syslog(LOG_INFO, "client '%.7s...' disconnected", this->token);
 }
 
 /* send the active configuration as received from the
@@ -334,7 +339,7 @@ timer_reached(EV_P_ ev_timer *w, int revents)
 }
 
 #define Q_GET_NEW_URL \
-    "SELECT id, input FROM nol_added WHERE `date` <= NOW()"\
+    "SELECT id, crawler, input FROM nol_added WHERE `date` <= NOW()"\
     "ORDER BY `date` DESC LIMIT 0,1;"
 
 /** 
@@ -342,8 +347,8 @@ timer_reached(EV_P_ ev_timer *w, int revents)
  *
  * query the database for any new URL, if found
  * then send it to the client. Returns 0 if a 
- * URL was found and sent to the client, non-
- * zero on error or no URL was found.
+ * URL was found and sent to the client, 1 if no
+ * URL was found, or -1 if an error occured
  **/
 static int
 get_and_send_url(struct client *cl)
@@ -354,7 +359,7 @@ get_and_send_url(struct client *cl)
     char *url;
     char *buf;
     int   id;
-    int   ret = 0;
+    int   ret;
     unsigned long *lengths;
     if (mysql_real_query(cl->mysql, Q_GET_NEW_URL, sizeof(Q_GET_NEW_URL)-1) != 0)
         return -1;
@@ -367,14 +372,16 @@ get_and_send_url(struct client *cl)
             return -1;
         }
 
-        if (sz < 256) sz = 256;
+        if ((sz = lengths[1]+lengths[2]+1) < 256)
+            sz = 256;
         id = atoi(row[0]);
-        buf = malloc(sz);
+        if (!(buf = malloc(sz+10)))
+            return -1;
+        sz = sprintf(buf, "START %s %s\n", row[1], row[2]);
 #ifdef DEBUG
         syslog(LOG_DEBUG, "sending url '%.*s' to client '%.7s...'",
-                lengths[1], row[1], cl->token);
+                lengths[2], row[2], cl->token);
 #endif
-        sz = sprintf(buf, "START %s\n", row[1]);
         send(((nolp_t *)(cl->no))->fd, buf, sz, 0);
         /* create a session for this client, the session will last
          * until the client is out of URLs and sends a STATUS 0 
@@ -386,6 +393,10 @@ get_and_send_url(struct client *cl)
                 );
         if (mysql_real_query(cl->mysql, buf, sz) == 0) {
             cl->session_id = mysql_insert_id(cl->mysql);
+#ifdef DEBUG
+            syslog(LOG_DEBUG, "client '%.7s...' now running session %ld",
+                    cl->token, cl->session_id);
+#endif
             sz = sprintf(buf, 
                     "UPDATE nol_added "
                     "SET date = DATE_ADD(NOW(), INTERVAL 1 DAY) "
@@ -397,11 +408,12 @@ get_and_send_url(struct client *cl)
             ret = -1;
 
         free(buf);
-        return ret;
-    }
+        ret = 0;
+    } else
+        ret = 1;
     mysql_free_result(res);
 
-    return 1;
+    return ret;
 }
 
 /** 
@@ -413,9 +425,15 @@ on_status(nolp_t *no, char *buf, int size)
     struct client *cl;
     int status;
     char q[128];
+    char *p;
 
     cl = (struct client*)no->private;
     cl->running = status = atoi(buf);
+
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "client '%.7s...' set status to %d", 
+            cl->token, status);
+#endif
 
     /** 
      * if status goes to 0, we'll try to find a new
@@ -425,16 +443,27 @@ on_status(nolp_t *no, char *buf, int size)
      **/
     if (status == 0) {
         if (cl->session_id) {
+#ifdef DEBUG
+            syslog(LOG_DEBUG, "session %ld finished", cl->session_id);
+#endif
             sprintf(q, "UPDATE `nol_session` SET state='wait-hook', latest=NOW() WHERE id=%ld",
                     cl->session_id);
             mysql_query(cl->mysql, q);
         }
 
-        if (get_and_send_url(cl) != 0) {
-            ev_timer_init(&cl->timer, &timer_reached, 5.f, .0f);
-            cl->timer.data = cl;
-            cl->timer.repeat = 5.f;
-            ev_timer_start(cl->loop, &cl->timer);
+        switch (get_and_send_url(cl)) {
+            case -1:
+                p = mysql_error(cl->mysql);
+                syslog(LOG_ERR, "URL get and send failed: %s",
+                        p?(*p?p:"error"):"error");
+                ev_unloop(cl->loop, EVUNLOOP_ONE);
+            case 0:
+                return;
+            case 1:
+                ev_timer_init(&cl->timer, &timer_reached, 5.f, .0f);
+                cl->timer.data = cl;
+                cl->timer.repeat = 5.f;
+                ev_timer_start(cl->loop, &cl->timer);
         }
     }
 
@@ -566,7 +595,7 @@ on_target(nolp_t *no, char *buf,
     /* link this target with the current session */
     len = sprintf(q,
             "INSERT IGNORE INTO nol_session_rel (session_id, filetype, target_id) "
-            "VALUES (%d, '%.64s', %d)",
+            "VALUES (%ld, '%.64s', %ld)",
             cl->session_id, cl->filetype_name, cl->target_id);
 
     if (mysql_real_query(cl->mysql, q, len) != 0) {
@@ -577,8 +606,8 @@ on_target(nolp_t *no, char *buf,
 
 #ifdef DEBUG
     syslog(LOG_DEBUG,
-            "start receiving attributes for '%s' of type '%s'",
-            url, cl->filetype_name);
+            "start receiving attributes for '%s' of type '%s', sess #%ld",
+            url, cl->filetype_name, cl->session_id);
 #endif
 
     nolp_expect(no, atoi(p+1), &on_target_recv);
@@ -608,24 +637,29 @@ on_target_recv(nolp_t *no, char *buf,
     while (p<e) {
         attr = p;
         if (!(p = memchr(p, ' ', e-p)))
-            break;
+            return -1;
         attr_len = p-attr;
         p++;
         value_len = atoi(p);
         if (!(p = memchr(p, ' ', e-p)))
-            break;
+            return -1;
         p++;
         value = p;
         if (p+value_len > e)
-            break;
+            return -1;
 
         if (update_ft_attr(cl,
                     attr, attr_len,
                     value, value_len) != 0)
-            break;
+            return -1;
 
         p+=value_len;
     }
+
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "attributes received, sess #%ld", cl->session_id);
+#endif
+
     return 0;
 }
 
@@ -652,11 +686,12 @@ update_ft_attr(struct client *cl,
             mbs_str_filter_name(attr, attr_len));
 
     len += mysql_real_escape_string(cl->mysql, q+len, val, val_len);
-    len += sprintf(q+len, "' WHERE id=%d LIMIT 1;", cl->target_id);
+    len += sprintf(q+len, "' WHERE id=%ld LIMIT 1;", cl->target_id);
 
     if (mysql_real_query(cl->mysql, q, len) != 0) {
         free(q);
-        syslog(LOG_ERR, "updating attributes failed: %s", mysql_error(cl->mysql));
+        syslog(LOG_ERR, "updating attributes failed: %s",
+                mysql_error(cl->mysql));
         return -1;
     }
 

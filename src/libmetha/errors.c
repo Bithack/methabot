@@ -50,6 +50,7 @@ lm_strerror(M_CODE c)
         case M_UNKNOWN_CRAWLER:     return "unknown crawler";
         case M_EVENT_ERROR:         return "internal event loop error";
         case M_UNRESOLVED:          return "unresolved symbol";
+        case M_THREAD_ERROR:        return "internal multi-threading error";
 
         case M_ERROR:               return "error";
         default:                    return "unknown error";

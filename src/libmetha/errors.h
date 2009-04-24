@@ -46,6 +46,7 @@ typedef enum {
     M_EVENT_ERROR,
     M_UNRESOLVED,
     M_ERROR,
+    M_THREAD_ERROR,
 } M_CODE;
 
 const char *lm_strerror(M_CODE c);

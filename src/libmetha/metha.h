@@ -69,6 +69,9 @@ typedef struct metha {
     io_t          io;
     ue_t          ue;
 
+    /* only used if lmetha_exec_async() is called */
+    pthread_t       thr;
+
     /* configuration file parser from libmethaconfig */
     lmc_parser_t *lmc;
 
@@ -151,11 +154,14 @@ typedef struct metha {
 
 /* metha.c */
 metha_t *lmetha_create(void);
-void     lmetha_destroy(metha_t *m);
+M_CODE   lmetha_setopt(metha_t *m, LMOPT opt, ...);
 M_CODE   lmetha_prepare(metha_t *m);
+void     lmetha_destroy(metha_t *m);
+
 M_CODE   lmetha_exec(metha_t *m, int argc, const char **argv); 
 M_CODE   lmetha_exec_provided(metha_t *m, const char *base_url, const char *buf, size_t len);
-M_CODE   lmetha_setopt(metha_t *m, LMOPT opt, ...);
+M_CODE   lmetha_exec_async(metha_t *m, int argc, const char **argv);
+
 M_CODE   lmetha_add_wfunction(metha_t *m, const char *name, uint8_t type, uint8_t purpose, void *fun);
 M_CODE   lmetha_add_filetype(metha_t *m, filetype_t *ft);
 M_CODE   lmetha_add_crawler(metha_t *m, crawler_t *cr);
@@ -164,8 +170,8 @@ M_CODE   lmetha_register_jsfunction(metha_t *m, const char *name, JSNative fun, 
 M_CODE   lmetha_init_jsclass(metha_t *m, JSClass *class, JSNative constructor, uintN nargs, JSPropertySpec *ps, JSFunctionSpec *fs, JSPropertySpec *static_ps, JSFunctionSpec *static_fs);
 M_CODE   lmetha_signal(metha_t *m, int sig);
 M_CODE   lmetha_start(metha_t *m);
-M_CODE   lmetha_wakeup_worker(metha_t *m, const char *crawler, const char *url);
 M_CODE   lmetha_load_config(metha_t *m, const char *file);
+M_CODE   lmetha_reset(metha_t *m);
 M_CODE   lmetha_read_config(metha_t *m, const char *buf, int size);
 filetype_t* lmetha_get_filetype(metha_t *m, const char *name);
 crawler_t*  lmetha_get_crawler(metha_t *m, const char *name);

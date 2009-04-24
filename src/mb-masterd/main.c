@@ -349,10 +349,14 @@ mbm_mysql_setup()
 
     /* if there's no user added to the user table, then we
      * must add the default one with admin:admin as login */
-    if (mysql_real_query(srv.mysql, SQL_USER_CHECK, sizeof(SQL_USER_CHECK)-1) != 0)
+    if (mysql_real_query(srv.mysql, SQL_USER_CHECK, sizeof(SQL_USER_CHECK)-1) != 0) {
+        syslog(LOG_ERR, "mysql error: %s\n", mysql_error(srv.mysql));
         return -1;
-    if (!(r = mysql_store_result(srv.mysql)))
+    }
+    if (!(r = mysql_store_result(srv.mysql))) {
+        syslog(LOG_ERR, "mysql error: %s\n", mysql_error(srv.mysql));
         return -1;
+    }
     if (!mysql_num_rows(r)) {
         mysql_real_query(srv.mysql, SQL_ADD_DEFAULT_USER,
                 sizeof(SQL_ADD_DEFAULT_USER)-1);

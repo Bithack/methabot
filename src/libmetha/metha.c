@@ -567,7 +567,7 @@ lmetha_exec_once(metha_t *m, const char *url)
 {
     M_CODE ret;
 
-    if (!m->prepared)
+    if (m->state != LM_STATE_PREPARED)
         return M_NOT_READY;
 
     iohandle_t *io_h = lm_iohandle_obtain(&m->io);
@@ -594,7 +594,7 @@ lmetha_exec_provided(metha_t *m, const char *base_url,
 {
     M_CODE ret;
 
-    if (!m->prepared)
+    if (m->state != LM_STATE_PREPARED)
         return M_NOT_READY;
 
 #ifdef DEBUG
@@ -652,7 +652,7 @@ lmetha_exec_async(metha_t *m, int argc, const char **argv)
 
     as.m = m;
 
-    if (!m->prepared)
+    if (m->state != LM_STATE_PREPARED)
         return M_NOT_READY;
 
     pthread_mutex_init(&as.mtx, 0);
@@ -680,7 +680,8 @@ lmetha_exec_async(metha_t *m, int argc, const char **argv)
 M_CODE
 lmetha_wait(metha_t *m)
 {
-    pthread_join(m->thr, 0);
+    if (m->state == LM_STATE_RUNNING)
+        pthread_join(m->thr, 0);
     return M_OK;
 }
 
@@ -697,8 +698,10 @@ do_async_main(void* in)
     pthread_mutex_lock(&as->mtx);
     pthread_cond_signal(&as->cond);
     pthread_mutex_unlock(&as->mtx);
+    m->state = LM_STATE_RUNNING;
     ev_loop(m->ev.loop, 0);
     stop_worker_threads(m);
+    m->state = LM_STATE_PREPARED;
     return 0;
 }
 
@@ -711,7 +714,7 @@ lmetha_exec(metha_t *m, int argc, const char **argv)
 {
     M_CODE r = M_OK;
 
-    if (!m->prepared)
+    if (m->state != LM_STATE_PREPARED)
         return M_NOT_READY;
 
 #ifdef DEBUG
@@ -736,18 +739,26 @@ stop_worker_threads(metha_t *m)
     int       x;
     worker_t *w;
 
-    for (x=0; x<m->w_num_waiting; x++) {
-        w = m->waiting_queue[x];
-
+    /* stop all workers */
+    for (x=0; x<m->nworkers; x++) {
+        w = m->workers[x];
         pthread_mutex_lock(&w->lock);
-        w->message = LM_WORKER_MSG_STOP;
-        pthread_cond_signal(&w->wakeup_cond);
+        switch (w->state) {
+            case LM_WORKER_STATE_STOPPED:
+                w->message = LM_WORKER_MSG_STOP;
+                pthread_cond_signal(&w->wakeup_cond);
+                break;
+            default:
+                w->message = LM_WORKER_MSG_STOP;
+        }
         pthread_mutex_unlock(&w->lock);
     }
 
     /* Wait for all threads to exit and clean up */
-    for (x=0; x<m->nworkers; x++)
+    for (x=0; x<m->nworkers; x++) {
         pthread_join(m->workers[x]->thr, 0);
+        free(w);
+    }
 
     if (m->nworkers) {
         free(m->workers);
@@ -929,8 +940,7 @@ lmetha_prepare(metha_t *m)
         }
     }
 
-    m->prepared = 1;
-
+    m->state = LM_STATE_PREPARED;
     return M_OK;
 }
 

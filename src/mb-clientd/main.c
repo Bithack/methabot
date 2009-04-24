@@ -44,6 +44,7 @@ static int mbc_master_send_login();
 void mbc_ev_timer(EV_P_ ev_timer *w, int revents);
 void mbc_set_active(EV_P_ int which);
 void mbc_ev_idle(EV_P_ ev_async *w, int revents);
+static void mbc_ev_sig(EV_P_ ev_signal *w, int revents);
 
 static void mbc_lm_status_cb(metha_t *m, worker_t *w, url_t *url);
 static void mbc_lm_target_cb(metha_t *m, worker_t *w, url_t *url, attr_list_t *al, filetype_t *ft);
@@ -66,6 +67,9 @@ int
 main(int argc, char **argv)
 {
     M_CODE          r;
+    ev_signal sigint_listen;
+    ev_signal sigterm_listen;
+    ev_signal sighup_listen;
 
     signal(SIGPIPE, SIG_IGN);
     openlog("mb-clientd", 0, 0);
@@ -88,6 +92,11 @@ main(int argc, char **argv)
 
     mbc.loop = ev_default_loop(0);
 
+    /* catch signals */
+    ev_signal_init(&sigint_listen, &mbc_ev_sig, SIGINT);
+    ev_signal_init(&sigterm_listen, &mbc_ev_sig, SIGTERM);
+    ev_signal_init(&sighup_listen, &mbc_ev_sig, SIGHUP);
+
     ev_io_init(&mbc.sock_ev, mbc_ev_master, mbc.sock, EV_READ);
     ev_timer_init(&mbc.timer_ev, mbc_ev_timer, TIMER_WAIT, .0f);
     mbc.timer_ev.repeat = TIMER_WAIT;
@@ -103,9 +112,13 @@ main(int argc, char **argv)
     }
 
     ev_async_start(mbc.loop, &mbc.idle_ev);
+    ev_signal_start(mbc.loop, &sigint_listen);
+    ev_signal_start(mbc.loop, &sigterm_listen);
+    ev_signal_start(mbc.loop, &sighup_listen);
     ev_loop(mbc.loop, 0);
 
     ev_default_destroy();
+    lmetha_destroy(mbc.m);
     return 0;
 }
 
@@ -445,5 +458,14 @@ mbc_master_send_login()
     send(mbc.sock, "AUTH client test test\n", strlen("AUTH client test test\n"), 0);
 
     return 0;
+}
+
+static void
+mbc_ev_sig(EV_P_ ev_signal *w, int revents)
+{
+    syslog(LOG_INFO, "interrupted, exiting");
+    lmetha_signal(mbc.m, LM_SIGNAL_EXIT);
+    lmetha_wait(mbc.m);
+    ev_unloop(EV_A_ EVUNLOOP_ONE);
 }
 

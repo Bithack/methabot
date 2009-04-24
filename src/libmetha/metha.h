@@ -44,6 +44,12 @@ enum {
     LM_SIGNAL_CONTINUE,
 };
 
+enum {
+    LM_STATE_INIT = 0,
+    LM_STATE_PREPARED,
+    LM_STATE_RUNNING,
+};
+
 struct observer_pool {
     unsigned int     count;
     struct observer *o;
@@ -149,7 +155,7 @@ typedef struct metha {
     int num_threads;
 
     int robotstxt; /* is robots.txt support enabled in ANY crawler? */
-    int prepared;
+    int state;
 } metha_t;
 
 /* metha.c */

@@ -297,26 +297,24 @@ lm_worker_main(void *in)
         lm_worker_perform(w);
         lm_worker_sort(w);
 
-#if 0
         /* Check for a message */
+        /*
         pthread_mutex_lock(&w->lock);
-        int msg = *message_id;
-
-        switch (msg) {
+        */
+        switch ((volatile)w->message) {
             case LM_WORKER_MSG_STOP:
                 w->state = LM_WORKER_STATE_STOPPED;
-                pthread_mutex_unlock(&w->lock);
+         /*       pthread_mutex_unlock(&w->lock);*/
                 goto done;
 
             case LM_WORKER_MSG_PAUSE:
-                pthread_mutex_unlock(&w->lock);
+                /*pthread_mutex_unlock(&w->lock);*/
                 lm_worker_wait(w);
                 break;
 
-            default:
-                pthread_mutex_unlock(&w->lock);
+      /*      default:
+                pthread_mutex_unlock(&w->lock);*/
         }
-#endif
 
         /* Check if another worker is in need of new URLs */
         pthread_rwlock_rdlock(lk_num_waiting);
@@ -401,7 +399,7 @@ lm_worker_main(void *in)
             pthread_rwlock_unlock(lk_num_waiting);
     } while (1);
 
-stop:
+done:
     lm_notify(w->m, LM_EV_THREAD_DESTROY);
     ue_handle_free(w->ue_h);
     pthread_mutex_destroy(&w->lock);
@@ -470,7 +468,7 @@ lm_worker_free(worker_t *w)
 
     JS_DestroyContext(w->e4x_cx);
     lm_iohandle_destroy(w->io_h);
-    free(w);
+    lm_attrlist_cleanup(&w->attributes);
 }
 
 /** 

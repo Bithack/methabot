@@ -2,6 +2,10 @@
 $info = simplexml_load_string($m->slave_info((int)$_GET['id']));
 $clients = simplexml_load_string($m->list_clients((int)$_GET['id']));
 if ($info) {
+    $id = $info->attributes()->for;
+    $id = (int)substr($id, strpos($id, '-')+1);
+    if (isset($_GET['do']) && $_GET['do'] == 'disconnect-all')
+        $m->kill_all($id);
 ?>
 <h2>[<?=$info->attributes()->for?>]/info</h2>
 <div class="content-layer">
@@ -12,9 +16,10 @@ if ($info) {
 </div>
 <div class="content-layer">
     <h3>Signals</h3>
-    <input type="button" value="Stop all clients" />
-    <input type="button" value="Continue all" />
-    <input type="button" value="Kill" />
+    <a class="button" href="#">Kill</a>
+    <a class="button" href="#">Stop all clients</a>
+    <a class="button" href="#">Continue all</a>
+    <a class="button" href="?p=slave-info&amp;id=<?=$id?>&amp;do=disconnect-all">Disconnect all clients</a>
 </div>
 <div class="content-layer">
     <h3>Clients</h3>
@@ -31,12 +36,13 @@ foreach ($clients->client as $c) {
     printf(
             "<tr%s>".
               "<td><a class=\"id\" href=\"?p=client-info&amp;id=%s\">%s</a></td>".
-              "<td>%s</td>".
+              "<td class=\"sep\">%s@%s</td>".
+              "<td><em>%s</em></td>".
             "</tr>",
             $x?" class=\"odd\"":"",
             $id,
             $id,
-            $c->user);
+            $c->user, $c->address, $c->status==1?"running":"idle");
     $x = !$x;
 }
 ?>

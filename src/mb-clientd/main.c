@@ -173,13 +173,13 @@ mbc_lm_target_cb(metha_t *m, worker_t *w,
 static void
 mbc_lm_error_cb(metha_t *m, const char *s, ...)
 {
-
+    syslog(LOG_ERR, "error: %s", s);
 }
 
 static void
 mbc_lm_warning_cb(metha_t *m, const char *s, ...)
 {
-
+    syslog(LOG_WARNING, "warning: %s", s);
 }
 
 static void
@@ -192,6 +192,8 @@ mbc_lm_ev_cb(metha_t *m, int ev)
              * to request a new URL from the slave.
              **/
             ev_async_send(mbc.loop, &mbc.idle_ev);
+            /* also stop the thread laucnhed by lmetha_exec_async() */
+            lmetha_signal(m, LM_SIGNAL_EXIT);
             break;
     }
 }
@@ -263,6 +265,9 @@ void
 mbc_ev_idle(EV_P_ ev_async *w, int revents)
 {
     send(mbc.sock, "STATUS 0\n", 9, 0);
+    /* wait for our libmetha thread to exit before
+     * continuing with the event loop */
+    lmetha_wait(mbc.m);
     mbc.state = MBC_STATE_STOPPED;
 }
 
@@ -341,6 +346,7 @@ mbc_ev_slave(EV_P_ ev_io *w, int revents)
 {
     mbc.no->fd = w->fd;
     if (nolp_recv(mbc.no) != 0) {
+        syslog(LOG_INFO, "connection to slave lost");
         close(w->fd);
         mbc.state = MBC_STATE_DISCONNECTED;
         mbc_set_active(EV_A_ MBC_NONE);

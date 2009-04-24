@@ -23,34 +23,12 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <metha/metha.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <errno.h>
 #include "js.h"
 
-JSBool lmm_FileClass_construct(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
-JSBool lmm_FileClass_finalize(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
-static JSBool lmm_file_open(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
-static JSBool lmm_file_write(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
-static JSBool lmm_file_close(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
-static JSBool lmm_file_read(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
-static JSBool lmm_file_remove(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
-
-struct JSClass FileClass = {
-    "FileHandle",
-    JSCLASS_HAS_PRIVATE,
-    JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_PropertyStub,
-    JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, lmm_FileClass_finalize,
-    0, 0, 0, lmm_FileClass_construct, 0, 0, 0, 0
-};
-
-JSFunctionSpec lmm_FileClass_functions[] = {
-    {"open",        lmm_file_open,      2},
-    {"write",       lmm_file_write,     2},
-    {"close",       lmm_file_close,     1},
-    {"read",        lmm_file_read,      2},
-    {"remove",      lmm_file_remove,    1},
-    0
-};
-
-static JSBool
+JSBool
 lmm_file_open(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
 {
     if (argc < 2) {
@@ -69,7 +47,7 @@ lmm_file_open(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret
     return JS_TRUE;
 }
 
-static JSBool
+JSBool
 lmm_file_write(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
 {
     if (argc < 2) {
@@ -87,7 +65,7 @@ lmm_file_write(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *re
     return JS_TRUE;
 }
 
-static JSBool
+JSBool
 lmm_file_close(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
 {
     if (argc < 1) {
@@ -104,7 +82,7 @@ lmm_file_close(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *re
     return JS_TRUE;
 }
 
-static JSBool
+JSBool
 lmm_file_read(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
 {
     if (argc < 2) {
@@ -143,7 +121,7 @@ lmm_file_read(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret
     return JS_TRUE;
 }
 
-static JSBool
+JSBool
 lmm_file_remove(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
 {
     if (argc < 1) {
@@ -166,14 +144,83 @@ lmm_file_remove(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *r
 }
 
 JSBool
-lmm_FileClass_construct(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
+lmm_file_opendir(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
 {
+    if (argc < 1) {
+        lm_error("not enough arguments for opendir(), %d given\n", argc);
+        return JS_FALSE;
+    }
+
+    const char *name = JS_GetStringBytes(JSVAL_TO_STRING(argv[0]));
+    if (!name) return JS_FALSE;
+
+    DIR *dh;
+    dh = opendir(name);
+    if (dh == NULL) {
+        switch (errno) {
+            case EACCES:
+                fprintf(stderr, "[E] permission denied\n");
+                break;
+            case ENOENT:
+                fprintf(stderr, "[E] directory %s does not exist\n", name);
+                break;
+            case ENOTDIR:
+                fprintf(stderr, "[E] %s is not a directory\n", name);
+                break;
+            default:
+                fprintf(stderr, "[E] what is this fucking error\n");
+                break;
+        }
+        return JS_TRUE;
+    }
+
+    *ret = OBJECT_TO_JSVAL(dh);
     return JS_TRUE;
 }
 
 JSBool
-lmm_FileClass_finalize(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
+lmm_file_readdir(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
 {
+    if (argc < 1) {
+        lm_error("not enough arguments for opendir(), %d given\n", argc);
+        return JS_FALSE;
+    }
+
+    DIR *dh = JSVAL_TO_OBJECT(argv[0]);
+    if (dh == NULL) return JS_FALSE;
+
+    struct dirent *file;
+
+    /* Read a single file */
+    file = readdir(dh);
+
+    /* We have reached the end of the directory, return FALSE */
+    if (file == NULL) {
+        *ret = BOOLEAN_TO_JSVAL(0);
+        return JS_TRUE;
+    }
+
+    JSString *tmp = JS_NewStringCopyN(cx, file->d_name, strlen(file->d_name));
+    if (tmp == NULL) {
+        lm_error("out of mem\n");
+        return JS_FALSE;
+    }
+
+    *ret = STRING_TO_JSVAL(tmp);
     return JS_TRUE;
 }
 
+JSBool
+lmm_file_closedir(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret)
+{
+    if (argc < 1) {
+        lm_error("not enough arguments for opendir(), %d given\n", argc);
+        return JS_FALSE;
+    }
+
+    DIR *dh = JSVAL_TO_OBJECT(argv[0]);
+    if (!dh) return JS_FALSE;
+
+    closedir(dh);
+    return JS_TRUE;
+}

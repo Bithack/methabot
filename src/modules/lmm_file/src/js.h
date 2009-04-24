@@ -25,10 +25,13 @@
 
 #include <jsapi.h>
 
-extern struct JSClass FileClass;
-
-extern JSFunctionSpec lmm_FileClass_functions[];
-
-JSBool lmm_FileClass_construct(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
+JSBool lmm_file_open(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
+JSBool lmm_file_write(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
+JSBool lmm_file_close(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
+JSBool lmm_file_read(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
+JSBool lmm_file_remove(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
+JSBool lmm_file_opendir(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
+JSBool lmm_file_readdir(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
+JSBool lmm_file_closedir(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
 
 #endif

@@ -33,19 +33,32 @@
 #include <string.h>
 #include <unistd.h>
 
-static M_CODE lm_prepare_filetypes(metha_t *m);
-static M_CODE lm_prepare_crawlers(metha_t *m);
-static M_CODE lm_exec_once(metha_t *m, iohandle_t *io_h, uehandle_t *ue_h);
-static M_CODE lm_call_init(metha_t *m, uehandle_t *h, int argc, const char **argv);
-static struct script_desc* lm_load_script(metha_t *m, const char *file);
-static wfunction_t *lm_str_to_wfunction(metha_t *m, const char *name, uint8_t purpose);
-static void* lm_start(void* in);
+#define S_ static
+
+S_ M_CODE lm_prepare_filetypes(metha_t *m);
+S_ M_CODE lm_prepare_crawlers(metha_t *m);
+S_ M_CODE lm_exec_once(metha_t *m, iohandle_t *io_h, uehandle_t *ue_h);
+S_ M_CODE lm_call_init(metha_t *m, uehandle_t *h, int argc, const char **argv);
+S_ struct script_desc* lm_load_script(metha_t *m, const char *file);
+S_ wfunction_t *lm_str_to_wfunction(metha_t *m, const char *name, uint8_t purpose);
+S_ void* do_async_main(void* in);
+S_ M_CODE start_worker_threads(metha_t *m, int argc, char **argv);
+S_ void stop_worker_threads(metha_t *m);
 
 /* utf8conv.c */
 M_CODE lm_parser_utf8conv(worker_t *w, iobuf_t *buf, uehandle_t *ue_h, url_t *url, attr_list_t *al);
 
 /* entityconv.c */
 M_CODE lm_parser_entityconv(worker_t *w, iobuf_t *buf, uehandle_t *ue_h, url_t *url, attr_list_t *al);
+
+/* struct used when launching a thread and checking for
+ * success, see lmetha_exec_async() */
+struct async_data {
+    metha_t         *m;
+    pthread_cond_t   cond;
+    pthread_mutex_t  mtx;
+    M_CODE           status;
+};
 
 static JSClass global_jsclass = {
     "global", JSCLASS_GLOBAL_FLAGS,
@@ -352,7 +365,9 @@ lmetha_create(void)
     }
 
 #ifdef DEBUG
-    fprintf(stderr, "* metha:(%p) Initializing JS engine (%s)\n", m, JS_GetImplementationVersion());
+    fprintf(stderr, "* metha:(%p) Initializing JS engine (%s)\n",
+            m,
+            JS_GetImplementationVersion());
 #endif
 
     /** 
@@ -400,6 +415,13 @@ lmetha_create(void)
     for (x=0; x<NUM_DIRECTIVES; x++)
         lmc_add_directive(m->lmc, &directives[x]);
 
+    /* this loop will be used in the main thread */
+    if (!(m->ev.loop = ev_loop_new(EVFLAG_AUTO)))
+        return M_EVENT_ERROR;
+
+    ev_async_init(&m->ev.exit, &lm_ev_exit);
+    m->ev.exit.data = m;
+    ev_async_start(m->ev.loop, &m->ev.exit);
     return m;
 }
 
@@ -461,9 +483,6 @@ lmetha_destroy(metha_t *m)
         free(m->configs);
     }
 
-    if (m->nworkers)
-        free(m->workers);
-
     if (m->num_functions) {
         for (x=0; x<m->num_functions; x++) {
             /* XXX: proper cleanup */
@@ -502,6 +521,7 @@ lmetha_destroy(metha_t *m)
     ue_uninit(&m->ue);
     lm_uninit_io(&m->io);
 
+    ev_loop_destroy(m->ev.loop);
 	free(m);
 }
 
@@ -625,70 +645,61 @@ lm_exec_once(metha_t *m, iohandle_t *io_h, uehandle_t *ue_h)
  * lmetha_signal() to control it.
  **/
 M_CODE
-lmetha_start(metha_t *m)
+lmetha_exec_async(metha_t *m, int argc, const char **argv)
 {
-    pthread_t thr;
+    struct async_data as;
+    M_CODE r = M_OK;
+
+    as.m = m;
 
     if (!m->prepared)
         return M_NOT_READY;
 
-    if (pthread_create(&thr, 0, lm_start, (void*)m) != 0)
-        return M_FAILED;
+    pthread_mutex_init(&as.mtx, 0);
+    pthread_cond_init(&as.cond, 0);
 
-    return M_OK;
-}
+    if ((r = start_worker_threads(m, argc, argv) != M_OK))
+        return r;
 
-static void*
-lm_start(void* in)
-{
-    metha_t *m = in;
-    lmetha_exec(m, 0, 0);
-
-    return 0;
-}
-
-/** 
- * Send one of the possible idle workers to the 
- * given URL, using the given crawler
- **/
-M_CODE
-lmetha_wakeup_worker(metha_t *m, const char *crawler,
-                     const char *url)
-{
-    int        x;
-    worker_t  *w;
-    crawler_t *c;
-
-    for (x=0; ; x++) {
-        if (x == m->num_crawlers)
-            return M_UNKNOWN_CRAWLER;
-        if (strcmp(m->crawlers[x]->name, crawler) == 0)
-            break;
-    }
-
-    c = m->crawlers[x];
-
-    pthread_rwlock_wrlock(&m->w_lk_num_waiting);
-    if (m->w_num_waiting) {
-        w = m->waiting_queue[m->w_num_waiting-1];
-        m->w_num_waiting --;
-        pthread_rwlock_unlock(&m->w_lk_num_waiting);
-
-        /* now lock the worker itself, give it the URL
-         * and send it a CONTINUE msg */
-        pthread_mutex_lock(&w->lock);
-        lm_worker_set_crawler(w, c);
-        ue_add_initial(w->ue_h, url, (uint16_t)strlen(url));
-
-        w->message = LM_WORKER_MSG_CONTINUE;
-        pthread_cond_signal(&w->wakeup_cond);
-        pthread_mutex_unlock(&w->lock);
+    pthread_mutex_lock(&as.mtx);
+    if (pthread_create(&m->thr, 0, &do_async_main, (void*)&as) != 0) {
+        r = M_THREAD_ERROR;
+        stop_worker_threads(m);
     } else {
-        pthread_rwlock_unlock(&m->w_lk_num_waiting);
-        return M_FAILED;
+        /* wait for the created thread to signal back and
+         * set a status code in as.status */
+        pthread_cond_wait(&as.cond, &as.mtx);
+        r = as.status;
     }
+    pthread_mutex_unlock(&as.mtx);
+    pthread_mutex_destroy(&as.mtx);
+    pthread_cond_destroy(&as.cond);
+    return r;
+}
 
+M_CODE
+lmetha_wait(metha_t *m)
+{
+    pthread_join(m->thr, 0);
     return M_OK;
+}
+
+/**
+ * entry function of the launched thread
+ **/
+static void*
+do_async_main(void* in)
+{
+    struct async_data *as = (struct async_data*)in;
+    metha_t *m            = as->m;
+    as->status            = M_OK;
+
+    pthread_mutex_lock(&as->mtx);
+    pthread_cond_signal(&as->cond);
+    pthread_mutex_unlock(&as->mtx);
+    ev_loop(m->ev.loop, 0);
+    stop_worker_threads(m);
+    return 0;
 }
 
 /** 
@@ -698,30 +709,72 @@ lmetha_wakeup_worker(metha_t *m, const char *crawler,
 M_CODE 
 lmetha_exec(metha_t *m, int argc, const char **argv)
 {
-    int x, y;
+    M_CODE r = M_OK;
 
     if (!m->prepared)
         return M_NOT_READY;
 
-    if (!(m->ev.loop = ev_loop_new(EVFLAG_AUTO)))
-        return M_EVENT_ERROR;
+#ifdef DEBUG
+    fprintf(stderr, "* metha:(%p) starting with crawler '%s'\n", m, m->crawlers[m->crawler]->name);
+#endif
+
+    if ((r = start_worker_threads(m, argc, argv) != M_OK))
+        return r;
+    /* start the event loop, waiting for signals
+     * from workers */
+    ev_loop(m->ev.loop, 0);
+    stop_worker_threads(m);
+    return M_OK;
+}
+
+/** 
+ * stop and wait for all executed worker threads
+ **/
+S_ void
+stop_worker_threads(metha_t *m)
+{
+    int       x;
+    worker_t *w;
+
+    for (x=0; x<m->w_num_waiting; x++) {
+        w = m->waiting_queue[x];
+
+        pthread_mutex_lock(&w->lock);
+        w->message = LM_WORKER_MSG_STOP;
+        pthread_cond_signal(&w->wakeup_cond);
+        pthread_mutex_unlock(&w->lock);
+    }
+
+    /* Wait for all threads to exit and clean up */
+    for (x=0; x<m->nworkers; x++)
+        pthread_join(m->workers[x]->thr, 0);
+
+    if (m->nworkers) {
+        free(m->workers);
+        m->workers = 0;
+        m->nworkers = 0;
+    }
+    free(m->waiting_queue);
+}
+
+
+/**
+ * create and launch the worker threads
+ *
+ * spread the input data, one input to each worker. 
+ * If there are less workers than there are initial URLs, then 
+ * the last worker will receive all remaining URLs. */
+S_ M_CODE
+start_worker_threads(metha_t *m, int argc,
+                     char **argv)
+{
+    int x;
 
     if (!(m->waiting_queue = malloc(m->num_threads*sizeof(void*))))
         return M_OUT_OF_MEM;
 
     m->w_num_waiting = 0;
 
-#ifdef DEBUG
-    fprintf(stderr, "* metha:(%p) starting with crawler '%s'\n", m, m->crawlers[m->crawler]->name);
-#endif
-
-    ev_async_init(&m->ev.exit, &lm_ev_exit);
-    m->ev.exit.data = m;
-    ev_async_start(m->ev.loop, &m->ev.exit);
-
-    /* Spread the initial urls (from m->urls), one to each worker. 
-     * If there are less workers than there are initial URLs, then 
-     * the last worker will receive all remaining URLs. */
     for (x=0; x<m->num_threads; x++) {
         uehandle_t *h;
 
@@ -749,27 +802,8 @@ lmetha_exec(metha_t *m, int argc, const char **argv)
         }
         if (lm_fork_worker(m, m->crawlers[m->crawler], h, 0, 0) != M_OK)
             return M_FAILED;
-        
     }
 
-    /* start the event loop, waiting for signals from workers */
-    ev_loop(m->ev.loop, 0);
-
-    for (x=0; x<m->w_num_waiting; x++) {
-        worker_t *w = m->waiting_queue[x];
-        pthread_mutex_lock(&w->lock);
-        w->message = LM_WORKER_MSG_STOP;
-        pthread_cond_signal(&w->wakeup_cond);
-        pthread_mutex_unlock(&w->lock);
-    }
-
-    /* Wait for all threads to exit and clean up */
-    for (x=0; x<m->nworkers; x++) {
-        pthread_join(m->workers[x]->thr, 0);
-    }
-
-    free(m->waiting_queue);
-    ev_loop_destroy(m->ev.loop);
     return M_OK;
 }
 
@@ -1502,7 +1536,7 @@ error:
 
 /** 
  * Signal a running libmetha session. The session
- * must have been started using lmetha_start()
+ * must have been started using lmetha_exec_async()
  **/
 M_CODE
 lmetha_signal(metha_t *m, int sig)
@@ -1512,6 +1546,23 @@ lmetha_signal(metha_t *m, int sig)
             ev_async_send(m->ev.loop, &m->ev.exit);
             break;
     }
+    return M_OK;
+}
+
+/** 
+ * Clear run-time data such as cached URLs, host entries
+ * and URL lists.
+ **/
+M_CODE
+lmetha_reset(metha_t *m)
+{
+#ifdef DEBUG
+    fprintf(stderr, "* metha:(%p) reset\n", m);
+#endif
+    ue_uninit(&m->ue);
+    memset(&m->ue, 0, sizeof(ue_t));
+    ue_init(&m->ue);
+
     return M_OK;
 }
 

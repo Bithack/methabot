@@ -6,7 +6,10 @@ lmetha_load_config
 lmetha_register_scope
 lmetha_init_jsclass
 lmetha_register_worker_object
-lmetha_start
+lmetha_exec
+lmetha_exec_provided
+lmetha_exec_async
 lmetha_signal
 lmetha_read_config
 lmetha_register_jsfunction
+lmetha_reset

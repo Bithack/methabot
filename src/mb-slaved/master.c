@@ -85,7 +85,7 @@ on_kill_all(nolp_t *no, char *buf, int size)
 static int
 on_config(nolp_t *no, char *buf, int size)
 {
-    return nolp_expect(no, &on_config_recv, atoi(buf));
+    return nolp_expect(no, atoi(buf), &on_config_recv);
 }
 
 /* receive the configuration buffer, called
@@ -120,6 +120,7 @@ on_client(nolp_t *no, char *buf, int size)
     char          *s;
     int            ok;
 
+    buf[size] = 0;
     ok = 0;
     if (!(s = memchr(buf, ' ', size)))
         return -1;

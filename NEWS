@@ -7,7 +7,7 @@ form a Methanol system, so you can now build your own customized distributed web
 crawling system, with all the features and goodies of libmetha integrated!
 
 You can read more about Methanol at the new website:
-http://metha-sys.org
+http://metha-sys.org/
 
 The old website and wiki  will  however  still be the primary resource for docu-
 mentation and project related new:
@@ -34,6 +34,8 @@ Changes and new features:
 * API support for custom status, error/warning and target reporter functions
 * lmetha_global_setopt() is no longer available, replaced with lmetha_setopt()
   options
+* libmetha no longer depends on libev, but instead uses pipes and epoll() for
+  inter-thread communication and waiting for events on sockets.
 * mb-clientd is  a version of the methabot client, running in the background and
   communicating with a Methanol web crawling system
 * mb-slaved: a slave server  responsible  for  managing and collecting data from

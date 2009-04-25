@@ -2,7 +2,6 @@ AC_INIT(methabot, 1.7.0, http://bithack.se/projects/methabot/)
 
 AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
 
-m4_include([libev.m4])
 AM_CONFIG_HEADER(src/config.h)
 AM_MAINTAINER_MODE
 AM_ICONV
@@ -14,29 +13,89 @@ AC_HEADER_STDC
 
 AC_PROG_LIBTOOL
 
+build_cli=yes
+
 AC_ARG_ENABLE(debug,
 [  --enable-debug           Enable debug output for libmetha],
-	debug=true, debug=false)
+	debug=yes, debug=no)
 AC_ARG_ENABLE(io-debug,
 [  --enable-io-debug        Enable I/O debug output for libmetha],
-	io_debug=true, io_debug=false)
+	io_debug=yes, io_debug=no)
 AC_ARG_ENABLE(cli,
 [  --disable-cli            Don't compile/install the command line tool],
-    build_cli=false, build_cli=true)
+    build_cli=no, build_cli=yes)
 AC_ARG_ENABLE(slave,
 [  --enable-slave           Build the slave server daemon],
-    build_slave=true, build_slave=false)
+    build_slave=yes, build_slave=no)
 AC_ARG_ENABLE(master,
 [  --enable-master          Build the master server daemon],
-    build_master=true, build_master=false)
+    build_master=yes, build_master=no)
 AC_ARG_ENABLE(client,
 [  --enable-client          Build the client daemon],
-    build_client=true, build_client=false)
+    build_client=yes, build_client=no)
+AC_ARG_WITH(mysql-include,
+[  --with-mysql-include     Optional path to where mysql.h is],
+    mc_inc="$withval",
+    mc_inc="")
 
-if test "$debug" = "true"; then
+AC_ARG_WITH(mysql-lib,
+[  --with-mysql-lib         Optional path to where mysql libraries],
+    mc_lib="$withval",
+    mc_lib="")
+
+SUBDIRS_EXTRA=""
+
+if test "x$build_slave" = "xyes"; then
+    SUBDIRS_EXTRA="mb-slaved"
+    check_server_stuff="yes";
+fi
+if test "x$build_master" = "xyes"; then
+    SUBDIRS_EXTRA="${SUBDIRS_EXTRA} mb-masterd"
+    check_server_stuff="yes";
+fi
+if test "x$build_client" = "xyes"; then
+    SUBDIRS_EXTRA="${SUBDIRS_EXTRA} libmetha metha-config mb-clientd"
+else
+    SUBDIRS_EXTRA="${SUBDIRS_EXTRA} libmetha metha-config"
+fi
+if test "x$build_cli" = "xyes"; then
+    SUBDIRS_EXTRA="${SUBDIRS_EXTRA} methabot"
+fi
+
+if test "x$check_server_stuff" = "xyes"; then
+    if test "x$mc_inc" != "x"; then
+        CFLAGS="${CFLAGS} -I${mc_inc}"
+    else
+        CFLAGS="${CFLAGS} -I/usr/include/mysql"
+    fi
+
+    AC_CHECK_HEADERS([mysql.h],,
+            AC_MSG_ERROR([could not find mysql.h]))
+
+    if test "x$mc_lib" != "x"; then
+        LDFLAGS="${LDFLAGS} -L${mc_lib}"
+    fi
+
+    AC_CHECK_LIB(mysqlclient_r, mysql_real_connect,,AC_MSG_ERROR(could not link libmysqlclient_r))
+    LIBS="-lmysqlclient_r"
+    need_libev=yes
+else
+    if test "x$build_client" = "xyes"; then
+        need_libev=yes;
+    else
+        need_libev=no;
+    fi
+fi
+
+if test "x$need_libev" = "xyes"; then
+    AC_CHECK_HEADERS([ev.h],,AC_MSG_ERROR([could not find ev.h]))
+    AC_CHECK_LIB(ev, ev_loop,,AC_MSG_ERROR(could not link with libev))
+fi
+
+if test "x$debug" = "xyes"; then
   CFLAGS="${CFLAGS} -DDEBUG -g -O0"
 fi
-if test "$io_debug" = "true"; then
+if test "x$io_debug" = "xyes"; then
   CFLAGS="${CFLAGS} -DIO_DEBUG -g"
 fi
 
@@ -129,25 +188,13 @@ if test "x$PTHREAD_LIBS" = xerror; then
 fi
 LIBS="${PTHREAD_LIBS} ${LIBS} ${SPIDERMONKEY_LIBS}"
 
-AC_CHECK_FUNCS([strdup realloc strncasecmp memmem])
-AC_CHECK_HEADERS([pthread.h stdint.h])
+AC_CHECK_HEADERS([pthread.h stdint.h sys/epoll.h])
+AC_CHECK_FUNCS([strdup realloc strncasecmp memmem epoll_ctl])
 
 AC_DEFINE_UNQUOTED(BUILD_LIBS, "${LIBS}", [used by modules to link the same libraries as libmetha])
 AC_DEFINE_UNQUOTED(BUILD_CFLAGS, "${JS_INCLUDE_PATH} -D_GNU_SOURCE -DJS_THREADSAFE -DXP_UNIX ${BUILD_FLAGS_EXTRA}", [used by modules to build with the same flags at libmetha])
 
 includedir=$includedir/metha
-
-SUBDIRS_EXTRA=""
-
-if test "x$build_slave" = "xtrue"; then
-    SUBDIRS_EXTRA="mb-slaved"
-fi
-if test "x$build_master" = "xtrue"; then
-    SUBDIRS_EXTRA="${SUBDIRS_EXTRA} mb-masterd"
-fi
-if test "x$build_client" = "xtrue"; then
-    SUBDIRS_EXTRA="${SUBDIRS_EXTRA} mb-clientd"
-fi
 
 AC_SUBST(SUBDIRS_EXTRA)
 
@@ -162,4 +209,21 @@ src/mb-slaved/Makefile
 src/mb-clientd/Makefile
 Makefile
 ])
+
+echo
+echo ----
+echo
+echo "Configure of methabot-"AC_PACKAGE_VERSION", done at `date`:"
+echo 
+echo "  Host:                       $host"
+echo "  Installation prefix:        $prefix"
+echo "  Building mb-masterd:        $build_master"
+echo "  Building mb-slaved:         $build_slave"
+echo "  Building mb-clientd:        $build_client"
+echo "  Building mb:                $build_cli"
+echo "  Debugging enabled:          $debug"
+echo "  I/O-debugging enabled:      $io_debug"
+echo
+echo "Run 'make' to compile."
+echo 
 

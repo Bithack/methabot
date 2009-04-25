@@ -5,9 +5,9 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <mysql/mysql.h>
+#include <ev.h>
 
 #include "nolp.h"
-#include "../libmetha/libev/ev.h"
 
 #define NOL_SLAVE_DEFAULT_PORT 5506
 #define MAX_NUM_PENDING  128

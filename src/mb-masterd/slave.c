@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <syslog.h>
-#include "libev/ev.h"
+#include <ev.h>
 #include "master.h"
 #include "conn.h"
 #include "nolp.h"

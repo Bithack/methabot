@@ -26,6 +26,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <errno.h>
+#include <ev.h>
 
 #include "lmc.h"
 #include "../mb-masterd/server.h"
@@ -51,8 +52,6 @@ const char     *_cfg_file;
 struct slave    srv;
 struct opt_vals opt_vals;
 extern struct nolp_fn master_commands[];
-
-#include "../libmetha/libev/ev.c"
 
 struct lmc_scope slave_scope =
 {

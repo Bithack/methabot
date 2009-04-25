@@ -24,8 +24,8 @@
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <ev.h>
 #include "../libmetha/metha.h"
-#include "../libmetha/libev/ev.h"
 #include "nolp.h"
 
 enum {

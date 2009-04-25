@@ -22,8 +22,7 @@
 #ifndef _MBM_CONN__H_
 #define _MBM_CONN__H_
 
-#include "../libmetha/libev/ev.h"
-
+#include <ev.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 

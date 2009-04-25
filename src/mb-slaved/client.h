@@ -24,7 +24,7 @@
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include "libev/ev.h"
+#include <ev.h>
 
 #define TOKEN_SIZE 40
 

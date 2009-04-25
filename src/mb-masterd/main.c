@@ -25,11 +25,11 @@
 #include <syslog.h>
 #include <string.h>
 #include <errno.h>
+#include <ev.h>
 
 #include "master.h"
 #include "conn.h"
 #include "conf.h"
-#include "../libmetha/libev/ev.c"
 
 int mbm_main();
 int mbm_cleanup();

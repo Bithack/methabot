@@ -19,14 +19,16 @@
  * http://bithack.se/projects/methabot/
  */
 
+#include <ev.h>
 #include <syslog.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <string.h>
 
 #include "client.h"
 #include "../libmetha/metha.h"
 #include "../libmetha/worker.h"
-#include "../libmetha/libev/ev.c"
 
 #define TIMER_WAIT 5.f
 

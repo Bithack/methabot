@@ -19,10 +19,10 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "libev/ev.h"
 #include "master.h"
 #include "nolp.h"
 
+#include <ev.h>
 #include <syslog.h>
 #include <stdio.h>
 #include <stdlib.h>

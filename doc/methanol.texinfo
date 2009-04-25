@@ -119,24 +119,39 @@ HTML to XML/XHTML conversion
 Conversion between different character encodings, default encoding utf-8
 @end itemize
 
-@section Concepts and definitions
+@section Overview
 
-@subsection Client
-When a computer running a program linked to @code{libmetha} connects to a Methanol
-master or slave server, it becomes a client. A client is thus a program. Most commonly,
-a client is an instance of @code{mb-clientd}.
-@subsection Crawler
-A crawler is a configuration environment in which a worker runs. A crawler is like
-a set of rules as to how data and URLs should be handled, what should be filtered
-and what should be not.
-@subsection Filetype
-A filetype is a set of rules for matching a file. An example could be a filetype
-named "audio" matching URLs with the @code{.mp3} file extension, or data with
-the MIME type @code{audio/mpeg}. When a URL or piece of data matches a filetype,
-a parser might be invoked depending on the filetype's declaration.
-@subsection Worker
-A worker is a thread launched by the main thread of @code{libmetha}. Each worker
-has its own active crawler configuration and its own list of URLs.
+There are a few concepts that you should be familiar with when working with 
+Methanol systems. The probably most important thing to know is that a @code{crawler},
+in terms of the Methanol system, is not a @emph{function} or @emph{process}.
+A crawler is merely a set of rules as to how web pages and files are crawled.
+
+The actual process with threads crawling web pages or files should
+be refered to as a client with worker threads. Each worker may
+work independently on separate pages, but as long as they are running
+under the same process they share the same URL cache and set
+of rules.
+
+A worker will always be directly connected to a single crawler at once.
+However, depending on how the configuration file looks, the worker may
+dynamically switch to another crawler.
+
+The primary difference between any two crawlers is their lists of 
+filetypes. One crawler might for example have filetype definitions for HTML files,
+while another crawler might have filetype definitions for video files. The
+worker is restricted to its current crawler's list of filetypes.
+
+When a worker is running with a specific crawler, it might find URLs or data
+matching one of the crawler's filetypes. The filetype in turn can have @emph{parsers}
+and @emph{attributes}. A parser is in short a script or callback function that
+sets attributes. As an example, you could define a filetype named "HTML" with
+attributes such as "title" and "description". The parsers job is to extract data
+and set these attributes.
+
+When a client is connected to a Methanol system, data can be uploaded to the system
+if the attributes talked about above were set by a parser. Once the data
+has been uploaded, they will be available in the MySQL 
+database.
 
 @cindex introduction
 
@@ -161,6 +176,7 @@ installed on your system, depending on which parts you plan to install:
 @item MySQL (libmysqlclient) >= 5.0 @tab no                   @tab yes
 @item libcurl >= 7.16.0             @tab yes                  @tab no
 @item SpiderMonkey >= 1.7.0         @tab yes                  @tab no
+@item libev                         @tab @emph{only mb-clientd}@tab no
 @item pthread                       @tab yes                  @tab yes
 @end multitable
 
@@ -175,7 +191,7 @@ $ cd methabot-1.7.0
 
 Now its time to configure what parts of the system you would like to install.
 For example, if you are installing a server you should most likely want to install @code{mb-slaved} and/or
-@code{mb-masterd} only, and @code{mb-clientd} on several otherc client computers.
+@code{mb-masterd} only, and @code{mb-clientd} on several other client computers.
 Or if you are only interested in the command line utility @code{mb}, you don't
 want to compile the server daemons.
 

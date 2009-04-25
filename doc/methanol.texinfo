@@ -67,10 +67,11 @@ Copying and license
 * Copying::
 @end menu
 
-@c Appendices
-@c @menu
+Appendices
+@menu
+* Robots Exclusion Standard:: Notes about robots.txt
 @c * Installing Dependencies::
-@c @end menu
+@end menu
 
 Indices
 @menu
@@ -348,6 +349,12 @@ using @code{madmind} or by sending it the @code{INT} signal.
 script hooks.
 @section @code{madmind} -- Server Administration Tool
 
+@code{madmind} is a command line tool for communicating with the Master server.
+It is not available in this release, phpMadMind can be used instead.
+
+@section @code{phpMadMind} -- Web Administration Tool
+@code{phpMadMind} is a set of PHP scripts for administrating a Methanol system. See @code{config.example.php} in the
+source code directory for installation help.
 
 @node Configuration Files
 @chapter Configuration Files
@@ -703,8 +710,89 @@ A handler can, just like a parser, be either a C or a Javascript function.
 
 @section Configuring @code{mn-masterd}
 @code{mn-masterd} is configured through @code{mn-masterd.conf}, normally
-this file can be found at @code{/etc/mn-masterd.conf}.
+this file can be found at @code{/etc/mn-masterd.conf}. The layout of this file
+is simple, all options should be put inside a scope named @code{master}, like this:
+@example
+master @{
+    listen = "127.0.0.1";
+@}
+@end example
+
+The above file will configure the listening address for the server.
+
+Since @code{mb-masterd} will require both @code{mb-slaved} and @code{mb-clientd}
+to authenticate once they have connected, you will of course need to 
+set authentication credentials.
+
+To define a slave named "default", with password set to "pwd", allowed to log in from 
+the local network:
+
+@example
+slave["default"]
+@{
+    password = "pwd";
+    allow = @{"192.168.1.0/24"@};
+@}
+@end example
+
+The @code{allow} option defines where the slave is allowed to connect from.
+This option expects an array of subnets, that is network addresses in combination
+with subnet masks. Note that if you omitt @code{allow} completely, all incoming
+connections will be accepted (assuming they login using the right password).
+
+@subsection @code{master} Option Reference
+@table @code
+@item listen
+Listen address (and port). Set to "host:port" or "host".
+@item config_file
+The global system configuration file. This file will be sent to all connected clients, it should
+define crawlers and filetypes.
+@item session_complete_hook
+Script to run when a session is completed.
+@item user
+Username of a local system user, the daemon will change its user id for security reasons. The value of this
+option should most likely be "nobody".
+@item group
+Username of a local system group. The value of this
+option should most likely be "nobody".
+@item mysql_host
+The host name or IP address of the MySQL server.
+@item mysql_user
+MySQL user name.
+@item mysql_pass
+MySQL user password.
+@item mysql_db
+The database to select. Make sure the user has full privileges to the database.
+@end table
+@subsection @code{user} Option Reference
+@subsection @code{slave} Option Reference
+
 @section Configuring @code{mn-slaved}
+@code{mb-slaved} loads its configuration file from @code{mb-slaved.conf}, which normally resides at
+@code{/etc/mb-slaved.conf}.
+@subsection Option Reference
+@table @code
+@item listen
+Listen address (and port). Set to "host:port" or "host".
+@item user
+Username of a local system user, the daemon will change its user id for security reasons. The value of this
+option should most likely be "nobody".
+@item group
+Username of a local system group. The value of this
+option should most likely be "nobody".
+@item exec_dir
+If you have set up system hook scripts, the slave will download them to this directory before
+executing them. Make sure the user specified using @code{user} has permissions to execute
+and write to the directory.
+@item mysql_host
+The host name or IP address of the MySQL server.
+@item mysql_user
+MySQL user name.
+@item mysql_pass
+MySQL user password.
+@item mysql_db
+The database to select. Make sure the user has full privileges to the database.
+@end table
 
 @node Parsers
 @chapter Parsers
@@ -992,9 +1080,98 @@ crawler["..."]
 @chapter System Script Hooks
 @cindex hooks
 
-This chapter will talk about script hooks. Hooks are used in a
+This chapter will talk about script hooks. Script hooks are used in a
 Methanol system for customization.
 
+The scripts should be put on the master server. The master server will then distribute 
+the scripts to the slave servers. Finally, the slave server(s) will execute the 
+scripts.
+
+Depending on what hook you are writing a script for, the script will be 
+executed when different events occur in the system. For example, the @code{cleanup}
+hook is executed before a slave exits, and the @code{session_complete} hook is
+executed when a client has uploaded information about a web page.
+
+A system hook can be scripted in @emph{any} scripting language, as long as the language
+is supported by the slave server. This manual will however concentrate on hooks scripted
+in PHP.
+
+@section Script Files
+
+To set up a hook, set the hook's corresponding @code{mn-masterd} option to 
+the full path of the script file. The file can be placed anywhere on the system. Example:
+@example
+master @{
+    ...
+    session_complete_hook = "/home/example/example.php";
+    ...
+@}
+@end example
+
+The file itself, in this case @code{example.php}, must @emph{always} begin with a line telling
+the operating system which interpreter to use. This is the line you see in any script file 
+on your system. For example, a PHP file might begin with:
+@example
+#!/usr/bin/php
+... script ...
+@end example
+
+A bash file might begin with:
+@example
+#!/bin/bash
+... script ...
+@end example
+
+But the full path to the interpreter depends on where it is installed on the system.
+
+Please note that the scripts will be run on slave servers, and not on the master server,
+so even though you put the script on the master, you must make sure the path to 
+the interpreter applies on the slave server(s).
+
+@section Preparing @code{mn-slaved}
+@code{mn-slaved} will save the scripts received from the master to one file per script. To 
+do this, the slave must have write permissions to a directory in the system. Furthermore, 
+it will need execute permissions on the same directory to be able to execute the scripts.
+
+First we create a directory where @code{mn-slaved} will be working. You can choose to create
+it anywhere in the system, as long as that partition is not mounted with @code{noexec}, but
+in this manual we will create it in @code{/var/mn-slaved}.
+@example
+$ mkdir /var/mn-slaved
+$ useradd -r mn-slaved -s /sbin/nologin -d /dev/null
+$ chown mn-slaved:mn-slaved /var/mn-slaved
+@end example
+
+Now we can set up @code{mn-slaved} to use our new system user when forking. Change the @code{user} and
+@code{group} options of in @code{mn-slaved.conf} to "mn-slaved" both.
+
+The @code{exec_dir} option must also be set, set it to the directory you created. To summarize:
+@example
+slave @{
+    ...
+    user = "mn-slaved";
+    group = "mn-slaved";
+    exec_dir = "/var/mn-slaved";
+@}
+@end example
+
+@section Supported Hooks
+This section will describe each hook, how it will be invoked and when it will be invoked.
+@subsection @code{cleanup}
+The @code{cleanup} hook will be invoked before the slave exits. This hook can be useful
+for cleaning up custom data added to the database, which is no longer needed after
+the slave has disconnected.
+
+See the @code{cleanup_hook} @code{mb-masterd} option.
+
+@subsection @code{session_complete}
+The @code{session_complete} hook will be invoked once a session completes.
+When a slave sends a URL to the client, a session is started.
+This session will last until the client is out of URLs again. Note that
+the definition of a session is dependant on how the clients' crawlers are configured,
+such as depth limit.
+
+See the @code{session_complete_hook} @code{mb-masterd} option.
 
 
 @node Modules
@@ -1019,6 +1196,58 @@ Methanol system for customization.
 @chapter Copying
 @insertcopying
 @cindex Copying
+
+@node Robots Exclusion Standard
+@appendix Robots Exclusion Standard
+
+Web crawlers such as @code{mb} and @code{mb-clientd}
+can download a file named @code{robots.txt} from the root directory of a web server. This file 
+will contain rules as to which pages or parts of the website the bot may access and not. This
+system is known as the robots exclusion standard.
+
+Enabling support for robots.txt is recommended when doing heavy crawling.
+You can enable @code{robots.txt} from command line using:
+@example
+$ mb --robotstxt
+@end example
+You can also enable it per-crawler from a configuration file:
+@example
+crawler["example"]
+@{
+    robotstxt = true;
+@}
+@end example
+ 
+@code{libmetha} has wide support for the robots exclusion standard. 
+The following table lists which directives that are supported.
+
+@table @code
+@item User-agent
+This directive is used to restrict the rules to a specific web crawler with a 
+user agent matching the given value. Some websites might choose to block
+one bot from crawling a specific path, but allow another bot.
+
+@example
+User-agent: Googlebot
+Disallow: /
+
+User-agent: Methabot
+Allow: /
+@end example
+@item Disallow
+Thsi directive is used to disallow the web crawling from accessing a part of the website matching
+the given pattern. Example:
+@example
+Disallow: /private-directory/
+@end example
+@item Allow
+Used in combination with disallow to allow access to a document or path inside the disallow-pattern.
+@example
+Disallow: /private/
+Allow: /private/public.html
+@end example
+@emph{Note that this is a non-standard extensions, though it is supported by most web crawlers.}
+@end table
 
 @c @node Installing Dependencies
 @c @appendix Installing Dependencies

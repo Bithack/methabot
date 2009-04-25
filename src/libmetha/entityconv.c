@@ -37,649 +37,275 @@ struct html_entity {
     uint16_t    unicode;
 } entity_t;
 
-entity_t e_tbl[128][8] = {
-    /** 
-     * this is a static hash table on every entity, to add an entry,
-     * run entity_hash() on the string and put it in the corresponding
-     * entry in the table;
-     **/
-    {
-        {"sup2", 0x00B2},
-        {0}
-    },
-    {
-        {"sup3", 0x00B3},
-        {"Pi", 0x03A0},
-        {"hArr", 0x21D4},
-        {0}
-    },
-    {
-        {0}
-    },
-    {
-        {"Auml", 0x00C4},
-        {"szlig", 0x00DF},
-        {0}
-    },
-    {
-        {"Tau", 0x03A4},
-        {0}
-    },
-    {
-        {"Ouml", 0x00D6},
-        {0}
-    },
-    {
-        {"lang", 0x2329},
-        {0}
-    },
-    {
-        {"THORN", 0x00DE},
-        {"gamma", 0x03B3},
-        {0}
-    },
-    {
-        {"uml", 0x00A8},
-        {"Acirc", 0x00C2},
-        {"Beta", 0x0392},
-        {0}
-    },
-    {
-        {"rho", 0x03C1},
-        {"phi", 0x03C6},
-        {0}
-    },
-    {
-        {"Epsilon", 0x0395},
-        {0}
-    },
-    {
-        {"rlm", 0x200F},
-        {0}
-    },
-    {
-        {"Ucirc", 0x00DB},
-        {0}
-    },
-    {
-        {"lArr", 0x21D0},
-        {0}
-    },
-    {
-        {"ntilde", 0x00F1},
-        {"rsquo", 0x2019},
-        {0}
-    },
-    {
-        {0}
-    },
-    {
-        {"igrave", 0x00EC},
-        {"scaron", 0x0161},
-        {0}
-    },
-    {
-        {"Otilde", 0x00D5},
-        {0}
-    },
-    {
-        {0}
-    },
-    {
-        {"Lambda", 0x039B},
-        {0}
-    },
-    {
-        {"shy", 0x00AD},
-        {"Chi", 0x03A7},
-        {"delta", 0x03B4},
-        {0}
-    },
-    {
-        {"piv", 0x03D6},
-        {0}
-    },
-    {
-        {"Oslash", 0x00D8},
-        {"equiv", 0x2261},
-        {0}
-    },
-    {
-        {0}
-    },
-    {
-        {"amp", 0x0026},
-        {"raquo", 0x00BB},
-        {"sbquo", 0x201A},
-        {0}
-    },
-    {
-        {"sigmaf", 0x03C2},
-        {0}
-    },
-    {
-        {"upsilon", 0x03C5},
-        {0}
-    },
-    {
-        {"iuml", 0x00EF},
-        {"bull", 0x2022},
-        {0}
-    },
-    {
-        {"Ecirc", 0x00CA},
-        {0}
-    },
-    {
-        {"frac14", 0x00BC},
-        {"iquest", 0x00BF},
-        {"thetasym", 0x03D1},
-        {0}
-    },
-    {
-        {0}
-    },
-    {
-        {"frac12", 0x00BD},
-        {"radic", 0x221A},
-        {0}
-    },
-    {
-        {"OElig", 0x0152},
-        {"oelig", 0x0153},
-        {0}
-    },
-    {
-        {"harr", 0x2194},
-        {"empty", 0x2205},
-        {0}
-    },
-    {
-        {"Eta", 0x0397},
-        {"ang", 0x2220},
-        {"rfloor", 0x230B},
-        {0}
-    },
-    {
-        {"iota", 0x03B9},
-        {"and", 0x2227},
-        {"sim", 0x223C},
-        {0}
-    },
-    {
-        {"tau", 0x03C4},
-        {0}
-    },
-    {
-        {"oacute", 0x00F3},
-        {"zwj", 0x200D},
-        {"rdquo", 0x201D},
-        {0}
-    },
-    {
-        {"Ocirc", 0x00D4},
-        {"Alpha", 0x0391},
-        {"cap", 0x2229},
-        {0}
-    },
-    {
-        {"thorn", 0x00FE},
-        {"alefsym", 0x2135},
-        {0}
-    },
-    {
-        {"acirc", 0x00E2},
-        {"notin", 0x2209},
-        {0}
-    },
-    {
-        {"hearts", 0x2665},
-        {0}
-    },
-    {
-        {"aelig", 0x00E6},
-        {"Psi", 0x03A8},
-        {"epsilon", 0x03B5},
-        {0}
-    },
-    {
-        {"frac34", 0x00BE},
-        {"yuml", 0x00FF},
-        {"mdash", 0x2014},
-        {"ni", 0x220B},
-        {0}
-    },
-    {
-        {"reg", 0x00AE},
-        {"ucirc", 0x00FB},
-        {0}
-    },
-    {
-        {"Omicron", 0x039F},
-        {"larr", 0x2190},
-        {0}
-    },
-    {
-        {"deg", 0x00B0},
-        {"Ntilde", 0x00D1},
-        {"nsub", 0x2284},
-        {0}
-    },
-    {
-        {"apos", 0x0027},
-        {"euml", 0x00EB},
-        {"Kappa", 0x039A},
-        {"rArr", 0x21D2},
-        {"ne", 0x2260},
-        {0}
-    },
-    {
-        {"Igrave", 0x00CC},
-        {"Icirc", 0x00CE},
-        {"Scaron", 0x0160},
-        {"zeta", 0x03B6},
-        {0}
-    },
-    {
-        {"middot", 0x00B7},
-        {"le", 0x2264},
-        {0}
-    },
-    {
-        {"times", 0x00D7},
-        {0}
-    },
-    {
-        {"aacute", 0x00E1},
-        {"prod", 0x220F},
-        {0}
-    },
-    {
-        {"cent", 0x00A2},
-        {"chi", 0x03C7},
-        {"trade", 0x2122},
-        {0}
-    },
-    {
-        {"bdquo", 0x201E},
-        {0}
-    },
-    {
-        {0}
-    },
-    {
-        {"atilde", 0x00E3},
-        {"upsih", 0x03D2},
-        {0}
-    },
-    {
-        {"agrave", 0x00E0},
-        {"lsquo", 0x2018},
-        {0}
-    },
-    {
-        {"xi", 0x03BE},
-        {"euro", 0x20AC},
-        {0}
-    },
-    {
-        {"ograve", 0x00F2},
-        {"real", 0x211C},
-        {"sup", 0x2283},
-        {0}
-    },
-    {
-        {"Iuml", 0x00CF},
-        {"Prime", 0x2033},
-        {0}
-    },
-    {
-        {"ecirc", 0x00EA},
-        {0}
-    },
-    {
-        {"nbsp", 0x00A0},
-        {"oplus", 0x2295},
-        {0}
-    },
-    {
-        {"Theta", 0x0398},
-        {"diams", 0x2666},
-        {0}
-    },
-    {
-        {"eacute", 0x00E9},
-        {"uuml", 0x00FC},
-        {"nu", 0x03BD},
-        {"image", 0x2111},
-        {"sum", 0x2211},
-        {"prop", 0x221D},
-        {0}
-    },
-    {
-        /*{"lt", 0x003C},*/
-        {0}
-    },
-    {
-        {"lsaquo", 0x2039},
-        {0}
-    },
-    {
-        {"eta", 0x03B7},
-        {"sdot", 0x22C5},
-        {0}
-    },
-    {
-        {"circ", 0x02C6},
-        {"Iota", 0x0399},
-        {"or", 0x2228},
-        {0}
-    },
-    {
-        {"egrave", 0x00E8},
-        {"tilde", 0x02DC},
-        {"mu", 0x03BC},
-        {0}
-    },
-    {
-        {"Oacute", 0x00D3},
-        {"divide", 0x00F7},
-        {"Omega", 0x03A9},
-        {0}
-    },
-    {
-        {"ocirc", 0x00F4},
-        {"alpha", 0x03B1},
-        {"lowast", 0x2217},
-        {0}
-    },
-    {
-        {"macr", 0x00AF},
-        {0}
-    },
-    {
-        {"pound", 0x00A3},
-        {"hellip", 0x2026},
-        {"weierp", 0x2118},
-        {0}
-    },
-    {
-        /*{"gt", 0x003E},*/
-        {"eth", 0x00F0},
-        {"sube", 0x2286},
-        {"lceil", 0x2308},
-        {0}
-    },
-    {
-        {"psi", 0x03C8},
-        {"infin", 0x221E},
-        {"cup", 0x222A},
-        {0}
-    },
-    {
-        {"sect", 0x00A7},
-        {"iacute", 0x00ED},
-        {"Yuml", 0x0178},
-        {"supe", 0x2287},
-        {0}
-    },
-    {
-        {"acute", 0x00B4},
-        {"ordm", 0x00BA},
-        {"nabla", 0x2207},
-        {"sub", 0x2282},
-        {0}
-    },
-    {
-        {"copy", 0x00A9},
-        {"Aring", 0x00C5},
-        {"omicron", 0x03BF},
-        {"clubs", 0x2663},
-        {0}
-    },
-    {
-        {"dagger", 0x2020},
-        {"frasl", 0x2044},
-        {"asymp", 0x2248},
-        {0}
-    },
-    {
-        {"curren", 0x00A4},
-        {"not", 0x00AC},
-        {"Euml", 0x00CB},
-        {"uacute", 0x00FA},
-        {"kappa", 0x03BA},
-        {"lrm", 0x200E},
-        {"rarr", 0x2192},
-        {"isin", 0x2208},
-        {0}
-    },
-    {
-        {"icirc", 0x00EE},
-        {"Zeta", 0x0396},
-        {"uArr", 0x21D1},
-        {0}
-    },
-    {
-        {"ordf", 0x00AA},
-        {0}
-    },
-    {
-        {0}
-    },
-    {
-        {"Aacute", 0x00C1},
-        {"permil", 0x2030},
-        {"exist", 0x2203},
-        {0}
-    },
-    {
-        {"ugrave", 0x00F9},
-        {0}
-    },
-    {
-        {"brvbar", 0x00A6},
-        {"darr", 0x2193},
-        {0}
-    },
-    {
-        {"yen", 0x00A5},
-        {"ensp", 0x2002},
-        {"crarr", 0x21B5},
-        {0}
-    },
-    {
-        {"Atilde", 0x00C3},
-        {"ldquo", 0x201C},
-        {"loz", 0x25CA},
-        {0}
-    },
-    {
-        {"Agrave", 0x00C0},
-        {"ndash", 0x2013},
-        {0}
-    },
-    {
-        {"Xi", 0x039E},
-        {0}
-    },
-    {
-        {"Ograve", 0x00D2},
-        {"ccedil", 0x00E7},
-        {"ge", 0x2265},
-        {0}
-    },
-    {
-        {"yacute", 0x00FD},
-        {"prime", 0x2032},
-        {"int", 0x222B},
-        {0}
-    },
-    {
-        {0}
-    },
-    {
-        {"iexcl", 0x00A1},
-        {"Sigma", 0x03A3},
-        {"emsp", 0x2003},
-        {0}
-    },
-    {
-        {"theta", 0x03B8},
-        {0}
-    },
-    {
-        {"Eacute", 0x00C9},
-        {"Uuml", 0x00DC},
-        {"Nu", 0x039D},
-        {"part", 0x2202},
-        {"perp", 0x22A5},
-        {0}
-    },
-    {
-        {"lfloor", 0x230A},
-        {0}
-    },
-    {
-        {"pi", 0x03C0},
-        {"zwnj", 0x200C},
-        {0}
-    },
-    {
-        {0}
-    },
-    {
-        {"auml", 0x00E4},
-        {0}
-    },
-    {
-        {"Egrave", 0x00C8},
-        {"Mu", 0x039C},
-        {"forall", 0x2200},
-        {"there4", 0x2234},
-        {0}
-    },
-    {
-        {"cedil", 0x00B8},
-        {"ouml", 0x00F6},
-        {"omega", 0x03C9},
-        {0}
-    },
-    {
-        {"thinsp", 0x2009},
-        {0}
-    },
-    {
-        {"Gamma", 0x0393},
-        {0}
-    },
-    {
-        {"beta", 0x03B2},
-        {"rang", 0x232A},
-        {0}
-    },
-    {
-        {"quot", 0x0022},
-        {"ETH", 0x00D0},
-        {"Rho", 0x03A1},
-        {"Phi", 0x03A6},
-        {0}
-    },
-    {
-        {"AElig", 0x00C6},
-        {0}
-    },
-    {
-        {"Iacute", 0x00CD},
-        {"otimes", 0x2297},
-        {0}
-    },
-    {
-        {"para", 0x00B6},
-        {"minus", 0x2212},
-        {0}
-    },
-    {
-        {"aring", 0x00E5},
-        {"cong", 0x2245},
-        {0}
-    },
-    {
-        {"Dagger", 0x2021},
-        {0}
-    },
-    {
-        {"Uacute", 0x00DA},
-        {"rceil", 0x2309},
-        {0}
-    },
-    {
-        {"micro", 0x00B5},
-        {"uarr", 0x2191},
-        {0}
-    },
-    {
-        {"otilde", 0x00F5},
-        {0}
-    },
-    {
-        {"laquo", 0x00AB},
-        {0}
-    },
-    {
-        {"plusmn", 0x00B1},
-        {"lambda", 0x03BB},
-        {"rsaquo", 0x203A},
-        {0}
-    },
-    {
-        {"Ugrave", 0x00D9},
-        {"Delta", 0x0394},
-        {0}
-    },
-    {
-        {"dArr", 0x21D3},
-        {0}
-    },
-    {
-        {"oslash", 0x00F8},
-        {0}
-    },
-    {
-        {"fnof", 0x0192},
-        {0}
-    },
-    {
-        {0}
-    },
-    {
-        {0}
-    },
-    {
-        {"Ccedil", 0x00C7},
-        {"Upsilon", 0x03A5},
-        {0}
-    },
-    {
-        {"Yacute", 0x00DD},
-        {"oline", 0x203E},
-        {0}
-    },
-    {
-        {0}
-    },
-    {
-        {"sigma", 0x03C3},
-        {0}
-    },
-    {
-        {"spades", 0x2660},
-        {0}
-    },
-    {
-        {"sup1", 0x00B9},
-        {0}
-    }
+struct hashtbl_pos {
+    int        count;
+    entity_t **ptr;
+};
+
+static struct hashtbl_pos e_tbl[128];
+static int                hashtbl_initialized = 0;
+
+#define NUM_ENTITIES (sizeof(entities)/sizeof(entity_t))
+
+/** 
+ * lmetha_global_init() will generate a 
+ * hash table from these values
+ **/
+static const entity_t entities[] =
+{
+    /*{"gt", 0x003E},*/
+    /*{"lt", 0x003C},*/
+    {"Aacute", 0x00C1},
+    {"aacute", 0x00E1},
+    {"Acirc", 0x00C2},
+    {"acirc", 0x00E2},
+    {"acute", 0x00B4},
+    {"AElig", 0x00C6},
+    {"aelig", 0x00E6},
+    {"Agrave", 0x00C0},
+    {"agrave", 0x00E0},
+    {"alefsym", 0x2135},
+    {"Alpha", 0x0391},
+    {"alpha", 0x03B1},
+    {"amp", 0x0026},
+    {"and", 0x2227},
+    {"ang", 0x2220},
+    {"apos", 0x0027},
+    {"Aring", 0x00C5},
+    {"aring", 0x00E5},
+    {"asymp", 0x2248},
+    {"Atilde", 0x00C3},
+    {"atilde", 0x00E3},
+    {"Auml", 0x00C4},
+    {"auml", 0x00E4},
+    {"bdquo", 0x201E},
+    {"Beta", 0x0392},
+    {"beta", 0x03B2},
+    {"brvbar", 0x00A6},
+    {"bull", 0x2022},
+    {"cap", 0x2229},
+    {"Ccedil", 0x00C7},
+    {"ccedil", 0x00E7},
+    {"cedil", 0x00B8},
+    {"cent", 0x00A2},
+    {"Chi", 0x03A7},
+    {"chi", 0x03C7},
+    {"circ", 0x02C6},
+    {"clubs", 0x2663},
+    {"cong", 0x2245},
+    {"copy", 0x00A9},
+    {"crarr", 0x21B5},
+    {"cup", 0x222A},
+    {"curren", 0x00A4},
+    {"dagger", 0x2020},
+    {"Dagger", 0x2021},
+    {"darr", 0x2193},
+    {"dArr", 0x21D3},
+    {"deg", 0x00B0},
+    {"Delta", 0x0394},
+    {"delta", 0x03B4},
+    {"diams", 0x2666},
+    {"divide", 0x00F7},
+    {"Eacute", 0x00C9},
+    {"eacute", 0x00E9},
+    {"Ecirc", 0x00CA},
+    {"ecirc", 0x00EA},
+    {"Egrave", 0x00C8},
+    {"egrave", 0x00E8},
+    {"empty", 0x2205},
+    {"emsp", 0x2003},
+    {"ensp", 0x2002},
+    {"Epsilon", 0x0395},
+    {"epsilon", 0x03B5},
+    {"equiv", 0x2261},
+    {"Eta", 0x0397},
+    {"eta", 0x03B7},
+    {"ETH", 0x00D0},
+    {"eth", 0x00F0},
+    {"Euml", 0x00CB},
+    {"euml", 0x00EB},
+    {"euro", 0x20AC},
+    {"exist", 0x2203},
+    {"fnof", 0x0192},
+    {"forall", 0x2200},
+    {"frac12", 0x00BD},
+    {"frac14", 0x00BC},
+    {"frac34", 0x00BE},
+    {"frasl", 0x2044},
+    {"Gamma", 0x0393},
+    {"gamma", 0x03B3},
+    {"ge", 0x2265},
+    {"harr", 0x2194},
+    {"hArr", 0x21D4},
+    {"hearts", 0x2665},
+    {"hellip", 0x2026},
+    {"Iacute", 0x00CD},
+    {"iacute", 0x00ED},
+    {"Icirc", 0x00CE},
+    {"icirc", 0x00EE},
+    {"iexcl", 0x00A1},
+    {"Igrave", 0x00CC},
+    {"igrave", 0x00EC},
+    {"image", 0x2111},
+    {"infin", 0x221E},
+    {"int", 0x222B},
+    {"Iota", 0x0399},
+    {"iota", 0x03B9},
+    {"iquest", 0x00BF},
+    {"isin", 0x2208},
+    {"Iuml", 0x00CF},
+    {"iuml", 0x00EF},
+    {"Kappa", 0x039A},
+    {"kappa", 0x03BA},
+    {"Lambda", 0x039B},
+    {"lambda", 0x03BB},
+    {"lang", 0x2329},
+    {"laquo", 0x00AB},
+    {"larr", 0x2190},
+    {"lArr", 0x21D0},
+    {"lceil", 0x2308},
+    {"ldquo", 0x201C},
+    {"le", 0x2264},
+    {"lfloor", 0x230A},
+    {"lowast", 0x2217},
+    {"loz", 0x25CA},
+    {"lrm", 0x200E},
+    {"lsaquo", 0x2039},
+    {"lsquo", 0x2018},
+    {"macr", 0x00AF},
+    {"mdash", 0x2014},
+    {"micro", 0x00B5},
+    {"middot", 0x00B7},
+    {"minus", 0x2212},
+    {"Mu", 0x039C},
+    {"mu", 0x03BC},
+    {"nabla", 0x2207},
+    {"nbsp", 0x00A0},
+    {"ndash", 0x2013},
+    {"ne", 0x2260},
+    {"ni", 0x220B},
+    {"not", 0x00AC},
+    {"notin", 0x2209},
+    {"nsub", 0x2284},
+    {"Ntilde", 0x00D1},
+    {"ntilde", 0x00F1},
+    {"Nu", 0x039D},
+    {"nu", 0x03BD},
+    {"Oacute", 0x00D3},
+    {"oacute", 0x00F3},
+    {"Ocirc", 0x00D4},
+    {"ocirc", 0x00F4},
+    {"OElig", 0x0152},
+    {"oelig", 0x0153},
+    {"Ograve", 0x00D2},
+    {"ograve", 0x00F2},
+    {"oline", 0x203E},
+    {"Omega", 0x03A9},
+    {"omega", 0x03C9},
+    {"Omicron", 0x039F},
+    {"omicron", 0x03BF},
+    {"oplus", 0x2295},
+    {"or", 0x2228},
+    {"ordf", 0x00AA},
+    {"ordm", 0x00BA},
+    {"Oslash", 0x00D8},
+    {"oslash", 0x00F8},
+    {"Otilde", 0x00D5},
+    {"otilde", 0x00F5},
+    {"otimes", 0x2297},
+    {"Ouml", 0x00D6},
+    {"ouml", 0x00F6},
+    {"para", 0x00B6},
+    {"part", 0x2202},
+    {"permil", 0x2030},
+    {"perp", 0x22A5},
+    {"Phi", 0x03A6},
+    {"phi", 0x03C6},
+    {"Pi", 0x03A0},
+    {"pi", 0x03C0},
+    {"piv", 0x03D6},
+    {"plusmn", 0x00B1},
+    {"pound", 0x00A3},
+    {"prime", 0x2032},
+    {"Prime", 0x2033},
+    {"prod", 0x220F},
+    {"prop", 0x221D},
+    {"Psi", 0x03A8},
+    {"psi", 0x03C8},
+    {"quot", 0x0022},
+    {"radic", 0x221A},
+    {"rang", 0x232A},
+    {"raquo", 0x00BB},
+    {"rarr", 0x2192},
+    {"rArr", 0x21D2},
+    {"rceil", 0x2309},
+    {"rdquo", 0x201D},
+    {"real", 0x211C},
+    {"reg", 0x00AE},
+    {"rfloor", 0x230B},
+    {"Rho", 0x03A1},
+    {"rho", 0x03C1},
+    {"rlm", 0x200F},
+    {"rsaquo", 0x203A},
+    {"rsquo", 0x2019},
+    {"sbquo", 0x201A},
+    {"Scaron", 0x0160},
+    {"scaron", 0x0161},
+    {"sdot", 0x22C5},
+    {"sect", 0x00A7},
+    {"shy", 0x00AD},
+    {"Sigma", 0x03A3},
+    {"sigma", 0x03C3},
+    {"sigmaf", 0x03C2},
+    {"sim", 0x223C},
+    {"spades", 0x2660},
+    {"sub", 0x2282},
+    {"sube", 0x2286},
+    {"sum", 0x2211},
+    {"sup", 0x2283},
+    {"sup1", 0x00B9},
+    {"sup2", 0x00B2},
+    {"sup3", 0x00B3},
+    {"supe", 0x2287},
+    {"szlig", 0x00DF},
+    {"Tau", 0x03A4},
+    {"tau", 0x03C4},
+    {"there4", 0x2234},
+    {"Theta", 0x0398},
+    {"theta", 0x03B8},
+    {"thetasym", 0x03D1},
+    {"thinsp", 0x2009},
+    {"THORN", 0x00DE},
+    {"thorn", 0x00FE},
+    {"tilde", 0x02DC},
+    {"times", 0x00D7},
+    {"trade", 0x2122},
+    {"Uacute", 0x00DA},
+    {"uacute", 0x00FA},
+    {"uarr", 0x2191},
+    {"uArr", 0x21D1},
+    {"Ucirc", 0x00DB},
+    {"ucirc", 0x00FB},
+    {"Ugrave", 0x00D9},
+    {"ugrave", 0x00F9},
+    {"uml", 0x00A8},
+    {"upsih", 0x03D2},
+    {"Upsilon", 0x03A5},
+    {"upsilon", 0x03C5},
+    {"Uuml", 0x00DC},
+    {"uuml", 0x00FC},
+    {"weierp", 0x2118},
+    {"Xi", 0x039E},
+    {"xi", 0x03BE},
+    {"Yacute", 0x00DD},
+    {"yacute", 0x00FD},
+    {"yen", 0x00A5},
+    {"yuml", 0x00FF},
+    {"Yuml", 0x0178},
+    {"Zeta", 0x0396},
+    {"zeta", 0x03B6},
+    {"zwj", 0x200D},
+    {"zwnj", 0x200C},
 };
 
 /* create a hash from a given string, very simple
@@ -689,13 +315,59 @@ entity_hash(const char *s, int size)
 {
     int   h = 0xc8;
     char *e;
+    char *p = (char*)s;
 
-    for (e=s+size; s<e; s++)
-        h += (h<<1) ^ *s;
+    for (e=p+size; p<e; p++)
+        h += (h<<1) ^ *p;
     h &= 0x7f;
     return h;
 }
 
+/** 
+ * called by lmetha_global_init() to create initialize
+ * the hash table
+ **/
+M_CODE
+lm_entity_hashtbl_init(void)
+{
+    int x;
+    int hash;
+
+    if (hashtbl_initialized == 1)
+        return M_OK;
+#ifdef DEBUG
+    fprintf(stderr, "* global: creating entity hash table\n");
+#endif
+
+    for (x=0; x<NUM_ENTITIES; x++) {
+        hash = entity_hash(entities[x].ident, strlen(entities[x].ident));
+        e_tbl[hash].count ++;
+        if (!(e_tbl[hash].ptr = realloc(e_tbl[hash].ptr,
+                            e_tbl[hash].count*sizeof(entity_t*))))
+            return M_OUT_OF_MEM;
+        e_tbl[hash].ptr[e_tbl[hash].count-1] = &entities[x];
+    }
+
+    hashtbl_initialized = 1;
+    return M_OK;
+}
+
+/** 
+ * called by lmetha_global_cleanup() to free
+ * the hash table
+ **/
+void
+lm_entity_hashtbl_cleanup(void)
+{
+    int x;
+    if (hashtbl_initialized == 1) {
+        for (x=0; x<NUM_ENTITIES; x++) {
+            if (e_tbl[x].count)
+                free(e_tbl[x].ptr);
+        }
+        hashtbl_initialized = 0;
+    }
+}
 /** 
  * convert the given 16-bit unicode value to an UTF-8 
  * char, write the result to the buffer pointed to by
@@ -722,7 +394,7 @@ unicode_to_utf8(uint16_t v, char *out)
 }
 
 /** 
- * convert html entities to their corresponding UTF-8 
+ * convert sgml entities to their corresponding UTF-8 
  * character, utf8conv
  **/
 M_CODE
@@ -736,6 +408,8 @@ lm_parser_entityconv(worker_t *w, iobuf_t *buf,
     char *e;
     char *last;
     int h;
+    int count;
+    int x;
     entity_t *ent;
     e = (last = p = n = buf->ptr) + buf->sz;
 
@@ -752,7 +426,9 @@ lm_parser_entityconv(worker_t *w, iobuf_t *buf,
                 continue;
             *n = '\0';
             h = entity_hash(s, n-s);
-            for (ent = e_tbl[h]; ; ent++) {
+            for (x = 0, count = e_tbl[h].count;
+                    x<count; x++) {
+                ent = e_tbl[h].ptr[x];
                 if (!ent->ident) {
                     *n = ';';
                     break;

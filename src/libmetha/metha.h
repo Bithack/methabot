@@ -154,6 +154,9 @@ typedef struct metha {
 } metha_t;
 
 /* metha.c */
+M_CODE   lmetha_global_init(void);
+void     lmetha_global_cleanup(void);
+
 metha_t *lmetha_create(void);
 M_CODE   lmetha_setopt(metha_t *m, LMOPT opt, ...);
 M_CODE   lmetha_prepare(metha_t *m);

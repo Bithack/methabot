@@ -243,6 +243,11 @@ main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
+    if (lmetha_global_init() != M_OK) {
+        fprintf(stderr, "global initialization failed\n");
+        goto error;
+    }
+
     if (!(m = lmetha_create()))
         goto outofmem;
 
@@ -402,12 +407,14 @@ main(int argc, char **argv)
         goto error;
 
     lmetha_destroy(m);
+    lmetha_global_cleanup();
     mb_uninit();
     return 0;
 
 error:
     if (m)
         lmetha_destroy(m);
+    lmetha_global_cleanup();
     mb_uninit();
     return 1;
 

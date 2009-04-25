@@ -13,3 +13,5 @@ lmetha_signal
 lmetha_read_config
 lmetha_register_jsfunction
 lmetha_reset
+lmetha_global_init
+lmetha_global_cleanup

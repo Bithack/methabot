@@ -50,6 +50,8 @@ M_CODE lm_parser_utf8conv(worker_t *w, iobuf_t *buf, uehandle_t *ue_h, url_t *ur
 
 /* entityconv.c */
 M_CODE lm_parser_entityconv(worker_t *w, iobuf_t *buf, uehandle_t *ue_h, url_t *url, attr_list_t *al);
+M_CODE lm_entity_hashtbl_init(void);
+void   lm_entity_hashtbl_cleanup(void);
 
 /* struct used when launching a thread and checking for
  * success, see lmetha_exec_async() */
@@ -330,6 +332,30 @@ badarg:
 }
 
 /** 
+ * global init, should be called once
+ *
+ * currently, only initialize the SGML entity hash table
+ **/
+M_CODE
+lmetha_global_init(void)
+{
+    if (curl_global_init(CURL_GLOBAL_ALL) != 0)
+        return M_FAILED;
+    return lm_entity_hashtbl_init();
+}
+/** 
+ * global cleanup, should be called after all metha_t objects
+ * have been freed
+ **/
+void
+lmetha_global_cleanup(void)
+{
+    curl_global_cleanup();
+    lm_entity_hashtbl_cleanup();
+}
+
+
+/** 
  * allocate a metha object
  **/
 metha_t *
@@ -571,9 +597,6 @@ lmetha_exec_once(metha_t *m, const char *url)
     ue_add_initial(ue_h, url, strlen(url));
 
     ret = lm_exec_once(m, io_h, ue_h);
-
-    lm_iohandle_destroy(io_h);
-
     m->ueh_save = ue_h;
     return ret;
 }
@@ -615,7 +638,7 @@ lm_exec_once(metha_t *m, iohandle_t *io_h, uehandle_t *ue_h)
     fprintf(stderr, "* metha:(%p) running once with crawler '%s'\n", m, m->crawlers[m->crawler]->name);
 #endif
 
-    worker_t *w = malloc(sizeof(worker_t));
+    worker_t *w = calloc(1, sizeof(worker_t));
     int x;
 
     if (!w)

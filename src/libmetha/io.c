@@ -72,10 +72,6 @@ M_CODE
 lm_init_io(io_t *io, metha_t *m)
 {
     io->m = m;
-    if (curl_global_init(CURL_GLOBAL_ALL) != 0) {
-        LM_ERROR(m, "libcurl initialization failed");
-        return M_FAILED;
-    }
 #ifdef WIN32
     io->synchronous = 1;
 #endif
@@ -146,8 +142,6 @@ lm_uninit_io(io_t *io)
         close(io->msg_fd[0]);
         close(io->msg_fd[1]);
     }
-
-    curl_global_cleanup();
 }
 
 /** 

@@ -37,7 +37,6 @@ extern int   home_scripts_sz;
 extern char *install_scripts;
 extern int   install_scripts_sz;
 
-
 #define NUM_OPTS (sizeof(opts)/sizeof(struct opt_help))
 static struct opt_help {
     int         arg;

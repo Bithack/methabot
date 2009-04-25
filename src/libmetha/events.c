@@ -21,7 +21,6 @@
 
 #include "metha.h"
 #include "events.h"
-#include "libev/ev.h"
 
 /** 
  * Notify all observers of the given event
@@ -85,13 +84,5 @@ lm_default_event_handler(metha_t *m, unsigned ev)
             lmetha_signal(m, LM_SIGNAL_EXIT);
             break;
     }
-}
-
-void
-lm_ev_exit(EV_P_ ev_io *w, int revents)
-{
-    metha_t *m = w->data;
-
-    ev_unloop(EV_A_ EVUNLOOP_ONE);
 }
 

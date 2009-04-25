@@ -20,6 +20,7 @@
  */
 
 #include <string.h>
+#include <stdlib.h>
 #include <iconv.h>
 #include <ctype.h>
 

@@ -32,17 +32,16 @@
 #ifndef _METHA_IO__H_
 #define _METHA_IO__H_
 
-#ifdef WIN32
-#define EV_USE_SELECT 1
-#define EV_SELECT_IS_WINSOCKET 1
-#endif
-
 #include <time.h>
 #include <curl/curl.h>
 #include <pthread.h>
 #include "errors.h"
 #include "url.h"
-#include "libev/ev.h"
+
+enum {
+    LM_IOMSG_ADD,
+    LM_IOMSG_STOP,
+};
 
 /** 
  * describe info such as 
@@ -116,13 +115,11 @@ typedef struct io {
 
     struct metha *m;
 
-    struct ev_loop *ev_p;
-    /* events */
-    struct {
-        ev_async   add;
-        ev_async   stop;
-        ev_timer   timer;
-    } ev;
+    /* pipe used for communicating with the IO-thread, see
+     * LM_IOMSG_* */
+    int msg_fd[2];
+    int e_fd;
+    int e_timeout;
 
     /* timer */
     int          synchronous;
@@ -151,6 +148,10 @@ typedef struct io {
     const char *user_agent; /* free()'d externally */
     const char *proxy;
 } io_t;
+
+struct ioev_t {
+
+};
 
 iohandle_t *lm_iohandle_obtain(io_t *io);
 void        lm_iohandle_destroy(iohandle_t *ioh);

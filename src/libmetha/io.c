@@ -20,9 +20,12 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include <pthread.h>
+#include <sys/epoll.h>
+#include <errno.h>
+
 #include "metha.h"
-#include "libev/ev.c"
 #include "default.h"
 
 #define BUF_INIT_SIZE 1024
@@ -39,11 +42,10 @@
 
 static void *lm_iothr_main(io_t *io);
 static int   lm_iothr_socket_cb(CURL *h, curl_socket_t s, int action, void *userp, void *socketp);
-static int   lm_iothr_timer_cb(CURLM *m, long timeout, io_t *io);
-static void  lm_iothr_event_cb(EV_P_ ev_io *w, int r_events);
+static int   lm_iothr_set_timer_cb(CURLM *m, long timeout, io_t *io);
 static void  lm_iothr_check_completed(io_t *io);
 static size_t lm_iothr_data_cb(void *ptr, size_t size, size_t nmemb, void *s);
-static void  lm_iothr_stop_cb(EV_P_ ev_async *w, int r_events);
+static M_CODE lm_iothr_check_pending(io_t *io);
 static void  lm_iothr_wait(io_t *io, int mp);
 static M_CODE lm_io_perform_http(iohandle_t *h, url_t *url);
 static M_CODE lm_io_perform_ftp(iohandle_t *h, url_t *url);
@@ -78,41 +80,46 @@ lm_init_io(io_t *io, metha_t *m)
     io->synchronous = 1;
 #endif
 
-    if (!io->synchronous) {
-        if (!(io->multi_h = curl_multi_init())) {
-            LM_ERROR(m, "could not create CURL multi interface");
-            return M_FAILED;
-        }
-        if (!(io->share_h = curl_share_init())) {
-            LM_ERROR(m, "could not create CURL share interface");
-            return M_ERROR;
-        }
+    if (io->synchronous)
+        return M_OK;
 
-        if (!(io->ev_p = ev_loop_new(EVFLAG_AUTO)))
-            LM_ERROR(m, "could not create i/o event loop");
-
-        pthread_mutex_init(&io->queue_mtx, 0);
-        pthread_rwlock_init(&io->cookies_mtx, 0);
-        pthread_rwlock_init(&io->dns_mtx, 0);
-        pthread_rwlock_init(&io->share_mtx, 0);
-
-        io->queue.pos = malloc(QUEUE_INIT_SIZE*sizeof(ioqp_t));
-        io->queue.allocsz = QUEUE_INIT_SIZE;
-        io->queue.size = 0;
-
-        if (io->cookies)
-            curl_share_setopt(io->share_h, CURLSHOPT_SHARE, CURL_LOCK_DATA_COOKIE);
-        curl_share_setopt(io->share_h, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
-        curl_share_setopt(io->share_h, CURLSHOPT_LOCKFUNC, &lm_iothr_lock_shared_cb);
-        curl_share_setopt(io->share_h, CURLSHOPT_UNLOCKFUNC, &lm_iothr_unlock_shared_cb);
-        curl_share_setopt(io->share_h, CURLSHOPT_USERDATA, io);
-
-        curl_multi_setopt(io->multi_h, CURLMOPT_SOCKETFUNCTION, &lm_iothr_socket_cb);
-        curl_multi_setopt(io->multi_h, CURLMOPT_SOCKETDATA, io);
-        curl_multi_setopt(io->multi_h, CURLMOPT_TIMERFUNCTION, &lm_iothr_timer_cb);
-        curl_multi_setopt(io->multi_h, CURLMOPT_TIMERDATA, io);
-        /*curl_multi_setopt(io->multi_h, CURLMOPT_PIPELINING, 1);*/
+    if (!(io->multi_h = curl_multi_init())) {
+        LM_ERROR(m, "could not create CURL multi interface");
+        return M_FAILED;
     }
+    if (!(io->share_h = curl_share_init())) {
+        LM_ERROR(m, "could not create CURL share interface");
+        return M_ERROR;
+    }
+
+    if (pipe(io->msg_fd) != 0) {
+        LM_ERROR(m, "pipe() failed: %s", strerror(errno));
+        return M_FAILED;
+    }
+
+    if (!(io->queue.pos = malloc(QUEUE_INIT_SIZE*sizeof(ioqp_t))))
+        return M_OUT_OF_MEM;
+
+    io->queue.allocsz = QUEUE_INIT_SIZE;
+    io->queue.size = 0;
+
+    pthread_mutex_init(&io->queue_mtx, 0);
+    pthread_rwlock_init(&io->cookies_mtx, 0);
+    pthread_rwlock_init(&io->dns_mtx, 0);
+    pthread_rwlock_init(&io->share_mtx, 0);
+
+    if (io->cookies)
+        curl_share_setopt(io->share_h, CURLSHOPT_SHARE, CURL_LOCK_DATA_COOKIE);
+    curl_share_setopt(io->share_h, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
+    curl_share_setopt(io->share_h, CURLSHOPT_LOCKFUNC, &lm_iothr_lock_shared_cb);
+    curl_share_setopt(io->share_h, CURLSHOPT_UNLOCKFUNC, &lm_iothr_unlock_shared_cb);
+    curl_share_setopt(io->share_h, CURLSHOPT_USERDATA, io);
+
+    curl_multi_setopt(io->multi_h, CURLMOPT_SOCKETFUNCTION, &lm_iothr_socket_cb);
+    curl_multi_setopt(io->multi_h, CURLMOPT_SOCKETDATA, io);
+    curl_multi_setopt(io->multi_h, CURLMOPT_TIMERFUNCTION, &lm_iothr_set_timer_cb);
+    curl_multi_setopt(io->multi_h, CURLMOPT_TIMERDATA, io);
+    /*curl_multi_setopt(io->multi_h, CURLMOPT_PIPELINING, 1);*/
 
     return M_OK;
 }
@@ -130,13 +137,14 @@ lm_uninit_io(io_t *io)
             curl_share_cleanup(io->share_h);
         if (io->queue.pos)
             free(io->queue.pos);
-        if (io->ev_p)
-            ev_loop_destroy(io->ev_p);
 
         pthread_mutex_destroy(&io->queue_mtx);
         pthread_rwlock_destroy(&io->cookies_mtx);
         pthread_rwlock_destroy(&io->dns_mtx);
         pthread_rwlock_destroy(&io->share_mtx);
+
+        close(io->msg_fd[0]);
+        close(io->msg_fd[1]);
     }
 
     curl_global_cleanup();
@@ -166,7 +174,8 @@ lm_iohandle_obtain(io_t *io)
         ioh->io = io;
 
         if (!io->synchronous) {
-            ioh->done.list = malloc(sizeof(ioprivate_t*)*24);
+            if (!(ioh->done.list = malloc(sizeof(ioprivate_t*)*24)))
+                return 0;
             ioh->done.allocsz = 24;
 
             pthread_mutex_init(&ioh->dcond_mtx, 0);
@@ -186,7 +195,8 @@ lm_iohandle_obtain(io_t *io)
         curl_easy_setopt(ioh->primary, CURLOPT_USERAGENT, io->user_agent);
         curl_easy_setopt(ioh->primary, CURLOPT_ENCODING, "");
 
-        ioh->buf.ptr = malloc(BUF_INIT_SIZE);
+        if (!(ioh->buf.ptr = malloc(BUF_INIT_SIZE)))
+            return 0;
         ioh->buf.cap = BUF_INIT_SIZE;
 
         ioh->transfer.headers.content_type = "";
@@ -327,7 +337,7 @@ lm_io_provide(iohandle_t *h, const char *buf, size_t len)
     h->buf.sz = 0;
     h->buf.ptr[0] = '\0';
 
-    lm_io_data_cb(buf, 1, len, &h->buf);
+    lm_io_data_cb((char*)buf, 1, len, &h->buf);
 
     h->provided = 1;
     return M_OK;
@@ -535,6 +545,7 @@ lm_iothr_wait(io_t *io, int mp)
 M_CODE
 lm_multipeek_add(iohandle_t *ioh, url_t *url, int id)
 {
+    int msg;
 #ifdef IO_DEBUG
     fprintf(stderr, "* iohandle:(%p) lm_multipeek_add: '%s'\n", ioh, url->str);
 #endif
@@ -562,17 +573,21 @@ lm_multipeek_add(iohandle_t *ioh, url_t *url, int id)
     pthread_mutex_unlock(&io->queue_mtx);
     ioh->total++;
     /* inform our event loop, a new url was added */
-    ev_async_send(io->ev_p, &io->ev.add);
+    msg = LM_IOMSG_ADD;
 
+    if (write(io->msg_fd[1], &msg, sizeof(int)) <= 0)
+        return M_IO_ERROR;
     return M_OK;
 }
 
 M_CODE
 lm_iothr_stop(io_t *io)
 {
-    if (io->ev_p && !io->synchronous) {
+    int msg = LM_IOMSG_STOP;
+    if (!io->synchronous) {
         /* signal the event loop to exit */
-        ev_async_send(io->ev_p, &io->ev.stop);
+        if (write(io->msg_fd[1], &msg, sizeof(int)) <= 0)
+            return M_IO_ERROR;
         /* wait for the thread to exit */
         pthread_join(io->thr, 0);
     }
@@ -593,42 +608,39 @@ lm_iothr_data_cb(void *ptr, size_t size, size_t nmemb, void *s)
 }
 
 /** 
- * Called by libev when a timeout is reached.
- * The timeout is set by libcurl through lm_iothr_timer_cb().
+ * called when the epoll() timer has been reached
  **/
-static void 
-lm_iothr_timerev_cb(EV_P_ ev_timer *w, int revents)
+static M_CODE
+lm_iothr_timer_reached(io_t *io)
 {
-    io_t *io = (io_t*)w->data;
-
 #ifdef IO_DEBUG
     fprintf(stderr, "* io:(%p) timer reached\n", io);
 #endif
 
-    while (curl_multi_socket_action(io->multi_h, CURL_SOCKET_TIMEOUT, 0, &io->nrunning) == CURLM_CALL_MULTI_PERFORM)
+    while (curl_multi_socket_action(io->multi_h,
+                CURL_SOCKET_TIMEOUT, 0, &io->nrunning)
+            == CURLM_CALL_MULTI_PERFORM)
         ;
 
     lm_iothr_check_completed(io);
+
+    if (!io->nrunning)
+        io->e_timeout = 20000;
+
+    return M_OK;
 }
 
 /** 
  * Called by libcurl to set a timeout
  **/
 static int 
-lm_iothr_timer_cb(CURLM *m, long timeout, io_t *io)
+lm_iothr_set_timer_cb(CURLM *m, long timeout, io_t *io)
 {
 #ifdef IO_DEBUG
-    fprintf(stderr, "* io:(%p) set timer to %d.%d s\n",
-              io, timeout/1000, (timeout%1000)*1000);
+    fprintf(stderr, "* io:(%p) set timer to %d ms\n",
+              io, (int)timeout);
 #endif
-
-    ev_timer_stop(io->ev_p, &io->ev.timer);
-    if (timeout > 0) {
-        ev_timer_init(&io->ev.timer, &lm_iothr_timerev_cb, (double)timeout/1000, 0.);
-        ev_timer_start(io->ev_p, &io->ev.timer);
-    } else
-        lm_iothr_timerev_cb(io->ev_p, &io->ev.timer, 0);
-
+    io->e_timeout = (int)timeout;
     return 0;
 }
 /** 
@@ -695,125 +707,98 @@ lm_iothr_check_completed(io_t *io)
 }
 
 /**
- * Called by libcurl to inform us about used sockets
+ * Called by libcurl to inform us about new and removed 
+ * sockets.
  **/
 static int
 lm_iothr_socket_cb(CURL *h, curl_socket_t s, int action,
                    void *userp, void *socketp)
 {
     io_t *io = (io_t*)userp;
-    struct ev_loop *loop = io->ev_p;
-    ev_io *w = (ev_io*)socketp;
-    const char *what[] = {"none", "IN", "OUT", "INOUT", "REMOVE"};
+    int e_fd = io->e_fd;
 
+    struct epoll_event ev;
 #ifdef IO_DEBUG
-    fprintf(stderr, "* io:(%p) lm_iothr_socket_cb(), action '%s' on%s socket %d, handle %p\n",
-            io, what[action], (w?"":" NEW"), s, h);
+    const char *what[] = {"none", "IN", "OUT", "INOUT", "REMOVE"};
+    fprintf(stderr,
+            "* io:(%p) lm_iothr_socket_cb(), action '%s' on%s socket %d, handle %p\n",
+            io, what[action], (socketp?"":" NEW"), s, h);
 #endif
 
-    if (action == CURL_POLL_REMOVE) {
-        ev_io_stop(EV_A_ w);
-        free(w);
-    } else {
-        if (!w) {
-            /* XXX */
-            w = malloc(sizeof(ev_io));
-            ev_io_init(w, &lm_iothr_event_cb, s,
-                    ((action&CURL_POLL_IN)?EV_READ:0)
-                    |((action&CURL_POLL_OUT)?EV_WRITE:0));
-
-            w->data = io;
-
-            ev_io_start(EV_A_ w);
-            /* inform libcurl about our data associated with this socket */
-            curl_multi_assign(io->multi_h, s, w);
-        } else {
-            /* change action */
-            ev_io_stop(EV_A_ w);
-            ev_io_set(w, s, 
-                    ((action&CURL_POLL_IN)?EV_READ:0)
-                    |((action&CURL_POLL_OUT)?EV_WRITE:0));
-            ev_io_start(EV_A_ w);
-        }
+    if (action == CURL_POLL_REMOVE)
+        epoll_ctl(e_fd, EPOLL_CTL_MOD, s, &ev);
+    else {
+        ev.data.fd = (int)s;
+        ev.events = ((action & CURL_POLL_IN) ? EPOLLIN : 0)
+                   |((action & CURL_POLL_OUT) ? EPOLLOUT : 0);
+        if (!socketp) {
+            epoll_ctl(e_fd, EPOLL_CTL_ADD, s, &ev);
+            curl_multi_assign(io->multi_h, s, (void*)1);
+        } else
+            epoll_ctl(e_fd, EPOLL_CTL_MOD, s, &ev);
     }
+
     return 0;
 }
 
 /** 
- * Called by libev when data is ready for read/write 
- * on any of our sockets
+ * data is available for read/write on the given file descriptor
  **/
-static void
-lm_iothr_event_cb(EV_P_ ev_io *w, int r_events)
+static M_CODE
+lm_iothr_fd_event(io_t *io, int fd, int events)
 {
-    io_t      *io = (io_t*)w->data;
-    int        ev_bitmask;           /* events to libcurl */
     CURLMcode  c;
+    int        ev_bitmask; /* events to libcurl */
 #ifdef IO_DEBUG
-    fprintf(stderr, "* io:(%p) lm_iothr_event_cb(), event = '%s%s%s', socket %d\n", io, 
-            ((r_events&EV_READ)?"READ":""), ((r_events&EV_WRITE)?"WRITE":""),
-            ((r_events&EV_ERROR)?"ERROR":""), w->fd);
+    fprintf(stderr,
+            "* io:(%p) lm_iothr_fd_event(), events = '%s%s%s', socket %d\n",
+            io, 
+            ((events & EPOLLIN) ? "READ":""),
+            ((events & EPOLLOUT) ? "WRITE":""),
+            ((events & EPOLLERR) ? "ERROR":""),
+            fd);
 #endif
 
-    if (r_events & EV_ERROR) {
+    if (events & EPOLLERR) {
         /* an error occurred */
-        curl_multi_socket_action(io->multi_h, w->fd, CURL_CSELECT_ERR, &io->nrunning);
-        /* Now what? Since we don't know what caused the error, we 
-         * assume it's "safe" to continue. Good/bad? */
-    } else {
-        ev_bitmask = ((r_events & EV_READ) ? CURL_CSELECT_IN : 0)
-                     | ((r_events & EV_WRITE) ? CURL_CSELECT_OUT : 0);
+        curl_multi_socket_action(io->multi_h, fd,
+                CURL_CSELECT_ERR, &io->nrunning);
 
-        while ((c = curl_multi_socket_action(io->multi_h, w->fd, ev_bitmask, &io->nrunning))
+        return M_SOCKET_ERROR;
+    } else {
+        ev_bitmask = ((events & EPOLLIN) ? CURL_CSELECT_IN : 0)
+                     | ((events & EPOLLOUT) ? CURL_CSELECT_OUT : 0);
+
+        while ((c = curl_multi_socket_action(io->multi_h, fd,
+                        ev_bitmask, &io->nrunning))
                 ==  CURLM_CALL_MULTI_PERFORM)
             ;
 
-        switch (c) {
-            case CURLM_OK:
-                break;
-            /* TODO: expand error handling */
-            default:
-                io->error = M_SOCKET_ERROR;
-                ev_unloop(EV_A_ EVUNLOOP_ONE);
-
-                return;
-        }
+        if (c != CURLM_OK)
+            return M_SOCKET_ERROR;
     }
 
     lm_iothr_check_completed(io);
-
-    if (io->nrunning <= 0)
-        ev_timer_stop(EV_A_ &io->ev.timer);
-
-    return;
+    return M_OK;
 }
 
 /** 
- * Called by libev when we have received a signal
- * to exit.
- *
- * The signal is invoked by a metha object.
+ * Call this function to check for pending 
+ * transfers. If any pending transfer is found, it
+ * will be added.
  **/
-static void
-lm_iothr_stop_cb(EV_P_ ev_async *w, int r_events)
+static M_CODE
+lm_iothr_check_pending(io_t *io)
 {
-    ev_unloop(EV_A_ EVUNLOOP_ONE);
-}
-
-/** 
- * Called by libev when we should add a new transfer
- **/
-static void
-lm_iothr_add_cb(EV_P_ ev_async *w, int r_events)
-{
-    io_t *io = (io_t*)w->data;
     CURL *h;
-    int x;
+    int   x;
 
     pthread_mutex_lock(&io->queue_mtx);
     for (x=0; x<io->queue.size; x++) {
 #ifdef IO_DEBUG
-        fprintf(stderr, "* io:(%p) lm_iothr_add_cb: '%s', id: '%d'\n", io, io->queue.pos[x].url, io->queue.pos[x].identifier);
+        fprintf(stderr, "* io:(%p) lm_iothr_check_pending: '%s', id: '%d'\n",
+                io,
+                io->queue.pos[x].url, io->queue.pos[x].identifier);
 #endif
         ioprivate_t *tmp = malloc(sizeof(ioprivate_t));
         if (!tmp)
@@ -837,14 +822,15 @@ lm_iothr_add_cb(EV_P_ ev_async *w, int r_events)
         if (io->cookies)
             curl_easy_setopt(h, CURLOPT_COOKIEFILE, "");
 #ifdef IO_DEBUG
-        fprintf(stderr, "* io:(%p) add handle %p, id: '%d'\n", io, h, io->queue.pos[x].identifier);
+        fprintf(stderr, "* io:(%p) add handle %p, id: '%d'\n",
+                io, h, io->queue.pos[x].identifier);
 #endif
         curl_multi_add_handle(io->multi_h, h);
     }
     io->queue.size=0;
     pthread_mutex_unlock(&io->queue_mtx);
 
-    return;
+    return M_OK;
 }
 
 /** 
@@ -855,7 +841,7 @@ M_CODE
 lm_iothr_launch(io_t *io)
 {
     if (!io->synchronous) {
-        if (pthread_create(&io->thr, 0, &lm_iothr_main, io) != 0)
+        if (pthread_create(&io->thr, 0, (void *(*)(void*))&lm_iothr_main, io) != 0)
             return M_FAILED;
     }
 
@@ -867,31 +853,72 @@ lm_iothr_launch(io_t *io)
 }
 
 /** 
- * Main loop of io-thread
+ * entry point of the IO-thread, will listen for events on sockets
+ * connected to libcurl interfaces and also for signals from the main
+ * thread
  **/
 static void *
 lm_iothr_main(io_t *io)
 {
+    struct epoll_event msg_ev;
+    struct epoll_event events[8];
+
+    int stop = 0;
+    int n; /* num fds */
+    int x;
+    int msg;
+
+    io->e_timeout = 10000;
+
 #ifdef DEBUG
     fprintf(stderr, "* io:(%p) started\n", io);
 #endif
-    struct ev_loop *loop = io->ev_p;
-
-    ev_timer_init(&io->ev.timer, &lm_iothr_timerev_cb, 0., 0.);
-    ev_async_init(&io->ev.stop,  &lm_iothr_stop_cb);
-    ev_async_init(&io->ev.add,   &lm_iothr_add_cb);
-
-    io->ev.timer.data = io;
-    io->ev.add.data   = io;
-
-    ev_async_start(io->ev_p, &io->ev.stop);
-    ev_async_start(io->ev_p, &io->ev.add);
     io->prev_running = 0;
-
 #ifdef IO_DEBUG
-    fprintf(stderr, "* io:(%p) starting event loop\n", io);
+    fprintf(stderr, "* io:(%p) waiting for events\n", io);
 #endif
-    ev_loop(EV_A_ 0); /* enter main event loop */
+
+    if ((io->e_fd = epoll_create(1024)) < 0) {
+        LM_ERROR(io->m, "epoll_create failed");
+        return 0;
+    }
+
+    /* add our messaging fd so we can start listening for messages
+     * from the main thread*/
+    msg_ev.data.fd = io->msg_fd[0];
+    msg_ev.events  = EPOLLIN;
+    if (epoll_ctl(io->e_fd, EPOLL_CTL_ADD, io->msg_fd[0], &msg_ev) != 0) {
+        LM_ERROR(io->m, "epoll_ctl failed");
+        return 0;
+    }
+
+    while (!stop) {
+        n = epoll_wait(io->e_fd, events, 8, io->e_timeout);
+        
+        if (n == 0) {
+            lm_iothr_timer_reached(io);
+            continue;
+        }
+        if (n < 0) {
+            if (errno == EINTR)
+                continue;
+            break;
+        }
+        for (x=0; x<n; x++) {
+            if (events[x].data.fd == io->msg_fd[0]) {
+                /* message received */
+                if ((read(events[x].data.fd, &msg, sizeof(int))) != sizeof(int)
+                        || msg == LM_IOMSG_STOP) {
+                    stop = 1;
+                    break;
+                }
+                if (msg == LM_IOMSG_ADD)
+                    lm_iothr_check_pending(io);
+            } else
+                lm_iothr_fd_event(io, events[x].data.fd, events[x].events);
+        }
+    }
+
 
 #ifdef DEBUG
     fprintf(stderr, "* io:(%p) stopped\n", io);

@@ -424,34 +424,39 @@ static int
 lm_worker_wait(worker_t *w)
 {
     int msg;
-
-    pthread_rwlock_wrlock(&w->m->w_lk_num_waiting);
-    w->m->waiting_queue[w->m->w_num_waiting] = w;
-    w->m->w_num_waiting ++;
-#ifdef DEBUG
-    fprintf(stderr, "* worker:(%p) state: WAITING (num_waiting: %d)\n", w, w->m->w_num_waiting);
-#endif
     pthread_mutex_lock(&w->lock);
 
-    if (w->m->w_num_waiting >= w->m->num_threads)
-        lm_notify(w->m, LM_EV_IDLE);
+    if (w->message == LM_WORKER_MSG_NONE) {
+        pthread_rwlock_wrlock(&w->m->w_lk_num_waiting);
+        w->m->waiting_queue[w->m->w_num_waiting] = w;
+        w->m->w_num_waiting ++;
+#ifdef DEBUG
+        fprintf(stderr, "* worker:(%p) state: WAITING (num_waiting: %d)\n", w, w->m->w_num_waiting);
+#endif
 
-    w->state = LM_WORKER_STATE_WAITING;
-    pthread_rwlock_unlock(&w->m->w_lk_num_waiting);
+        if (w->m->w_num_waiting >= w->m->num_threads)
+            lm_notify(w->m, LM_EV_IDLE);
 
-    pthread_cond_wait(&w->wakeup_cond, &w->lock);
-    msg      = w->message;
+        w->state = LM_WORKER_STATE_WAITING;
+        pthread_rwlock_unlock(&w->m->w_lk_num_waiting);
+
+        pthread_cond_wait(&w->wakeup_cond, &w->lock);
+    }
+
+    msg = w->message;
 
     if (msg == LM_WORKER_MSG_STOP)
         w->state = LM_WORKER_STATE_STOPPED;
-    else
+    else {
+        lm_worker_sort(w);
         w->state = LM_WORKER_STATE_RUNNING;
+    }
+
 #ifdef DEBUG
     fprintf(stderr, "* worker:(%p) state: %s\n", w, worker_state_str[w->state]);
 #endif
 
-    lm_worker_sort(w);
-
+    w->message = LM_WORKER_MSG_NONE;
     pthread_mutex_unlock(&w->lock);
 
     return msg;

@@ -21,6 +21,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 #include "nolp.h"
 
 /** 
@@ -57,6 +58,7 @@ nolp_expect_line(nolp_t *no,
 {
     no->state = NOLP_LINE;
     no->next_cb = cb;
+    return 0;
 }
 
 /**
@@ -76,7 +78,6 @@ nolp_recv(nolp_t *no)
     int   sock = no->fd;
     int   rerun;
     char *p;
-    char *e;
     char *s;
 
     if (no->state == NOLP_CMD && no->sz >= no->cap) {

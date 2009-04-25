@@ -252,7 +252,8 @@ lmc_parse_file(lmc_parser_t *lmc,
         fclose(fp);
 
         char *s;
-        if (!(s = strrchr(filename, '/'))) s = filename;
+        if (!(s = strrchr(filename, '/')))
+            s = (char*)filename;
         else s++;
         r = lmc_parse(lmc, s, p, sz);
         free(p);
@@ -375,7 +376,7 @@ lmc_parse(lmc_parser_t *lmc,
                 found = 0;
                 for (x=0; x<lmc->num_classes; x++) {
                     if (strncmp(p, lmc->classes[x]->name, y) == 0) {
-                        curr = lmc->classes[x];
+                        curr = (struct lmc_class *)lmc->classes[x];
                         state = STATE_PRE_NAME;
                         p+=y-1;
                         found = 1;
@@ -387,7 +388,7 @@ lmc_parse(lmc_parser_t *lmc,
 
                 for (x=0; x<lmc->num_scopes; x++) {
                     if (strncmp(p, lmc->scopes[x]->name, y) == 0) {
-                        curr = lmc->scopes[x];
+                        curr = (struct lmc_class *)lmc->scopes[x];
                         scope = 1;
                         state = STATE_PRE_OBJ;
                         p+=y-1;

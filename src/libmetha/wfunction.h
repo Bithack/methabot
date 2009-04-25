@@ -59,6 +59,7 @@ struct iobuf;
 struct io;
 struct url;
 struct uehandle;
+struct attr_list;
 
 /** 
  * Worker functions

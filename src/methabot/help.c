@@ -19,13 +19,14 @@
  * http://bithack.se/projects/methabot/
  */
 
-#include "../libmetha/libev/ev.h"
-#include "config.h"
 #include <jsapi.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <curl/curlver.h>
 #include <dirent.h>
+
+#include "config.h"
 
 extern char *home_conf;
 extern int   home_conf_sz;
@@ -110,7 +111,11 @@ static struct opt_help {
 void
 mb_version(void)
 {
-    printf("Methabot/%s%s [%s, pthreads, libev-%d.%d, libcurl-%s]\n", PACKAGE_VERSION,  (sizeof(void*)==8?" (64-bit)":(sizeof(void*)==32?" (32-bit)":"")), JS_GetImplementationVersion(), EV_VERSION_MAJOR, EV_VERSION_MINOR, LIBCURL_VERSION);
+    printf("methabot libmetha-%s/%s [%s, pthreads, epoll, libcurl-%s]\n",
+            (sizeof(void*)==8?"x86_64":(sizeof(void*)==32?"x86":"")),
+            PACKAGE_VERSION,
+            JS_GetImplementationVersion(),
+            LIBCURL_VERSION);
 }
 
 void

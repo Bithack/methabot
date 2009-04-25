@@ -88,7 +88,8 @@ lm_default_error_reporter(metha_t *m, const char *s, ...)
 }
 
 void
-lm_default_target_reporter(metha_t *m, worker_t *w, url_t *url, filetype_t *ft)
+lm_default_target_reporter(metha_t *m, worker_t *w, url_t *url,
+                           attr_list_t *attr, filetype_t *ft)
 {
     printf("target: %s\n", url->str);
 }

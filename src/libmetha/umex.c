@@ -551,7 +551,7 @@ umex_dump(EXPR* expr)
 {
     printf("begin dump\n");
     printf("  (struct umex*) (%p)\n", expr);
-    printf("  %d bytes\n", sizeof(EXPR));
+    printf("  %d bytes\n", (int)sizeof(EXPR));
     printf("unsigned int\n");
     printf("  %d\n", expr->sz);
     printf("code\n");

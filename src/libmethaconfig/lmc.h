@@ -61,6 +61,12 @@
         .value.set = (fn) \
     }
 
+#define LMC_DIRECTIVE(nm, fn) \
+    { \
+        .name = (nm), \
+        .callback = (M_CODE (*)(void *, const char *))(fn) \
+    }
+
 /* option value types, macros above
  * should be used */
 enum {

@@ -20,6 +20,8 @@
  */
 
 #include "attr.h"
+#include <stdlib.h>
+#include <string.h>
 
 /** 
  * Set the given attribute 'attribute' to a copy

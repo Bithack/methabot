@@ -81,13 +81,8 @@ typedef struct metha {
     /* configuration file parser from libmethaconfig */
     lmc_parser_t *lmc;
 
-    /** 
-     * The event loop and its events
-     **/
-    struct {
-        struct ev_loop  *loop;
-        struct ev_async exit;
-    } ev;
+    /* pipe used for signaling */
+    int msg_fd[2];
 
     /* lmetha_exec_once() and lmetha_exec_provided() will save 
      * their results here, so we can pick it up the next time
@@ -149,7 +144,7 @@ typedef struct metha {
     void   (*target_cb)(struct metha *, struct worker *, url_t *, attr_list_t *, filetype_t *);
     void   (*error_cb)(struct metha *, const char *s, ...);
     void   (*warning_cb)(struct metha *, const char *s, ...);
-    void   (*event_cb)(struct metha *, int ev);
+    void   (*event_cb)(struct metha *, unsigned ev);
 
     int builtin_parsers;
     int num_threads;
@@ -193,12 +188,9 @@ ioprivate_t* lm_multipeek_wait(iohandle_t *ioh);
 
 /* errors.c */
 void lm_default_status_reporter(metha_t *, struct worker *, url_t *);
-void lm_default_target_reporter(metha_t *, struct worker *, url_t *, filetype_t *);
+void lm_default_target_reporter(metha_t *, struct worker *, url_t *, attr_list_t *, filetype_t *);
 void lm_default_error_reporter(metha_t *, const char *s, ...);
 void lm_default_warning_reporter(metha_t *, const char *s, ...);
-
-/* internal events, events.c */
-void lm_ev_exit(EV_P_ ev_io *w, int revents);
 
 /* events.c */
 void lm_default_event_handler(metha_t *m, unsigned ev);

@@ -19,14 +19,17 @@
  * http://bithack.se/projects/methabot/
  */
 
+#include <stdlib.h>
+#include <ctype.h>
+#include <string.h>
+#include <assert.h>
+
 #include "url.h"
 #include "urlengine.h"
 #include "io.h"
 #include "config.h"
 #include "worker.h"
 #include "builtin.h"
-#include <string.h>
-#include <assert.h>
 
 #ifndef HAVE_MEMMEM
 #define memmem(x, xz, y, yz) strstr(x, y)
@@ -242,10 +245,11 @@ parse_tag(uehandle_t *h, char *p, size_t len)
 
 #define NUM_EL_NO_CONTENT sizeof(no_content)/sizeof(struct xml_el)
 /* list of elements that require a '/' ending them in XML, since they have no "body" */
-static const struct xml_el no_content[] = {
+static const struct xml_el no_content[] =
+{
     {"br", 2}, {"hr", 2}, {"img", 3}, {"link", 4}, {"meta", 4},
     {"base", 4}, {"basefont", 8}, {"area", 4}, {"input", 5},
-    0
+    {0}
 };
 
 #define NUM_EL_ENC_CONTENT sizeof(enc_content)/sizeof(struct xml_el)
@@ -254,9 +258,10 @@ static const struct xml_el no_content[] = {
  * '<' and '>'. For these elements, nothing between <element>
  * and </element> will be considered XML elements, they will all be 
  * encoded. */
-static const struct xml_el enc_content[] = {
+static const struct xml_el enc_content[] =
+{
     {"textarea", 8}, {"script", 6}, {"style", 5},
-    0
+    {0}
 };
 
 /** 

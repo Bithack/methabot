@@ -24,7 +24,6 @@
 #include "worker.h"
 #include "js.h"
 #include "events.h"
-#include "libev/ev.h"
 #include "mod.h"
 #include "builtin.h"
 
@@ -44,6 +43,7 @@ S_ wfunction_t *lm_str_to_wfunction(metha_t *m, const char *name, uint8_t purpos
 S_ void* do_async_main(void* in);
 S_ M_CODE start_worker_threads(metha_t *m, int argc, char **argv);
 S_ void stop_worker_threads(metha_t *m);
+S_ void msg_loop(metha_t *m);
 
 /* utf8conv.c */
 M_CODE lm_parser_utf8conv(worker_t *w, iobuf_t *buf, uehandle_t *ue_h, url_t *url, attr_list_t *al);
@@ -119,8 +119,8 @@ m_builtin_parsers[] = {
 
 #define NUM_DIRECTIVES sizeof(directives)/sizeof(struct lmc_directive)
 static const struct lmc_directive directives [] = {
-    {"include",     &lmetha_load_config},
-    {"load_module", &lmetha_load_module},
+    LMC_DIRECTIVE("include", &lmetha_load_config),
+    LMC_DIRECTIVE("load_module", &lmetha_load_module),
 };
 
 static struct lmc_class
@@ -415,13 +415,8 @@ lmetha_create(void)
     for (x=0; x<NUM_DIRECTIVES; x++)
         lmc_add_directive(m->lmc, &directives[x]);
 
-    /* this loop will be used in the main thread */
-    if (!(m->ev.loop = ev_loop_new(EVFLAG_AUTO)))
-        return M_EVENT_ERROR;
+    pipe(m->msg_fd);
 
-    ev_async_init(&m->ev.exit, &lm_ev_exit);
-    m->ev.exit.data = m;
-    ev_async_start(m->ev.loop, &m->ev.exit);
     return m;
 }
 
@@ -520,8 +515,8 @@ lmetha_destroy(metha_t *m)
 
     ue_uninit(&m->ue);
     lm_uninit_io(&m->io);
-
-    ev_loop_destroy(m->ev.loop);
+    close(m->msg_fd[0]);
+    close(m->msg_fd[1]);
 	free(m);
 }
 
@@ -699,10 +694,32 @@ do_async_main(void* in)
     pthread_cond_signal(&as->cond);
     pthread_mutex_unlock(&as->mtx);
     m->state = LM_STATE_RUNNING;
-    ev_loop(m->ev.loop, 0);
+
+    msg_loop(m);
+
     stop_worker_threads(m);
     m->state = LM_STATE_PREPARED;
     return 0;
+}
+
+/** 
+ * wait for messages and handle them, used in the main 
+ * thread
+ **/
+S_ void
+msg_loop(metha_t *m)
+{
+    int msg;
+    int n;
+
+    while ((n = read(m->msg_fd[0], &msg, sizeof(int))) == sizeof(int)) {
+        switch (msg) {
+            case LM_SIGNAL_EXIT:
+                return;
+        }
+    }
+
+    fprintf(stderr, "OUT OF LOOP %d\n", n);
 }
 
 /** 
@@ -723,9 +740,9 @@ lmetha_exec(metha_t *m, int argc, const char **argv)
 
     if ((r = start_worker_threads(m, argc, argv) != M_OK))
         return r;
-    /* start the event loop, waiting for signals
+    /* start the main loop, waiting for signals
      * from workers */
-    ev_loop(m->ev.loop, 0);
+    msg_loop(m);
     stop_worker_threads(m);
     return M_OK;
 }
@@ -744,7 +761,7 @@ stop_worker_threads(metha_t *m)
         w = m->workers[x];
         pthread_mutex_lock(&w->lock);
         switch (w->state) {
-            case LM_WORKER_STATE_STOPPED:
+            case LM_WORKER_STATE_WAITING:
                 w->message = LM_WORKER_MSG_STOP;
                 pthread_cond_signal(&w->wakeup_cond);
                 break;
@@ -924,7 +941,6 @@ lmetha_prepare(metha_t *m)
 
     if ((ret = lm_prepare_filetypes(m)) != M_OK)
         return ret;
-
     if ((ret = lm_prepare_crawlers(m)) != M_OK)
         return ret;
 
@@ -1546,17 +1562,15 @@ error:
 
 /** 
  * Signal a running libmetha session. The session
- * must have been started using lmetha_exec_async()
+ * should have been started using lmetha_exec_async()
  **/
 M_CODE
 lmetha_signal(metha_t *m, int sig)
 {
-    switch (sig) {
-        case LM_SIGNAL_EXIT:
-            ev_async_send(m->ev.loop, &m->ev.exit);
-            break;
-    }
-    return M_OK;
+    if (write(m->msg_fd[1], &sig, sizeof(int)) == sizeof(int))
+        return M_OK;
+    else
+        return M_IO_ERROR;
 }
 
 /** 

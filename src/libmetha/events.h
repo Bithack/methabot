@@ -19,8 +19,6 @@
  * http://bithack.se/projects/methabot/
  */
 
-#include "libev/ev.h"
-
 #ifndef _LM_EVENTS__H_
 #define _LM_EVENTS__H_
 

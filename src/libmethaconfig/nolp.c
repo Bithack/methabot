@@ -19,6 +19,8 @@
  * http://bithack.se/projects/methabot/
  */
 
+#include <stdlib.h>
+#include <string.h>
 #include "nolp.h"
 
 /** 
@@ -127,9 +129,10 @@ nolp_recv(nolp_t *no)
                             s = p;
                         *s = '\0';
                         for (x=0;; x++) {
-                            if (!no->fn[x].name)
+                            if (!no->fn[x].name) {
                                 /* command not found */
                                 return -1;
+                            }
                             if (strcmp(no->fn[x].name, no->buf) == 0) {
                                 if (no->fn[x].cb(no, s+1, p-(s+1)) != 0)
                                     return -1;

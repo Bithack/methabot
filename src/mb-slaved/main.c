@@ -31,6 +31,7 @@
 #include "../mb-masterd/server.h"
 #include "client.h"
 #include "slave.h"
+#include "nolp.h"
 
 int mbs_cleanup();
 static void mbs_ev_sigint(EV_P_ ev_signal *w, int revents);
@@ -49,7 +50,7 @@ void set_defaults(void);
 const char     *_cfg_file;
 struct slave    srv;
 struct opt_vals opt_vals;
-struct nolp_fn master_commands[];
+extern struct nolp_fn master_commands[];
 
 #include "../libmetha/libev/ev.c"
 

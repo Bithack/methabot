@@ -306,8 +306,8 @@ upgrade_conn(struct conn *conn, const char *user)
 
         case MBM_AUTH_TYPE_SLAVE:
             sprintf(buf, "CONFIG %d\n", srv.config_sz);
-            send(sock, buf, strlen(buf), MSG_NOSIGNAL);
-            send(sock, srv.config_buf, srv.config_sz, MSG_NOSIGNAL);
+            send(sock, buf, strlen(buf), 0);
+            send(sock, srv.config_buf, srv.config_sz, 0);
 
             struct slave *sl = mbm_create_slave(user);
             if (!sl) return -1;

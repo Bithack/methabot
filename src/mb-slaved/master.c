@@ -20,6 +20,8 @@
  */
 
 #include <syslog.h>
+#include <stdlib.h>
+#include <string.h>
 #include "slave.h"
 #include "client.h"
 #include "nolp.h"

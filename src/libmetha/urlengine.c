@@ -19,8 +19,10 @@
  * http://bithack.se/projects/methabot/
  */
 
-#include "urlengine.h"
 #include <jsapi.h>
+#include <ctype.h>
+#include <string.h>
+#include "urlengine.h"
 
 /*#define UE_DEBUG*/
 #ifdef _DEBUG
@@ -36,8 +38,7 @@
 static struct host_ent *ue_hostent_create(uehandle_t *h, const char *str, uint16_t len, int secondary_n, int add_pending);
 static void ue_hostent_free(struct host_ent *p);
 static M_CODE ue_push_pending(uehandle_t *h, struct host_ent *p);
-static M_CODE ue_remove_pending(uehandle_t *h, struct host_ent *p);
-static M_CODE ue_leave_host(uehandle_t *h);
+/*static M_CODE ue_remove_pending(uehandle_t *h, struct host_ent *p);*/
 struct host_ent *ue_get_hostent(uehandle_t *h, const char *host, uint16_t host_sz, int add_pending);
 
 M_CODE
@@ -77,7 +78,7 @@ ue_uninit(ue_t *ue)
                 do {
                     next = curr->next;
                     ue_hostent_free(curr);
-                } while (curr = next);
+                } while ((curr = next));
             }
         }
     }
@@ -249,11 +250,6 @@ failed:
 }
 
 
-static M_CODE
-ue_leave_host(uehandle_t *h)
-{
-}
-
 /**
  * Used to find or create a host entry for a given host 
  * name. The uehandle will save a pointer to the host entry
@@ -327,7 +323,7 @@ ue_get_hostent(uehandle_t *h, const char *host, uint16_t host_sz, int add_pendin
         if (!*(np = (last?&last->next:&ue->secondary[n].hosts[host_sz & 7]))) {
             /* still didnt exists, so we create it */
             if (!(p = ue_hostent_create(h, host, host_sz, n, add_pending))) {
-                pthread_mutex_unlock(rwl);
+                pthread_rwlock_unlock(rwl);
                 return 0;
             }
 
@@ -482,10 +478,7 @@ ue_stop_epeek(uehandle_t *h)
 M_CODE
 ue_move_to_secondary(uehandle_t *h, url_t *url)
 {
-    uint16_t n = url->host_l;
-    struct host_ent *p, *last = 0;
-    pthread_mutex_t *lock;
-    ue_t *ue = h->parent;
+    struct host_ent *p;
     uint16_t host_o;
     uint16_t host_l;
     char     *host;
@@ -598,6 +591,7 @@ ue_push_pending(uehandle_t *h, struct host_ent *p)
  * affect the host entry itself other than modifying its pending and
  * pending_pos values.
  **/
+/*
 static M_CODE
 ue_remove_pending(uehandle_t *h, struct host_ent *p)
 {
@@ -621,6 +615,7 @@ ue_remove_pending(uehandle_t *h, struct host_ent *p)
 
     return M_OK;
 }
+*/
 
 /** 
  * Return a pointer to the top pneding stack entry

@@ -20,6 +20,7 @@
  */
 
 #include "mime.h"
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -53,7 +54,6 @@
 mime_t
 lm_mime_hash(const char *s)
 {
-    int len, v=0;
     const char *p=s;
     uint32_t type = MT_OTHERS;
     mime_t r = 0;
@@ -97,7 +97,7 @@ lm_mime_hash(const char *s)
         if (!*p)
             return type;
         else {
-            if (p = strchr(p, '/'))
+            if ((p = strchr(p, '/')))
                 p++;
             else
                 return type;
@@ -124,7 +124,7 @@ lm_mimetb_uninit(mimetb_t *t)
     for (x=0; x<LM_MT_NUM_CATS; x++) {
         if (t->tbl[x]) {
             if (t->listsz[x] >= MT_HASH_LIST_LIMIT) {
-                mimetb_nh_t **list = t->tbl[x];
+                mimetb_nh_t **list = (mimetb_nh_t**)t->tbl[x];
                 for (y=0; y<MT_HASH_COUNT; y++) {
                     mimetb_nh_t *curr = list[y];
                     void *qwerty;
@@ -132,7 +132,7 @@ lm_mimetb_uninit(mimetb_t *t)
                         do {
                             qwerty = curr->next;
                             free(curr);
-                        } while (curr = qwerty);
+                        } while ((curr = qwerty));
                     }
                 }
             } else {
@@ -182,7 +182,7 @@ lm_mimetb_add(mimetb_t *t, const char *mime, FT_ID id)
         if (t->listsz[cat]+1 == MT_HASH_LIST_LIMIT) {
             /* convert to hash table */
             int x;
-            this = t->tbl[cat];
+            this = (mimetb_nl_t*)t->tbl[cat];
             if (!(t->tbl[cat] = calloc(1,sizeof(mimetb_nh_t*)*MT_HASH_COUNT)))
                 return M_OUT_OF_MEM;
 
@@ -196,10 +196,10 @@ lm_mimetb_add(mimetb_t *t, const char *mime, FT_ID id)
             goto h_add;
         }
         if (!t->tbl[cat]) {
-            if (!(this = t->tbl[cat] = malloc(sizeof(mimetb_nl_t))))
+            if (!(this = (mimetb_nl_t*)(t->tbl[cat] = malloc(sizeof(mimetb_nl_t)))))
                 return M_OUT_OF_MEM;
         } else {
-            this = t->tbl[cat] = realloc(t->tbl[cat], (t->listsz[cat]+1)*sizeof(mimetb_nl_t));
+            this = (mimetb_nl_t*)(t->tbl[cat] = realloc(t->tbl[cat], (t->listsz[cat]+1)*sizeof(mimetb_nl_t)));
             if (!this)
                 return M_OUT_OF_MEM;
             this += t->listsz[cat];
@@ -229,15 +229,12 @@ lm_mimetb_lookup(mimetb_t *t, const char *mime)
         do {
             if (strcmp(mime, n->str) == 0)
                 return n->id;
-        } while (n = n->next);
+        } while ((n = n->next));
     } else {
         /* list form search */
         if (!t->tbl[c])
             return FT_ID_NULL;
-
-        mimetb_nl_t *n = t->tbl[c];
         int x;
-
         for (x=0; x<t->listsz[c]; x++)
             if (((mimetb_nl_t*)(t->tbl[c]))[x].mime == m && strcmp(((mimetb_nl_t*)(t->tbl[c]))[x].str, mime) == 0)
                 return ((mimetb_nl_t*)(t->tbl[c]))[x].id;

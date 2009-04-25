@@ -21,6 +21,7 @@
 
 #include <string.h>
 #include <pthread.h>
+#include <ctype.h>
 #include <jsapi.h>
 
 #include "str.h"
@@ -38,7 +39,6 @@
 
 static M_CODE lm_worker_init(worker_t *w);
 static M_CODE lm_worker_init_e4x(worker_t *w);
-static void   lm_worker_jserror(JSContext *cx, const char *message, JSErrorReport *report);
 static M_CODE lm_worker_sort(worker_t *w);
 static M_CODE lm_worker_perform(worker_t *w);
 static M_CODE lm_worker_call_crawler_init(worker_t *w);
@@ -56,7 +56,7 @@ static const char *worker_state_str[] = {
 /** 
  * This is the object class for the 'this' variable in e4x parser callbacks.
  **/
-static const JSClass worker_jsclass = {
+static JSClass worker_jsclass = {
     "worker_t", JSCLASS_HAS_PRIVATE,
     JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_PropertyStub,
     JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, JS_FinalizeStub,
@@ -83,8 +83,7 @@ lm_worker_run_once(worker_t *w)
     } else
         lm_worker_sort(w);
 
-    const char *url = ue_next(w->ue_h);
-
+    ue_next(w->ue_h);
     lm_worker_perform(w);
     lm_worker_sort(w);
 
@@ -142,9 +141,12 @@ lm_worker_call_crawler_init(worker_t *w)
                     jsval tmp_v = STRING_TO_JSVAL(tmp);
                     JS_SetElement(w->e4x_cx, args, (jsint)x, &tmp_v);
                 }
-                JS_CallFunctionValue(w->e4x_cx, w->e4x_this, func, 1, &args, &ret);
+                jsval a = OBJECT_TO_JSVAL(args);
+                JS_CallFunctionValue(w->e4x_cx, w->e4x_this, func, 1, &a, &ret);
 
-                lm_jsval_foreach(w->e4x_cx, ret, &ue_add_initial, w->ue_h);
+                lm_jsval_foreach(w->e4x_cx, ret,
+                        (M_CODE (*)(void *, const char *, uint16_t))&ue_add_initial,
+                        w->ue_h);
 
                 JS_EndRequest(w->e4x_cx);
 
@@ -172,12 +174,11 @@ static M_CODE
 __lm_worker_default_crawler_init(uehandle_t *h, int argc, const char **argv)
 {
     int x;
-    int len;
-    const char *s;
-    const char *url;
+    char *s;
+    char *url;
 
     for (x=0; x<argc; x++) {
-        url = s = argv[x];
+        url = s = (char *)argv[x];
         /** 
          * The only thing we need to take care of here is making sure that the 
          * given URL begins with a protocol. The lm_url_set() function, which 
@@ -214,11 +215,10 @@ static void *
 lm_worker_main(void *in)
 {
     worker_t      *w      = (worker_t*)in;
-    worker_info_t *info_p = &w->m->w_message_ret;
     const char    *url;
     crawler_t *new;
 
-    int   *num_waiting = &w->m->w_num_waiting;
+    volatile int *num_waiting = &w->m->w_num_waiting;
 
     pthread_mutex_t  *lk_reply       = &w->m->w_lk_reply;
     pthread_rwlock_t *lk_num_waiting = &w->m->w_lk_num_waiting;
@@ -250,9 +250,7 @@ lm_worker_main(void *in)
         if (!(url = ue_next(w->ue_h))) {
             /* out of internal URLs, we'll see if we have any external URLs if external mode is 
              * enabled */
-            int cont = 0;
             uehandle_t *h = w->ue_h;
-            struct host_ent *last = h->host_ent;
 
             if (lm_crawler_flag_isset(w->crawler, LM_CRFLAG_EXTERNAL)) {
                 struct host_ent *new;
@@ -301,7 +299,7 @@ lm_worker_main(void *in)
         /*
         pthread_mutex_lock(&w->lock);
         */
-        switch ((volatile)w->message) {
+        switch (w->message) {
             case LM_WORKER_MSG_STOP:
                 w->state = LM_WORKER_STATE_STOPPED;
          /*       pthread_mutex_unlock(&w->lock);*/
@@ -750,7 +748,7 @@ lm_worker_perform(worker_t *w)
     /* prepare the attributes list for this filetype, so
      * that our parsers can fill in values specifically for this
      * url */
-    lm_attrlist_prepare(&w->attributes, ft->attributes, ft->attr_count);
+    lm_attrlist_prepare(&w->attributes, (const char**)ft->attributes, ft->attr_count);
 
     /** 
      * call the handler for this filetype, the handler should download
@@ -892,7 +890,9 @@ lm_worker_perform(worker_t *w)
                 if (JS_CallFunction(w->e4x_cx, w->e4x_this, p->fn.javascript, 0, 0, &ret) != JS_TRUE) {
                     w->m->error_cb(w->m, "calling javascript parser failed");
                 } else
-                    lm_jsval_foreach(w->e4x_cx, ret, &ue_add, w->ue_h);
+                    lm_jsval_foreach(w->e4x_cx, ret,
+                            (M_CODE (*)(void *, const char *, uint16_t))&ue_add,
+                            w->ue_h);
 
                 JS_EndRequest(w->e4x_cx);
                 break;
@@ -954,7 +954,7 @@ lm_worker_init_e4x(worker_t *w)
     for (x=0; x<w->m->num_worker_objs; x++) {
         jsval     v;
         JSObject *o;
-        if (o = JS_ConstructObject(w->e4x_cx, w->m->worker_objs[x].class, 0, 0)) {
+        if ((o = JS_ConstructObject(w->e4x_cx, w->m->worker_objs[x].class, 0, 0))) {
             v = OBJECT_TO_JSVAL(o);
             JS_DefineProperty(w->e4x_cx, w->e4x_this, w->m->worker_objs[x].name,
                               v, 0, 0, 0);
@@ -964,7 +964,7 @@ lm_worker_init_e4x(worker_t *w)
     JS_SetPrivate(w->e4x_cx, w->e4x_this, w);
 
     /* set up worker functions */
-    if (JS_DefineFunctions(w->e4x_cx, w->e4x_this, &lm_js_workerfunctions) == JS_FALSE) {
+    if (JS_DefineFunctions(w->e4x_cx, w->e4x_this, lm_js_workerfunctions) == JS_FALSE) {
         LM_ERROR(w->m, "fatal: defining native javascript worker functions failed");
         return M_FAILED;
     }
@@ -984,10 +984,9 @@ static M_CODE
 lm_worker_get_robotstxt(worker_t *w, struct host_ent *ent)
 {
     char *url;
-    const char *s, *e;
-    int len;
+    char *s, *e;
     M_CODE status;
-    int enable = 1; /* set enable if user agent matches */
+    size_t enable = 1; /* set enable if user agent matches */
 
     char *opt_s, *opt_e, *val_s, *val_e;
 
@@ -1031,7 +1030,7 @@ lm_worker_get_robotstxt(worker_t *w, struct host_ent *ent)
                 } else {
                     char tmp = *val_e;
                     *val_e = '\0';
-                    enable = (int)strstr(w->m->io.user_agent, val_s);
+                    enable = (size_t)strstr(w->m->io.user_agent, val_s);
                     *val_e = tmp;
                 }
             } else if (enable) {

@@ -110,6 +110,8 @@ static long guesstai(long month,long mday)
     if (now - t < 350 * 86400)
       return t;
   }
+
+  return 0;
 }
 
 static int check(char *buf,char *monthname)

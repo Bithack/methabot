@@ -22,6 +22,7 @@
 #include "attr.h"
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 /** 
  * Set the given attribute 'attribute' to a copy

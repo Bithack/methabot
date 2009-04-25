@@ -2,7 +2,7 @@
  * url.c
  * This file is part of libmetha
  *
- * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
+ * Copyright (c) 2008, 2009, Emil Romanus <emil.romanus@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -23,6 +23,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #define NUM_PROTOCOLS (sizeof(protocols)/sizeof(struct protocol))
 #define ENC_STACK_SIZE 8
@@ -42,7 +43,7 @@ static struct protocol protocols[] = {
 };
 
 static M_CODE lm_url_realloc(url_t *url, uint16_t sz);
-static M_CODE lm_url_encodecpy(url_t *url, char *prefix, uint16_t prefix_sz, char *str, uint16_t sz);
+static M_CODE lm_url_encodecpy(url_t *url, const char *prefix, uint16_t prefix_sz, const char *str, uint16_t sz);
 
 /** 
  * Zero an url
@@ -79,9 +80,9 @@ lm_url_dup(url_t *dest, url_t *source)
 }
 
 /** 
- * Ready a url struct
+ * Placement-initialize a url struct
  **/
-M_CODE
+void
 lm_url_init(url_t *url)
 {
     url->sz = 0;
@@ -169,11 +170,10 @@ lm_url_realloc(url_t *url, uint16_t sz)
  * Set the given URL 'url' to the given string 'str' of length 'size'
  **/
 M_CODE
-lm_url_set(url_t *url, char *str, uint16_t size)
+lm_url_set(url_t *url, const char *str, uint16_t size)
 {
-    char *e = str + size;
-    char *s = str;
-    char *t; /* points to target buffer to which we will copy */
+    char *e = (char*)str + size;
+    char *s = (char*)str;
     int x, y;
     uint8_t  proto = 0xff;
     url->flags = 0;
@@ -276,7 +276,8 @@ lm_url_set(url_t *url, char *str, uint16_t size)
  * then dest = "http://google.com/xyz.htm"
  **/
 M_CODE
-lm_url_combine(url_t *dest, url_t *source, char *str, uint16_t len)
+lm_url_combine(url_t *dest, url_t *source,
+               const char *str, uint16_t len)
 {
     /* XXX: we assume 'source' is *at least* a protocol + a host name */
     uint16_t offs;
@@ -314,14 +315,14 @@ lm_url_combine(url_t *dest, url_t *source, char *str, uint16_t len)
  * path structures. Ex. "http://google.com/random/"
  **/
 static M_CODE
-lm_url_encodecpy(url_t *url, char *prefix, uint16_t prefix_sz,
-                 char *str, uint16_t sz)
+lm_url_encodecpy(url_t *url, const char *prefix,
+                 uint16_t prefix_sz, const char *str,
+                 uint16_t sz)
 {
-    int       x;
     uint16_t  file_o = 0, ext_o = 0;
     uint8_t   is_dyn = 0;
-    char     *s = str;
-    char     *e = str+sz;
+    char     *s = (char*)str;
+    char     *e = (char*)str+sz;
     char     *t;
     char     *t_e;
 
@@ -353,7 +354,8 @@ lm_url_encodecpy(url_t *url, char *prefix, uint16_t prefix_sz,
             for (; s<e; s++) { /* loop through evertyhing after the '?' */
                 if (*s == ' ')
                     *t++ = '+';
-                else if (*s == '&' && (*(s+1)) == 'a' && (*(s+2)) == 'm' && (*(s+3)) == 'p' && (*(s+4)) == ';') {
+                else if (*s == '&' && (*(s+1)) == 'a' && (*(s+2)) == 'm'
+                        && (*(s+3)) == 'p' && (*(s+4)) == ';') {
                     *t++ = '&';
                     s+=4;
                     continue;
@@ -374,7 +376,8 @@ lm_url_encodecpy(url_t *url, char *prefix, uint16_t prefix_sz,
 pback:
                     if (t > url->str+url->host_o+url->host_l+1) {
                         for (t--;;t--) {
-                            if (t<=url->str+url->host_o+url->host_l || (*t == '/' && t != url->str+prefix_sz-1))
+                            if (t<=url->str+url->host_o+url->host_l
+                                    || (*t == '/' && t != url->str+prefix_sz-1))
                                 break;
                         }
                     }

@@ -447,7 +447,7 @@ lm_io_perform_http(iohandle_t *h, url_t *url)
                          **/
                         const char *new_url;
                         if (curl_easy_getinfo(h->primary, CURLINFO_REDIRECT_URL, &new_url) == CURLE_OK)
-                            h->transfer.headers.location = new_url;
+                            h->transfer.headers.location = (char*)new_url;
                     }
                     curl_easy_getinfo(h->primary, CURLINFO_CONTENT_TYPE, &h->transfer.headers.content_type);
                 }

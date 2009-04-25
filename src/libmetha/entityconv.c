@@ -345,7 +345,7 @@ lm_entity_hashtbl_init(void)
         if (!(e_tbl[hash].ptr = realloc(e_tbl[hash].ptr,
                             e_tbl[hash].count*sizeof(entity_t*))))
             return M_OUT_OF_MEM;
-        e_tbl[hash].ptr[e_tbl[hash].count-1] = &entities[x];
+        e_tbl[hash].ptr[e_tbl[hash].count-1] = (entity_t*)&entities[x];
     }
 
     hashtbl_initialized = 1;
@@ -413,7 +413,7 @@ lm_parser_entityconv(worker_t *w, iobuf_t *buf,
     entity_t *ent;
     e = (last = p = n = buf->ptr) + buf->sz;
 
-    while (n = memchr(n, '&', e-n)) {
+    while ((n = memchr(n, '&', e-n))) {
         n++;
         s = n;
         if (*s == '#') {

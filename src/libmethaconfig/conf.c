@@ -139,13 +139,13 @@ lmc_destroy(lmc_parser_t *lmc)
  **/
 M_CODE
 lmc_add_directive(lmc_parser_t *lmc,
-                  struct lmc_directive *d)
+                  const struct lmc_directive *d)
 {
     if (!(lmc->directives = realloc(lmc->directives,
                     sizeof(struct lmc_directive*)*(lmc->num_directives+1))))
         return M_OUT_OF_MEM;
 
-    lmc->directives[lmc->num_directives] = d;
+    lmc->directives[lmc->num_directives] = (struct lmc_directive *)d;
 
 #ifdef DEBUG
     fprintf(stderr, "* lmc-parser:(%p) added directive '%s'\n",
@@ -163,13 +163,13 @@ lmc_add_directive(lmc_parser_t *lmc,
  **/
 M_CODE
 lmc_add_class(lmc_parser_t *lmc,
-              struct lmc_class *cl)
+              const struct lmc_class *cl)
 {
     if (!(lmc->classes = realloc(lmc->classes,
                     sizeof(struct lmc_class*)*(lmc->num_classes+1))))
         return M_OUT_OF_MEM;
 
-    lmc->classes[lmc->num_classes] = cl;
+    lmc->classes[lmc->num_classes] = (struct lmc_class *)cl;
 
 #ifdef DEBUG
     fprintf(stderr, "* lmc-parser:(%p) added class '%s'\n",
@@ -186,13 +186,13 @@ lmc_add_class(lmc_parser_t *lmc,
  **/
 M_CODE
 lmc_add_scope(lmc_parser_t *lmc,
-              struct lmc_scope *scope)
+              const struct lmc_scope *scope)
 {
     if (!(lmc->scopes = realloc(lmc->scopes,
                     sizeof(struct lmc_scope*)*(lmc->num_scopes+1))))
         return M_OUT_OF_MEM;
 
-    lmc->scopes[lmc->num_scopes] = scope;
+    lmc->scopes[lmc->num_scopes] = (struct lmc_scope *)scope;
 
 #ifdef DEBUG
     fprintf(stderr, "* lmc-parser:(%p) registered scope '%s'\n",
@@ -281,7 +281,7 @@ lmc_parse_file(lmc_parser_t *lmc,
 M_CODE
 lmc_parse(lmc_parser_t *lmc,
           const char *name,
-          char *buf,
+          const char *buf,
           size_t bufsz)
 {
     char    *p, *e, *s;
@@ -311,7 +311,7 @@ lmc_parse(lmc_parser_t *lmc,
     struct lmc_opt          *curr_opt;
     struct lmc_directive    *curr_directive;
 
-    for (p=buf, e=buf+bufsz; p<e; p++) {
+    for (p=(char*)buf, e=(char*)buf+bufsz; p<e; p++) {
         if (isspace(*p))
             continue;
         if (*p == '#') {

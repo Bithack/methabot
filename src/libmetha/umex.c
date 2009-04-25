@@ -285,11 +285,10 @@ umex_explicit_strstart(const char *str, unsigned int sz)
 EXPR*
 umex_compile(const char *str)
 {
-    const char *s = str;
+    char *s = (char*)str;
     char *ns;
-    int mode = 0, search;
+    int mode = 0;
     int x;
-    int clen = 0;
     char c;
     char *tmp = 0;
     EXPR *ret = calloc(1, sizeof(EXPR));

@@ -91,7 +91,7 @@ inl_ NODE*
 mtrie_next(NODE *n, BRANCH *p, char count, char c)
 {
     char top  = count-1;
-    int  x, y;
+    int  x;
 
     if (!p)
         goto add;
@@ -99,7 +99,7 @@ mtrie_next(NODE *n, BRANCH *p, char count, char c)
         x = 0;
         goto add;
     }
-    if (c > p[top].c) {
+    if (c > p[(int)top].c) {
         x = count;
         goto add;
     }
@@ -216,10 +216,10 @@ int
 mtrie_tryadd(mtrie_t *p, url_t *url)
 {
     NODE *n;
+    uint8_t       v; /* current char, converted through MTRIE_OFFS() */
+    uint_fast16_t x, y;
     const char *s;
     const char *e;
-    uint8_t c, v; /* current char, converted through MTRIE_OFFS() */
-    uint_fast16_t x, y;
 
     /*
     s = url->str;
@@ -248,12 +248,12 @@ cont:for (;;) {
 
             if (v) {
                 /* type is leaf */
-                s2 = &((LEAF *)(n->next))->s;
+                s2 = (char*)&((LEAF *)(n->next))->s;
                 sz = ((LEAF *)(n->next))->sz;
                 leaf = 1;
             } else {
                 /* type is conn */
-                s2 = &((CONN *)(n->next))->s;
+                s2 = (char*)&((CONN *)(n->next))->s;
                 sz = ((CONN *)(n->next))->sz;
                 leaf = 0;
             }
@@ -271,7 +271,7 @@ cont:for (;;) {
                     n->next  = br;
     /*                x = 1;*/
                 } else {
-                    CONN *new = (n->next = malloc(sizeof(CONN)+x));
+                    CONN *new = (CONN*)(n->next = malloc(sizeof(CONN)+x));
                     memcpy(new->s, s2, x);
                     new->sz = x;
                     new->node.magic = 2;
@@ -333,7 +333,7 @@ cont:for (;;) {
             if (leaf) {
                 if (e-s > sz) {
                     /* expand leaf */
-                    LEAF *leaf = n->next;
+                    LEAF *leaf = (LEAF*)n->next;
                     _DEBUG("leaf:(%p) expanding to size: "
                             "%d, with, '%s', new address:",
                             leaf, e-s, s);
@@ -343,7 +343,7 @@ cont:for (;;) {
                     leaf->s[x-1] |= 0x40/* | MTRIE_OFFS(*(s+x))*/;
                     for (;x<y;x++)
                         leaf->s[x] = MTRIE_OFFS(*(s+x));
-                    n->next = leaf;
+                    n->next = (BRANCH*)leaf;
                     return 1;
                 } else if (x < sz) {
                     if (*(s2+x-1) & 0x40)

@@ -61,7 +61,7 @@ lm_jserror(JSContext *cx, const char *message, JSErrorReport *report)
 
     if (report->filename) {
         if (!(p = strrchr(report->filename, '/')))
-            p = report->filename;
+            p = (char*)report->filename;
         else 
             p++;
 

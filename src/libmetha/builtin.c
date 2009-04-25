@@ -60,7 +60,7 @@ lm_extract_css_urls(uehandle_t *ue_h, char *p, size_t sz)
 {
     char *e = p+sz;
     char *t, *s;
-    while (p = memmem(p, e-p, "url", 3)) {
+    while ((p = memmem(p, e-p, "url", 3))) {
         p += 3;
         while (isspace(*p)) p++;
         if (*p == '(') {

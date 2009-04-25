@@ -57,7 +57,7 @@ struct tag {
 /* current list of (partially) parsable tags */
 static struct tag tags[] = {
     {&parse_script,        "script",   6},
-    {&lm_extract_css_urls, "style",    5},
+    {(void (*)(uehandle_t *, char*, size_t))&lm_extract_css_urls, "style",    5},
     {&parse_textarea,      "textarea", 8},
 };
 
@@ -91,7 +91,6 @@ lm_parser_html(struct worker *w, struct iobuf *buf,
                struct attr_list *al)
 {
     int ret;
-    int  tag  = 0;
     char *p   = buf->ptr,
          *e   = buf->ptr+buf->sz,
          *tb  = 0,
@@ -110,7 +109,7 @@ lm_parser_html(struct worker *w, struct iobuf *buf,
                     if (*s == '=') {
                         /* parse through html attributes, ie href="val" */
                         s++;
-                        if (q = (*s == '"'?'"':(*s == '\''?'\'':'\0'))) {
+                        if ((q = (*s == '"'?'"':(*s == '\''?'\'':'\0')))) {
                             if (!(s = memchr(s, q, e-s)))
                                 s = e; /* this will break out of all loops */
                         } else {
@@ -137,7 +136,7 @@ lm_parser_html(struct worker *w, struct iobuf *buf,
         } while (p<tb);
         if ((type = parse_tag(ue_h, tb, te-tb)) != -1) {
             do {
-                if (p = memchr(p, '<', e-p)) {
+                if ((p = memchr(p, '<', e-p))) {
                     if (*(p+1) == '/') {
                         if (e-p < 8) {
                             p=e;
@@ -214,7 +213,7 @@ parse_tag(uehandle_t *h, char *p, size_t len)
             if (*p == '=') {
                 do p++; while (isspace(*p));
                 char *s = p;
-                if (c = (*p == '\''?'\'':(*p == '"'?'"':0))) {
+                if ((c = (*p == '\''?'\'':(*p == '"'?'"':0)))) {
                     p++;
                     do {
                         s++;
@@ -300,7 +299,7 @@ lm_parser_xmlconv(struct worker *w, struct iobuf *buf,
          q;
     char *np;
     struct xml_el *est;
-    int type, len;
+    int len;
     int n_cap = buf->sz+128;
 
     if (!(n = malloc(n_cap)))
@@ -430,7 +429,7 @@ restart:
                         int n_amp = 0;
                         do s++;
                         while (isspace(*s)); /* again, skip whitespaces */
-                        if (q = (*s == '"'?'"':(*s == '\''?'\'':'\0'))) {
+                        if ((q = (*s == '"'?'"':(*s == '\''?'\'':'\0')))) {
                             s++;
                             vs = s;
                             while (s < e && *s != q) {

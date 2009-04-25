@@ -68,7 +68,7 @@ typedef struct filetype {
 
     union {
         char           *name;
-        const struct crawler *ptr;
+        struct crawler *ptr;
     } switch_to;
 
     union {
@@ -83,6 +83,7 @@ filetype_t *lm_filetype_create(const char *name, uint32_t nlen);
 void    lm_filetype_destroy(filetype_t *ft);
 M_CODE  lm_filetype_add_extension(filetype_t *ft, const char *name);
 M_CODE  lm_filetype_add_mimetype(filetype_t *ft, const char *name);
+M_CODE  lm_filetype_add_parser(filetype_t *ft, wfunction_t *p);
 M_CODE  lm_filetype_set_extensions(filetype_t *ft, char **extensions, int num_extensions);
 M_CODE  lm_filetype_set_attributes(filetype_t *ft, char **attributes, int num_attributes);
 M_CODE  lm_filetype_set_mimetypes(filetype_t *ft, char **mimetypes, int num_mimetypes);

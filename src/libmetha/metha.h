@@ -128,13 +128,13 @@ typedef struct metha {
     int               num_scopes;
 
     /* primary and secondary script dir */
-    const char       *script_dir1;
-    const char       *script_dir2;
+    char       *script_dir1;
+    char       *script_dir2;
 
-    const char       *conf_dir1;
-    const char       *conf_dir2;
+    char       *conf_dir1;
+    char       *conf_dir2;
 
-    const char       *module_dir;
+    char       *module_dir;
 
     struct observer_pool  observer_pool[LM_EV_COUNT];
     struct worker_object *worker_objs;

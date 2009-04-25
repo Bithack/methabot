@@ -38,7 +38,7 @@ lm_strtourl(const char* str)
     int extra_size;
     const char *prefix;
     char *out;
-    char *s = str;
+    char *s = (char*)str;
 
     while (isalnum(*s))
         s++;

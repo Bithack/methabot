@@ -25,9 +25,11 @@
 #include <getopt.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "metha.h"
 #include "config.h"
+#include "str.h"
 #include "methabot.h"
 
 static metha_t     *m;
@@ -62,7 +64,7 @@ static char        *filetype            = 0;
 static char        *expr                = 0;
 static char        *parser              = 0;
 static char        *type                = 0;
-static char        *spread_workers      = 0;
+static int          spread_workers      = 0;
 static char        *config              = 0;
 static char        *handler             = 0;
 static char        *def_handler         = 0;
@@ -403,7 +405,7 @@ main(int argc, char **argv)
         free(stdin_buf);
     }
 
-    if ((status = lmetha_exec(m, argc, argv)) != M_OK)
+    if ((status = lmetha_exec(m, argc, (const char **)argv)) != M_OK)
         goto error;
 
     lmetha_destroy(m);
@@ -449,7 +451,7 @@ mb_configure_filetype(void)
         lm_filetype_set_mimetypes(ft, 0, 0);
         p = mimetypes;
         prev = p;
-        while (p = strchr(p, ',')) {
+        while ((p = strchr(p, ','))) {
             *p = '\0';
             p++;
             lm_filetype_add_mimetype(ft, prev);
@@ -462,7 +464,7 @@ mb_configure_filetype(void)
         lm_filetype_set_extensions(ft, 0, 0);
         p = extensions;
         prev = p;
-        while (p = strchr(p, ',')) {
+        while ((p = strchr(p, ','))) {
             *p = '\0';
             p++;
             lm_filetype_add_extension(ft, prev);
@@ -646,11 +648,11 @@ mb_init(void)
     /* the user can override his script and conf directories using the
      * MB_CONF_PATH and MB_SCRIPT_PATH env variables */
 
-    if (p = getenv("MB_SCRIPT_PATH")) {
+    if ((p = getenv("MB_SCRIPT_PATH"))) {
         home_scripts_sz = strlen(p);
         home_scripts = strdup(p);
     }
-    if (p = getenv("MB_CONF_PATH")) {
+    if ((p = getenv("MB_CONF_PATH"))) {
         home_conf_sz = strlen(p);
         home_conf = strdup(p);
     }

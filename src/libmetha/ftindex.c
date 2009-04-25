@@ -23,6 +23,7 @@
 #include "ftindex.h"
 #include "crawler.h"
 
+#include <ctype.h>
 #include <string.h>
 
 void 

@@ -51,8 +51,8 @@ enum {
 typedef struct iostat {
     short   status_code; /* status code, dependant on protocol */
     struct {
-        const char *location;
-        const char *content_type;
+        char *location;
+        char *content_type;
     } headers;
 } iostat_t;
 

@@ -37,11 +37,10 @@
 S_ M_CODE lm_prepare_filetypes(metha_t *m);
 S_ M_CODE lm_prepare_crawlers(metha_t *m);
 S_ M_CODE lm_exec_once(metha_t *m, iohandle_t *io_h, uehandle_t *ue_h);
-S_ M_CODE lm_call_init(metha_t *m, uehandle_t *h, int argc, const char **argv);
 S_ struct script_desc* lm_load_script(metha_t *m, const char *file);
 S_ wfunction_t *lm_str_to_wfunction(metha_t *m, const char *name, uint8_t purpose);
 S_ void* do_async_main(void* in);
-S_ M_CODE start_worker_threads(metha_t *m, int argc, char **argv);
+S_ M_CODE start_worker_threads(metha_t *m, int argc, const char **argv);
 S_ void stop_worker_threads(metha_t *m);
 S_ void msg_loop(metha_t *m);
 
@@ -257,12 +256,12 @@ lmetha_setopt(metha_t *m, LMOPT opt, ...)
             break;
 
         case LMOPT_PRIMARY_SCRIPT_DIR:
-            m->script_dir1 = va_arg(ap, const char*);
+            m->script_dir1 = va_arg(ap, char*);
             m->script_dir1 = strdup(m->script_dir1);
             break;
 
         case LMOPT_MODULE_DIR:
-            m->module_dir = va_arg(ap, const char*);
+            m->module_dir = va_arg(ap, char*);
             m->module_dir = strdup(m->module_dir);
             break;
 
@@ -413,7 +412,7 @@ lmetha_create(void)
     }
 
     /* set up functions */
-    if (JS_DefineFunctions(m->e4x_cx, m->e4x_global, &lm_js_allfunctions) == JS_FALSE) {
+    if (JS_DefineFunctions(m->e4x_cx, m->e4x_global, lm_js_allfunctions) == JS_FALSE) {
         lmetha_destroy(m);
         return 0;
     }
@@ -637,9 +636,7 @@ lm_exec_once(metha_t *m, iohandle_t *io_h, uehandle_t *ue_h)
 #ifdef DEBUG
     fprintf(stderr, "* metha:(%p) running once with crawler '%s'\n", m, m->crawlers[m->crawler]->name);
 #endif
-
     worker_t *w = calloc(1, sizeof(worker_t));
-    int x;
 
     if (!w)
         return M_OUT_OF_MEM;
@@ -817,7 +814,7 @@ stop_worker_threads(metha_t *m)
  * the last worker will receive all remaining URLs. */
 S_ M_CODE
 start_worker_threads(metha_t *m, int argc,
-                     char **argv)
+                     const char **argv)
 {
     int x;
 
@@ -1151,7 +1148,7 @@ lm_prepare_crawlers(metha_t *m)
                     *(friends[y]) = 0;
                 } else if (strcmp(value, "discard") == 0) {
                     free(value);
-                    *(friends[y]) = 1;
+                    *(friends[y]) = (void*)1;
                 } else {
                     /* The variable was set to something not recognized,
                      * not a filetype and neither 'lookup' nor 'discard'
@@ -1268,7 +1265,7 @@ lm_str_to_wfunction(metha_t *m, const char *name, uint8_t purpose)
 {
     int y;
     wfunction_t *wf;
-    char *s, *p = name;
+    char *s, *p = (char*)name;
 
     for (y=0; ; y++) {
         if (y == m->num_functions) {
@@ -1277,7 +1274,7 @@ lm_str_to_wfunction(metha_t *m, const char *name, uint8_t purpose)
              * wfun might be from a javascript file
              * that has not yet been loaded */
 
-            if (s = strchr(p, '/')) {
+            if ((s = strchr(p, '/'))) {
                 /* this is a javascript parser */
                 *s = '\0';
                 if (lm_load_script(m, p)) {
@@ -1367,7 +1364,6 @@ lmetha_add_crawler(metha_t *m, crawler_t *cr)
 M_CODE
 lmetha_add_wfunction(metha_t *m, const char *name, uint8_t type, uint8_t purpose, void *fun)
 {
-    va_list ap;
 #ifdef DEBUG
     static const char *wfun_types[] = {
         "NATIVE",
@@ -1427,7 +1423,7 @@ lmetha_load_config(metha_t *m, const char *file)
         }
         full = path;
     } else {
-        full = file;
+        full = (char*)file;
         if (access(file, R_OK) == -1)
             return M_COULD_NOT_OPEN;
     }
@@ -1521,7 +1517,7 @@ lm_load_script(metha_t *m, const char *file)
                 strcat(full, file);
                 /* have a look if the file exists in the primary script dir */
                 FILE *tmp;
-                if (tmp = fopen(full, "r")) {
+                if ((tmp = fopen(full, "r"))) {
                     fclose(tmp);
                     break;
                 }
@@ -1532,7 +1528,7 @@ lm_load_script(metha_t *m, const char *file)
                     strcpy(full, m->script_dir2);
                     strcat(full, "/");
                     strcat(full, file);
-                    if (tmp = fopen(full, "r")) {
+                    if ((tmp = fopen(full, "r"))) {
                         fclose(tmp);
                         break;
                     }

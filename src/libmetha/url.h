@@ -2,7 +2,7 @@
  * url.h
  * This file is part of libmetha
  *
- * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
+ * Copyright (c) 2008, 2009, Emil Romanus <emil.romanus@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -63,11 +63,11 @@ typedef struct url {
     uint8_t  flags;
 } url_t;
 
-M_CODE lm_url_init(url_t *url);
+void   lm_url_init(url_t *url);
 void   lm_url_uninit(url_t *url);
 void   lm_url_dump(url_t *url);
-M_CODE lm_url_set(url_t *url, char *str, uint16_t size);
-M_CODE lm_url_combine(url_t *dest, url_t *source, char *str, uint16_t len);
+M_CODE lm_url_set(url_t *url, const char *str, uint16_t size);
+M_CODE lm_url_combine(url_t *dest, url_t *source, const char *str, uint16_t len);
 M_CODE lm_url_dup(url_t *dest, url_t *source);
 int    lm_url_hostcmp(url_t *u1, url_t *u2);
 void   lm_url_nullify(url_t *url);

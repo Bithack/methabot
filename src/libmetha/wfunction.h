@@ -56,7 +56,7 @@ enum {
 
 struct worker;
 struct iobuf;
-struct io;
+struct iohandle;
 struct url;
 struct uehandle;
 struct attr_list;
@@ -69,12 +69,12 @@ struct attr_list;
  * and parsers.
  **/
 typedef struct wfunction {
-    const char *name;
+    char       *name;
     uint8_t     type;
     uint8_t     purpose;
     union {
         M_CODE    (*native_parser)(struct worker *, struct iobuf *, struct uehandle *, struct url *, struct attr_list *);
-        M_CODE    (*native_handler)(struct worker *, struct io *, struct url *);
+        M_CODE    (*native_handler)(struct worker *, struct iohandle *, struct url *);
         JSFunction *javascript;
     } fn;
 } wfunction_t;

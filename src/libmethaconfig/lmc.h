@@ -194,10 +194,10 @@ typedef struct lmc_parser {
 
 lmc_parser_t *lmc_create(void *root_object);
 void   lmc_destroy(lmc_parser_t *lmc);
-M_CODE lmc_parse(lmc_parser_t *lmc, const char *name, char *buf, size_t bufsz);
+M_CODE lmc_parse(lmc_parser_t *lmc, const char *name, const char *buf, size_t bufsz);
 M_CODE lmc_parse_file(lmc_parser_t *lmc, const char *filename);
-M_CODE lmc_add_scope(lmc_parser_t *lmc, struct lmc_scope *scope);
-M_CODE lmc_add_class(lmc_parser_t *lmc, struct lmc_class *cl);
-M_CODE lmc_add_directive(lmc_parser_t *lmc, struct lmc_directive *d);
+M_CODE lmc_add_scope(lmc_parser_t *lmc, const struct lmc_scope *scope);
+M_CODE lmc_add_class(lmc_parser_t *lmc, const struct lmc_class *cl);
+M_CODE lmc_add_directive(lmc_parser_t *lmc, const struct lmc_directive *d);
 
 #endif

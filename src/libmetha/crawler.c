@@ -94,7 +94,7 @@ lm_crawler_dup(crawler_t *dest, crawler_t *source)
         if (source->ftindex.ftp_dir_url) dest->ftindex.ftp_dir_url = strdup(source->ftindex.ftp_dir_url);
     } else {
         if (source->initial_filetype.ptr)
-            dest->initial_filetype.ptr = source->initial_filetype.name;
+            dest->initial_filetype.ptr = (void*)source->initial_filetype.name;
         dest->ftindex.dynamic_url = source->ftindex.dynamic_url;
         dest->ftindex.dir_url = source->ftindex.dir_url;
         dest->ftindex.extless_url = source->ftindex.extless_url;

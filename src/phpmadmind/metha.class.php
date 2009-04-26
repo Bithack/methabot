@@ -110,6 +110,11 @@ class Metha
         return $this->send("KILL-ALL $id");
     }
 
+    function system_info()
+    {
+        return $this->get_sized_reply("SYSTEM-INFO");
+    }
+
     private function send($msg)
     {
         return @fwrite($this->fp, "$msg\n");

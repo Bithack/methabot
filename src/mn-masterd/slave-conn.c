@@ -106,7 +106,7 @@ nol_m_create_slave_list_xml()
         realloc(
             srv.xml.slave_list.buf, 
             srv.num_slaves*
-              (64+20+20+15+ /* name length + id length + num clients + addr length */
+              (64+20+20+15+6+ /* name length + id length + num clients + addr length + port length */
                sizeof("<slave id=\"\"><user></user><num-clients></num-clients><address></address></slave>")-1
               )+
               sizeof("<slave-list></slave-list>")
@@ -118,12 +118,13 @@ nol_m_create_slave_list_xml()
                 "<slave id=\"%d\">"
                   "<user>%.64s</user>"
                   "<num-clients>%d</num-clients>"
-                  "<address>%.15s</address>"
+                  "<address>%.15s:%hd</address>"
                 "</slave>",
                 srv.slaves[x].id,
                 srv.slaves[x].name,
                 srv.slaves[x].num_clients,
-                inet_ntoa(srv.slaves[x].conn->addr.sin_addr)
+                (srv.slaves[x].ready ? srv.slaves[x].listen_addr : "0"),
+                (srv.slaves[x].ready ? srv.slaves[x].listen_port : 0)
                 );
     p+=sprintf(p, "</slave-list>");
     srv.xml.slave_list.sz = p-srv.xml.slave_list.buf;
@@ -173,6 +174,7 @@ sl_info_command(nolp_t *no, char *buf, int size)
 #endif 
 
     sl->ready = 1;
+    nol_m_create_slave_list_xml();
     return 0;
 }
 

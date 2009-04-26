@@ -44,6 +44,7 @@ static int user_session_report_command(nolp_t *no, char *buf, int size);
 static int user_list_sessions_command(nolp_t *no, char *buf, int size);
 static int user_list_input_command(nolp_t *no, char *buf, int size);
 static int user_kill_all_command(nolp_t *no, char *buf, int size);
+static int user_system_info_command(nolp_t *no, char *buf, int size);
 
 struct nolp_fn user_commands[] = {
     {"LIST-SLAVES", &user_list_slaves_command},
@@ -61,6 +62,7 @@ struct nolp_fn user_commands[] = {
     {"LIST-SESSIONS", user_list_sessions_command},
     {"LIST-INPUT", user_list_input_command},
     {"KILL-ALL", user_kill_all_command},
+    {"SYSTEM-INFO", user_system_info_command},
     {0},
 };
 
@@ -138,7 +140,7 @@ user_slave_info_command(nolp_t *no, char *buf, int size)
     char tmp[32];
     char reply[
         sizeof("<slave-info for=\"\"><address></address></slave-info>")-1
-        +64+20+16];
+        +64+20+16+6];
     struct conn  *conn = (struct conn*)no->private;
     slave_conn_t *sl = 0;
 
@@ -156,11 +158,13 @@ user_slave_info_command(nolp_t *no, char *buf, int size)
     int len =
         sprintf(reply,
             "<slave-info for=\"%s-%d\">"
-              "<address>%s</address>"
+              "<address>%s:%hd</address>"
             "</slave-info>",
             sl->name,
             sl->id,
-            inet_ntoa(conn->addr.sin_addr));
+            (sl->ready ? sl->listen_addr : "0"),
+            (sl->ready ? sl->listen_port : 0)
+            );
     x = sprintf(tmp, "100 %d\n", len);
     send(conn->sock, tmp, x, 0);
     send(conn->sock, reply, len, 0);
@@ -602,6 +606,62 @@ user_kill_all_command(nolp_t *no, char *buf, int size)
     }
 
     send(sl->conn->sock, "KILL-ALL\n", 9, 0);
+    return 0;
+}
+
+/** 
+ * SYSTEM-INFO command is used to get an overview of
+ * the running system
+ * XML:
+ *
+ * <system-info>
+ *   <uptime>... seconds since master started ...</uptime>
+ *   <address>... listening address of master ...</address>
+ *   <num-slaves>... num connected slaves ...</num-slaves>
+ *   <num-sessions>... total session count ...</num-sessions>
+ * </system-info>
+ **/
+static int
+user_system_info_command(nolp_t *no, char *buf, int size)
+{
+    MYSQL_RES *res;
+    MYSQL_ROW  row;
+    time_t now;
+    double uptime;
+    int  sz, sz2;
+    int  num_sessions = 0;
+    char xml[sizeof("<system-info><uptime></uptime><address></address>"
+                    "<num-slaves></num-slaves>"
+                    "<num-sessions></num-sessions>"
+                    "</system-info>")
+                    +96];
+    time(&now);
+    uptime = difftime(now, srv.start_time);
+
+    mysql_query(srv.mysql, "SELECT COUNT(*) FROM `nol_session`;");
+    if (!(res = mysql_store_result(srv.mysql)))
+        return -1;
+    if (!(row = mysql_fetch_row(res))) {
+        mysql_free_result(res);
+        return -1;
+    }
+    num_sessions = atoi(row[0]);
+    mysql_free_result(res);
+
+    sz = sprintf(xml, "<system-info>"
+                         "<uptime>%ld</uptime>"
+                         "<address>%.15s:%hd</address>"
+                         "<num-slaves>%d</num-slaves>"
+                         "<num-sessions>%d</num-sessions>"
+                      "</system-info>",
+                      (long)uptime,
+                      inet_ntoa(srv.addr.sin_addr),
+                      htons(srv.addr.sin_port),
+                      srv.num_slaves,
+                      num_sessions);
+    sz2 = sprintf(xml+sz, "100 %d\n", sz);
+    send(no->fd, xml+sz, sz2, 0);
+    send(no->fd, xml, sz, 0);
     return 0;
 }
 

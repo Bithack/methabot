@@ -24,6 +24,7 @@
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <time.h>
 
 #include "methanol.h"
 #include "slave.h"
@@ -86,6 +87,9 @@ struct master {
             int   sz;
         } slave_list;
     } xml;
+
+    /* set in main() */
+    time_t start_time;
 };
 
 extern struct master srv;

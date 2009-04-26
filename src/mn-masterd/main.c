@@ -70,16 +70,21 @@ main(int argc, char **argv)
 {
     lmc_parser_t *lmc;
     int           r;
+    int           x;
     int           nofork = 0;
     signal(SIGPIPE, SIG_IGN);
 
     _cfg_file = "/etc/mn-masterd.conf";
     if (argc > 1) {
-        if (strcmp(argv[1], "--no-fork") == 0)
-            nofork=1;
-        else
-            _cfg_file = argv[1];
+        for (x=1; x<argc; x++) {
+            if (strcmp(argv[x], "--no-fork") == 0)
+                nofork=1;
+            else
+                _cfg_file = argv[x];
+        }
     }
+
+    time(&srv.start_time);
 
     if (!(lmc = lmc_create(&srv))) {
         fprintf(stderr, "out of mem\n");

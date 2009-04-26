@@ -83,14 +83,17 @@ main(int argc, char **argv)
     lmc_parser_t *lmc;
     int           r;
     int           nofork = 0;
+    int           x;
     signal(SIGPIPE, SIG_IGN);
 
     _cfg_file = "/etc/mn-slaved.conf";
     if (argc > 1) {
-        if (strcmp(argv[1], "--no-fork") == 0)
-            nofork=1;
-        else
-            _cfg_file = argv[1];
+        for (x=1; x<argc; x++) {
+            if (strcmp(argv[x], "--no-fork") == 0)
+                nofork=1;
+            else
+                _cfg_file = argv[x];
+        }
     }
 
     if (!(lmc = lmc_create(&srv))) {

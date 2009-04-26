@@ -30,6 +30,7 @@
 
 #include "lmc.h"
 #include "../mb-masterd/server.h"
+#include "../mb-masterd/methanol.h"
 #include "client.h"
 #include "slave.h"
 #include "nolp.h"
@@ -59,7 +60,10 @@ struct lmc_scope slave_scope =
     "slave",
     {
         LMC_OPT_STRING("listen", &opt_vals.listen),
-        LMC_OPT_STRING("master", &opt_vals.master),
+        LMC_OPT_STRING("master_host", &opt_vals.master_host),
+        LMC_OPT_UINT("master_port", &opt_vals.master_port),
+        LMC_OPT_STRING("master_user", &opt_vals.master_user),
+        LMC_OPT_STRING("master_password", &opt_vals.master_password),
         LMC_OPT_STRING("user", &opt_vals.user),
         LMC_OPT_STRING("group", &opt_vals.group),
         LMC_OPT_STRING("exec_dir", &opt_vals.exec_dir),
@@ -122,12 +126,10 @@ slave_init_cb(void)
 
     if (!(srv.master_io.data = srv.m_nolp = nolp_create(&master_commands, 0)))
         return "nolp init failed";
-    if ((s = strchr(opt_vals.master, ':'))) {
-        srv.master.sin_port = htons(atoi(s+1));
-        *s = '\0';
-    } else
-        srv.master.sin_port = htons(5505);
-    srv.master.sin_addr.s_addr = inet_addr(opt_vals.master);
+
+    /* set up master login info */
+    srv.master.sin_port        = htons(opt_vals.master_port);
+    srv.master.sin_addr.s_addr = inet_addr(opt_vals.master_host);
 
     if ((s = strchr(opt_vals.listen, ':'))) {
         srv.addr.sin_port = htons(atoi(s+1));
@@ -156,7 +158,7 @@ slave_init_cb(void)
     if (mbs_master_connect() != 0)
         return "could not connect to master server";
     if (mbs_master_login() != 0)
-        return "loggin in to master failed";
+        return "logging in to master failed";
 
     srv.listen_sock = sock;
 
@@ -171,12 +173,16 @@ void
 set_defaults(void)
 {
     if (!opt_vals.listen)
-        opt_vals.listen = "127.0.0.1";
-    if (!opt_vals.master)
-        opt_vals.master = "127.0.0.1";
+        opt_vals.listen = strdup("127.0.0.1");
+    if (!opt_vals.master_host)
+        opt_vals.master_host = strdup("127.0.0.1");
+    if (!opt_vals.master_port)
+        opt_vals.master_port = NOL_MASTER_DEFAULT_PORT;
 
-    srv.user = strdup("default");
-    srv.pass = strdup("default");
+    if (!opt_vals.master_user)
+        opt_vals.master_user = strdup("default");
+    if (!opt_vals.master_password)
+        opt_vals.master_password = strdup("default");
 }
 
 const char*
@@ -434,15 +440,17 @@ mbs_master_login()
     int n;
     char str[128];
     char *p;
-    if (strlen("AUTH slave ")+strlen(srv.user)
-            +strlen(srv.pass)+3 >= 128) {
-
+    if (strlen("AUTH slave ")+strlen(opt_vals.master_user)
+            +strlen(opt_vals.master_password)+3 >= 128) {
         syslog(LOG_ERR, "buffer exceeded");
-        abort();
+        return 1;
     }
-    len = sprintf(str, "AUTH slave %s %s\n", srv.user, srv.pass);
+    len = sprintf(str, "AUTH slave %s %s\n",
+            opt_vals.master_user,
+            opt_vals.master_password);
     if (send(srv.master_sock, str, len, MSG_NOSIGNAL) == -1)
         return 1;
+
     if ((len = sock_getline(srv.master_sock, str, 127)) > 0
             && atoi(str) == 100) {
         syslog(LOG_INFO, "logged in to master");
@@ -458,7 +466,9 @@ mbs_cleanup()
 {
     if (srv.m_nolp) nolp_free(srv.m_nolp);
     if (opt_vals.listen) free(opt_vals.listen);
-    if (opt_vals.master) free(opt_vals.master);
+    if (opt_vals.master_host) free(opt_vals.master_host);
+    if (opt_vals.master_user) free(opt_vals.master_user);
+    if (opt_vals.master_password) free(opt_vals.master_password);
     if (opt_vals.mysql_host) free(opt_vals.mysql_host);
     if (opt_vals.mysql_sock) free(opt_vals.mysql_sock);
     if (opt_vals.mysql_user) free(opt_vals.mysql_user);
@@ -467,7 +477,5 @@ mbs_cleanup()
     if (opt_vals.user) free(opt_vals.user);
     if (opt_vals.group) free(opt_vals.group);
     if (opt_vals.exec_dir) free(opt_vals.exec_dir);
-    if (srv.user) free(srv.user);
-    if (srv.pass) free(srv.pass);
 }
 

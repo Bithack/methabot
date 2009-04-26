@@ -9,12 +9,15 @@
 
 #include "nolp.h"
 
-#define NOL_SLAVE_DEFAULT_PORT 5506
 #define MAX_NUM_PENDING  128
 
 struct opt_vals {
     char *listen;
-    char *master;
+    char *master_host;
+    unsigned int master_port;
+    char *master_user;
+    char *master_password;
+
     char *user;
     char *group;
     char *mysql_host;
@@ -38,8 +41,6 @@ struct slave {
     char          *config_buf;
     unsigned int   config_sz;
 
-    char *user;
-    char *pass;
     int   master_sock;
 
     ev_io     master_io;

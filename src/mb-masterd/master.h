@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include "slave.h"
 #include "conn.h"
 #include "mysql.h"
 
@@ -42,12 +43,17 @@ struct master {
 
     struct conn      **pool;
     unsigned           num_conns;
-    struct slave      *slaves;
+    slave_conn_t      *slaves;
     unsigned           num_slaves;
     struct filetype  **filetypes;
     unsigned           num_filetypes;
     struct crawler   **crawlers;
     unsigned           num_crawlers;
+
+    struct {
+        slave_t **slaves;
+        unsigned  num_slaves;
+    } auth;
 
     struct {
         char     *buf;

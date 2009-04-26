@@ -1,5 +1,5 @@
 /*-
- * server.h
+ * methanol.h
  * This file is part of Methanol
  *
  * Copyright (c) 2009, Emil Romanus <sdac@bithack.se>
@@ -19,9 +19,13 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _NOL_SERVER__H_
-#define _NOL_SERVER__H_
+#ifndef _METHANOL__H_
+#define _METHANOL__H_
 
-int nol_server_launch(const char *config, lmc_parser_t *lmc, const char **user, const char **group, const char *(*init_cb)(void), const char *(*run_cb)(void), int dofork);
+/* shared master and slave header file */
+
+#define NOL_MASTER_DEFAULT_PORT 5505
+#define NOL_SLAVE_DEFAULT_PORT  5506
 
 #endif
+

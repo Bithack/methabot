@@ -26,14 +26,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-struct conn;
-
-enum {
-    SL_STATE_NONE,
-    SL_STATE_RECV_TOKEN,
-    SL_STATE_RECV_STATUS,
-};
-
 struct client {
     char  token[40];
     char *user;
@@ -41,25 +33,6 @@ struct client {
     unsigned int status;
     unsigned int state;
     unsigned int session_id;
-};
-
-struct slave {
-    char          *name;
-    int            name_len;
-    int            id;
-    struct conn   *conn;
-    struct client *clients;
-    int            num_clients;
-    /* client conn will be set if we are waiting for
-     * a TOKEN for the given client */
-    struct conn   *client_conn;
-
-    struct {
-        struct {
-            char *buf;
-            int   sz;
-        } clients;
-    } xml;
 };
 
 struct conn {

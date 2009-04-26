@@ -30,6 +30,7 @@
 #include "master.h"
 #include "conn.h"
 #include "conf.h"
+#include "slave.h"
 
 int mbm_main();
 int mbm_cleanup();
@@ -86,6 +87,7 @@ main(int argc, char **argv)
     }
 
     lmc_add_scope(lmc, &master_scope);
+    lmc_add_class(lmc, &nol_slave_class);
 
     if ((r = nol_server_launch(
                 _cfg_file,
@@ -624,6 +626,8 @@ mbm_cleanup()
     if (opt_vals.mysql_user) free(opt_vals.mysql_user);
     if (opt_vals.mysql_pass) free(opt_vals.mysql_pass);
     if (opt_vals.mysql_db) free(opt_vals.mysql_db);
+
+    mbm_auth_cleanup_slaves();
 
     free_hooks();
 }

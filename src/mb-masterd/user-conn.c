@@ -20,6 +20,7 @@
  */
 
 #include "master.h"
+#include "slave.h"
 #include "nolp.h"
 
 #include <ev.h>
@@ -91,7 +92,7 @@ user_list_clients_command(nolp_t *no, char *buf, int size)
             send(conn->sock, MSG203, sizeof(MSG203)-1, 0);
             break;
         }
-        struct slave *sl = &srv.slaves[x];
+        slave_conn_t *sl = &srv.slaves[x];
         if (sl->id == id) {
             int len = sprintf(reply, "100 %d\n", sl->xml.clients.sz);
             send(conn->sock, reply, len, 0);
@@ -139,7 +140,7 @@ user_slave_info_command(nolp_t *no, char *buf, int size)
         sizeof("<slave-info for=\"\"><address></address></slave-info>")-1
         +64+20+16];
     struct conn  *conn = (struct conn*)no->private;
-    struct slave *sl = 0;
+    slave_conn_t *sl = 0;
 
     id = atoi(buf);
     for (x=0; x<srv.num_slaves; x++) {
@@ -179,7 +180,7 @@ user_client_info_command(nolp_t *no, char *buf, int size)
     int  found;
     int  sz;
     char out[256];
-    struct slave  *sl;
+    slave_conn_t  *sl;
     struct conn   *conn;
     struct client *c;
 
@@ -586,7 +587,7 @@ user_kill_all_command(nolp_t *no, char *buf, int size)
 {
     int           id;
     int           x;
-    struct slave *sl = 0;
+    slave_conn_t *sl = 0;
 
     id = atoi(buf);
     for (x=0; x<srv.num_slaves; x++) {

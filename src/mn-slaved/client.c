@@ -192,7 +192,7 @@ nol_s_client_init(void *in)
         if (this->session_id) {
             char *q = malloc(128);
             int   sz;
-            sz = sprintf(q, "UPDATE `nol_session` SET state='done', latest=NOW() WHERE id=%d",
+            sz = sprintf(q, "UPDATE `nol_session` SET state='done', latest=NOW() WHERE id=%ld",
                     this->session_id);
             mysql_real_query(this->mysql, q, sz);
             free(q);
@@ -382,7 +382,7 @@ get_and_send_url(struct client *cl)
         sz = sprintf(buf, "START %s %s\n", row[1], row[2]);
 #ifdef DEBUG
         syslog(LOG_DEBUG, "sending url '%.*s' to client '%.7s...'",
-                lengths[2], row[2], cl->token);
+                (int)lengths[2], row[2], cl->token);
 #endif
         send(((nolp_t *)(cl->no))->fd, buf, sz, 0);
         /* create a session for this client, the session will last

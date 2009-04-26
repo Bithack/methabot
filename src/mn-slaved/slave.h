@@ -62,6 +62,7 @@ struct slave {
     char          *config_buf;
     unsigned int   config_sz;
 
+    int   ready;
     int   master_sock;
 
     ev_io     master_io;
@@ -82,5 +83,6 @@ extern struct opt_vals opt_vals;
 
 int sock_getline(int fd, char *buf, int max);
 MYSQL *nol_s_dup_mysql_conn(void);
+int nol_s_set_ready(void);
 
 #endif

@@ -70,6 +70,7 @@ nol_server_launch(const char *config,
     char  c;
     struct group  *g;
     struct passwd *p;
+    M_CODE m;
 
     if (dofork) {
         /* set up the pipe so we can communicate with
@@ -97,8 +98,11 @@ nol_server_launch(const char *config,
         do {
             /* now we'll configure and write any
              * error message to the pipe */
-            if (lmc_parse_file(lmc, config) != M_OK) {
-                err = lmc->last_error;
+            if ((m = lmc_parse_file(lmc, config)) != M_OK) {
+                if (!(err = lmc->last_error)) {
+                    snprintf(buf, 255, "error %d while parsing configuration file", m);
+                    err = buf;
+                }
                 break;
             }
             if ((err = init_cb()) != 0)

@@ -109,6 +109,10 @@ on_config_recv(nolp_t *no, char *buf, int size)
     srv.config_sz = size;
 
     syslog(LOG_INFO, "read config from master");
+
+    /* once we have a configuration ready, we can start
+     * accepting clients */
+    nol_s_set_ready();
     return 0;
 }
 
@@ -124,6 +128,11 @@ on_client(nolp_t *no, char *buf, int size)
     struct client *cl;
     char          *s;
     int            ok;
+
+    if (!srv.ready) {
+        send(no->fd, "400\n", 4, 0);
+        return 0;
+    }
 
     buf[size] = 0;
     ok = 0;
@@ -176,6 +185,7 @@ static int
 on_hook_recv(nolp_t *no, char *buf, int size)
 {
     nol_s_hook_assign(hook_name, buf, size);
+
     return 0;
 }
 

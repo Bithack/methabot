@@ -25,6 +25,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <errno.h>
 #include "lmc.h"
 
 /* set maximum configuration file size to 1 MB */
@@ -219,13 +220,16 @@ lmc_parse_file(lmc_parser_t *lmc,
     long     sz;
     char    *e, *p;
 
-    if (!(fp = fopen(filename, "rb")))
+    if (!(fp = fopen(filename, "rb"))) {
+        set_error(lmc, "error opening '%s': %s", filename, strerror(errno));
         return M_COULD_NOT_OPEN;
+    }
 
     do {
         fseek(fp, 0, SEEK_END);
 
         if ((sz = ftell(fp)) > MAX_FILESIZE) {
+            set_error(lmc, "file too big");
             r = M_TOO_BIG;
             break;
         }
@@ -245,6 +249,7 @@ lmc_parse_file(lmc_parser_t *lmc,
         *e = '\0';
 
         if (!fread(p, sizeof(char), sz, fp)) {
+            set_error(lmc, "I/O error");
             r = M_IO_ERROR;
             break;
         }
@@ -788,6 +793,7 @@ lmc_parse(lmc_parser_t *lmc,
                 continue;
 
             default:
+                set_error(lmc, "internal error, lost scope");
                 goto error;
         }
     }

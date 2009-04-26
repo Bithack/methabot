@@ -31,6 +31,7 @@
 int nol_m_create_slave_list_xml();
 
 static int sl_status_command(nolp_t *no, char *buf, int size);
+static int sl_info_command(nolp_t *no, char *buf, int size);
 static int sl_session_complete_command(nolp_t *no, char *buf, int size);
 static int sl_status_parse(nolp_t *no, char *buf, int size);
 static int read_token(EV_P_ struct conn *conn);
@@ -38,6 +39,7 @@ static int call_session_complete_hook(long sess_id);
 
 struct nolp_fn slave_commands[] = {
     {"STATUS", &sl_status_command},
+    {"INFO", &sl_info_command},
     {0}
 };
 
@@ -147,6 +149,31 @@ sl_status_command(nolp_t *no, char *buf, int size)
     if (atoi(buf) == 0)
         return sl_status_parse(no, buf, 0);
     return nolp_expect(no, atoi(buf), &sl_status_parse);
+}
+
+/** 
+ * receive information about listening address and port,
+ * once this command has been received, the slave will
+ * be marked as 'ready' and clients will be distributed
+ * to it.
+ *
+ * INFO <listening-addr> <port>\n
+ **/
+static int
+sl_info_command(nolp_t *no, char *buf, int size)
+{
+    struct conn *conn = no->private;
+    slave_conn_t *sl  = &srv.slaves[conn->slave_n];
+
+    if (sscanf(buf, "%15s %hd", sl->listen_addr, &sl->listen_port) != 2)
+        return -1;
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "slave %d is ready, listening on %s:%hd",
+            sl->id, sl->listen_addr, sl->listen_port);
+#endif 
+
+    sl->ready = 1;
+    return 0;
 }
 
 /**

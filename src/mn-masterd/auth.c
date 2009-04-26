@@ -369,7 +369,8 @@ upgrade_conn(struct conn *conn, const char *user)
                  * another client */
                 for (x=0; x<srv.num_slaves; x++) {
                     slave_conn_t *sl = &srv.slaves[x];
-                    if (sl->num_clients < min && !sl->client_conn) {
+                    if (sl->ready && sl->num_clients < min
+                            && !sl->client_conn) {
                         min = sl->num_clients;
                         min_o = x;
                     }
@@ -494,9 +495,9 @@ nol_m_token_reply(nolp_t *no, char *buf, int size)
         return 0;
 
     if (atoi(buf) == 100) {
-        sz = sprintf(out, "TOKEN %.40s-%s:%hd\n", buf+4,
-                inet_ntoa(conn->addr.sin_addr),
-                5506);
+        sz = sprintf(out, "TOKEN %.40s-%.15s:%hd\n", buf+4,
+                sl->listen_addr,
+                sl->listen_port);
         send(client->sock, out, sz, 0);
     }
 

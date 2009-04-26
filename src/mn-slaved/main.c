@@ -229,6 +229,28 @@ slave_run_cb(void)
 }
 
 /** 
+ * send and INFO command to the master, giving information
+ * about which address and port we are listening on.
+ **/
+int
+nol_s_set_ready(void)
+{
+    char info[96];
+    int  sz;
+
+    sz = sprintf(info,
+            "INFO %s %hd\n",
+            inet_ntoa(srv.addr.sin_addr),
+            ntohs(srv.addr.sin_port)
+            );
+    if (send (srv.master_sock, info, sz, 0) <= 0)
+        return -1;
+
+    srv.ready = 1;
+    return 0;
+}
+
+/** 
  * Create a new MySQL connection using the global
  * mysql settings, "duplicate" the connection
  **/
@@ -324,6 +346,9 @@ nol_s_ev_conn_accept(EV_P_ ev_io *w, int revents)
         syslog(LOG_ERR, "accept() failed: %s", strerror(errno));
     }
 
+    if (!srv.ready)
+        close(sock);
+
     if (!srv.num_pending) {
         send(sock, "200 Denied\n", 11, 0);
         close(sock);
@@ -382,6 +407,10 @@ nol_s_ev_master(EV_P_ ev_io *w, int revents)
     }
 }
 
+/** 
+ * called when the timer for reconnecting to the
+ * master is reached 
+ **/
 static void
 nol_s_ev_master_timer(EV_P_ ev_io *w, int revents)
 {

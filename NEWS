@@ -1,8 +1,8 @@
 1.7.0
 =====
 We are proud to release  the  first  version  of Methabot featuring Methanol web 
-crawling system. This release  features  the  two  new server daemons mb-masterd
-and mb-slaved, along with the new client daemon mb-clientd. These three together
+crawling system. This release  features  the  two  new server daemons mn-masterd
+and mn-slaved, along with the new client daemon mb-clientd. These three together
 form a Methanol system, so you can now build your own customized distributed web
 crawling system, with all the features and goodies of libmetha integrated!
 
@@ -38,9 +38,9 @@ Changes and new features:
   inter-thread communication and waiting for events on sockets.
 * mb-clientd is  a version of the methabot client, running in the background and
   communicating with a Methanol web crawling system
-* mb-slaved: a slave server  responsible  for  managing and collecting data from
+* mn-slaved: a slave server  responsible  for  managing and collecting data from
   client daemons
-* mb-masterd is the master server, responsible  for statistics and system-global
+* mn-masterd is the master server, responsible  for statistics and system-global
   signaling
 * phpMadMind is a web interface for administrating a Methanol system
 * --external option set to false can no longer be circumvented using a HTTP-

@@ -1,8 +1,10 @@
 /*-
  * main.c
- * This file is part of mb-masterd
+ * This file is part of Methanol
+ * http://metha-sys.org/
+ * http://bithack.se/projects/methabot/
  *
- * Copyright (c) 2008, 2009, Emil Romanus <emil.romanus@gmail.com>
+ * Copyright (c) 2009, Emil Romanus <sdac@bithack.se>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,8 +17,6 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- * 
- * http://bithack.se/projects/methabot/
  */
 
 #include <stdlib.h>
@@ -30,11 +30,12 @@
 #include "master.h"
 #include "conn.h"
 #include "conf.h"
+#include "slave.h"
 
-int mbm_main();
-int mbm_cleanup();
-static void mbm_ev_sigint(EV_P_ ev_signal *w, int revents);
-static void mbm_ev_sigterm(EV_P_ ev_signal *w, int revents);
+int nol_m_main();
+int nol_m_cleanup();
+static void nol_m_ev_sigint(EV_P_ ev_signal *w, int revents);
+static void nol_m_ev_sigterm(EV_P_ ev_signal *w, int revents);
 const char* master_init_cb(void);
 const char* master_start_cb(void);
 const char* load_hooks();
@@ -72,7 +73,7 @@ main(int argc, char **argv)
     int           nofork = 0;
     signal(SIGPIPE, SIG_IGN);
 
-    _cfg_file = "/etc/mb-masterd.conf";
+    _cfg_file = "/etc/mn-masterd.conf";
     if (argc > 1) {
         if (strcmp(argv[1], "--no-fork") == 0)
             nofork=1;
@@ -86,6 +87,7 @@ main(int argc, char **argv)
     }
 
     lmc_add_scope(lmc, &master_scope);
+    lmc_add_class(lmc, &nol_slave_class);
 
     if ((r = nol_server_launch(
                 _cfg_file,
@@ -98,7 +100,7 @@ main(int argc, char **argv)
         fprintf(stdout, "started\n");
 
     lmc_destroy(lmc);
-    mbm_cleanup();
+    nol_m_cleanup();
     return r;
 }
 
@@ -114,7 +116,7 @@ master_init_cb(void)
     FILE *fp;
     char *s;
     int o = 1, sock;
-    openlog("mb-masterd", LOG_PID, LOG_DAEMON);
+    openlog("mn-masterd", LOG_PID, LOG_DAEMON);
 
     if (!opt_vals.config_file)
         return "no configuration file";
@@ -149,11 +151,11 @@ master_init_cb(void)
     fclose(fp);
     fp = 0;
 
-    if (mbm_mysql_connect() != 0)
+    if (nol_m_mysql_connect() != 0)
         return "could not connect to mysql server";
-    if (mbm_mysql_setup() != 0)
+    if (nol_m_mysql_setup() != 0)
         return "settings up mysql tables failed";
-    if (mbm_reconfigure() != 0)
+    if (nol_m_reconfigure() != 0)
         return "settings up filetype tables failed";
 
     sock = socket(PF_INET, SOCK_STREAM, 0);
@@ -242,10 +244,10 @@ master_start_cb()
             ntohs(srv.addr.sin_port));
 
     ev_signal_init(&sigint_listen,
-            &mbm_ev_sigint, SIGINT);
+            &nol_m_ev_sigint, SIGINT);
     ev_signal_init(&sigterm_listen,
-            &mbm_ev_sigterm, SIGTERM);
-    ev_io_init(&io_listen, &mbm_ev_conn_accept,
+            &nol_m_ev_sigterm, SIGTERM);
+    ev_io_init(&io_listen, &nol_m_ev_conn_accept,
             srv.listen_sock, EV_READ);
 
     /* catch SIGINT */
@@ -262,7 +264,7 @@ master_start_cb()
 }
 
 int
-mbm_mysql_connect()
+nol_m_mysql_connect()
 {
     my_bool reconnect = 1;
     if (!(srv.mysql = mysql_init(0)))
@@ -376,7 +378,7 @@ mbm_mysql_connect()
  * Set up all default tables
  **/
 int
-mbm_mysql_setup()
+nol_m_mysql_setup()
 {
     MYSQL_RES *r;
     long       id;
@@ -443,7 +445,7 @@ enum {
 };
 
 /** 
- * mbm_reconfigure()
+ * nol_m_reconfigure()
  * Create filetype tables.
  *
  * When a filetype is created, it will contain only one column
@@ -460,7 +462,7 @@ enum {
  * admin to remove unused columns.
  **/
 int
-mbm_reconfigure()
+nol_m_reconfigure()
 {
     int  x, a;
     int  n;
@@ -475,8 +477,8 @@ mbm_reconfigure()
     if (!(lmc = lmc_create(0)))
         return -1;
 
-    lmc_add_class(lmc, &mbm_filetype_class);
-    lmc_add_class(lmc, &mbm_crawler_class);
+    lmc_add_class(lmc, &nol_m_filetype_class);
+    lmc_add_class(lmc, &nol_m_crawler_class);
     lmc_parse_file(lmc, opt_vals.config_file);
 
     for (n=0; n<srv.num_filetypes; n++) {
@@ -550,7 +552,7 @@ mbm_reconfigure()
  * Called when sigint is recevied
  **/
 static void
-mbm_ev_sigint(EV_P_ ev_signal *w, int revents)
+nol_m_ev_sigint(EV_P_ ev_signal *w, int revents)
 {
     int x;
 
@@ -574,7 +576,7 @@ mbm_ev_sigint(EV_P_ ev_signal *w, int revents)
  * Called when sigterm is recevied
  **/
 static void
-mbm_ev_sigterm(EV_P_ ev_signal *w, int revents)
+nol_m_ev_sigterm(EV_P_ ev_signal *w, int revents)
 {
     int x;
 
@@ -595,19 +597,19 @@ mbm_ev_sigterm(EV_P_ ev_signal *w, int revents)
 }
 
 int
-mbm_cleanup()
+nol_m_cleanup()
 {
     int x;
 
     if (srv.num_filetypes) {
         for (x=0; x<srv.num_filetypes; x++)
-            mbm_filetype_destroy(srv.filetypes[x]);
+            nol_m_filetype_destroy(srv.filetypes[x]);
         free(srv.filetypes);
     }
 
     if (srv.num_crawlers) {
         for (x=0; x<srv.num_crawlers; x++)
-            mbm_crawler_destroy(srv.crawlers[x]);
+            nol_m_crawler_destroy(srv.crawlers[x]);
         free(srv.crawlers);
     }
 
@@ -624,6 +626,8 @@ mbm_cleanup()
     if (opt_vals.mysql_user) free(opt_vals.mysql_user);
     if (opt_vals.mysql_pass) free(opt_vals.mysql_pass);
     if (opt_vals.mysql_db) free(opt_vals.mysql_db);
+
+    nol_m_auth_cleanup_slaves();
 
     free_hooks();
 }

@@ -1,8 +1,10 @@
 /*-
- * hook.h
- * This file is part of mb-slaved
+ * server.h
+ * This file is part of Methanol
  *
- * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
+ * Copyright (c) 2009, Emil Romanus <sdac@bithack.se>
+ * http://metha-sys.org/
+ * http://bithack.se/projects/methabot/
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,23 +17,11 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- * 
- * http://bithack.se/projects/methabot/
  */
 
-#ifndef _HOOK__H_
-#define _HOOK__H_
+#ifndef _NOL_SERVER__H_
+#define _NOL_SERVER__H_
 
-/* keep in sync with hook_str in hook.c */
-enum {
-    HOOK_SESSION_COMPLETE,
-    HOOK_CLEANUP,
-
-    NUM_HOOKS
-};
-
-int  mbs_hook_assign(const char *hook_nm, const char *code, size_t code_len);
-void mbs_hook_cleanup_all(void);
-int  mbs_hook_invoke(unsigned hook_id);
+int nol_server_launch(const char *config, lmc_parser_t *lmc, const char **user, const char **group, const char *(*init_cb)(void), const char *(*run_cb)(void), int dofork);
 
 #endif

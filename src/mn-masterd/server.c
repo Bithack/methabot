@@ -3,6 +3,8 @@
  * This file is part of Methanol
  *
  * Copyright (c) 2009, Emil Romanus <sdac@bithack.se>
+ * http://metha-sys.org/
+ * http://bithack.se/projects/methabot/
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,9 +17,6 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- * 
- * http://bithack.se/projects/methabot/
- * http://metha-sys.org/
  */
 
 #include <stdio.h>
@@ -36,7 +35,7 @@
 #define CHILD_FAILURE 1
 
 /** 
- * Function used by both mb-masterd and mb-slaved.
+ * Function used by both mn-masterd and mn-slaved.
  *
  * Fork and load the configuration file specified in
  * 'config'. 'user' and 'group' points to strings 

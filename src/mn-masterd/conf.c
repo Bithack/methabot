@@ -1,8 +1,10 @@
 /*-
  * conf.c
- * This file is part of mb-masterd
+ * This file is part of Methanol
+ * http://metha-sys.org/
+ * http://bithack.se/projects/methabot/
  *
- * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
+ * Copyright (c) 2009, Emil Romanus <sdac@bithack.se>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,8 +17,6 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- * 
- * http://bithack.se/projects/methabot/
  */
 
 #include "lmc.h"
@@ -46,14 +46,14 @@ static void crawler_clear(struct crawler* cr);
  * but not see it as an error.
  **/
 struct lmc_class
-mbm_filetype_class = {
+nol_m_filetype_class = {
     .name = "filetype",
     .add_cb  = &filetype_add,
     .find_cb = &filetype_find,
     .zero_cb = &filetype_clear,
     .copy_cb = &filetype_copy,
     .constructor_cb = &filetype_create,
-    .destructor_cb = &mbm_filetype_destroy,
+    .destructor_cb = &nol_m_filetype_destroy,
     .flags_offs = 0,
     . opts = {
         LMC_OPT_ARRAY("extensions", 0),
@@ -72,7 +72,7 @@ mbm_filetype_class = {
  * each crawler will be saved in the database
  **/
 struct lmc_class
-mbm_crawler_class = 
+nol_m_crawler_class = 
 {
     .name           = "crawler",
     .add_cb         = &crawler_add,
@@ -80,7 +80,7 @@ mbm_crawler_class =
     .zero_cb        = &crawler_clear,
     .copy_cb        = &crawler_copy,
     .constructor_cb = &crawler_create,
-    .destructor_cb  = &mbm_crawler_destroy,
+    .destructor_cb  = &nol_m_crawler_destroy,
     .flags_offs     = 0,
     .opts = {
         LMC_OPT_ARRAY("filetypes", 0),
@@ -183,7 +183,7 @@ filetype_clear(struct filetype* ft)
 }
 
 void
-mbm_filetype_destroy(struct filetype* ft)
+nol_m_filetype_destroy(struct filetype* ft)
 {
     filetype_clear(ft);
     free(ft->name);
@@ -272,7 +272,7 @@ crawler_clear(struct crawler* cr)
 }
 
 void
-mbm_crawler_destroy(struct crawler* cr)
+nol_m_crawler_destroy(struct crawler* cr)
 {
     free(cr->name);
     free(cr);

@@ -1,8 +1,10 @@
 /*-
  * conf.h
- * This file is part of mb-masterd
+ * This file is part of Methanol
+ * http://metha-sys.org/
+ * http://bithack.se/projects/methabot/
  *
- * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
+ * Copyright (c) 2009, Emil Romanus <sdac@bithack.se>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,12 +17,10 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- * 
- * http://bithack.se/projects/methabot/
  */
 
-#ifndef _MBM_CONF__H_
-#define _MBM_CONF__H_
+#ifndef _NOL_CONF__H_
+#define _NOL_CONF__H_
 
 #include "lmc.h"
 #include "master.h"
@@ -35,10 +35,10 @@ struct filetype {
     unsigned num_attributes;
 };
 
-extern struct lmc_class mbm_crawler_class;
-extern struct lmc_class mbm_filetype_class;
+extern struct lmc_class nol_m_crawler_class;
+extern struct lmc_class nol_m_filetype_class;
 
-void mbm_filetype_destroy(struct filetype* ft);
-void mbm_crawler_destroy(struct crawler* cr);
+void nol_m_filetype_destroy(struct filetype* ft);
+void nol_m_crawler_destroy(struct crawler* cr);
 
 #endif

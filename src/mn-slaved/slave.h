@@ -1,3 +1,24 @@
+/*-
+ * slave.h
+ * This file is part of Methanol
+ *
+ * Copyright (c) 2009, Emil Romanus <sdac@bithack.se>
+ * http://metha-sys.org/
+ * http://bithack.se/projects/methabot/
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
 #ifndef _M_SLAVE__H_
 #define _M_SLAVE__H_
 
@@ -9,12 +30,15 @@
 
 #include "nolp.h"
 
-#define NOL_SLAVE_DEFAULT_PORT 5506
 #define MAX_NUM_PENDING  128
 
 struct opt_vals {
     char *listen;
-    char *master;
+    char *master_host;
+    unsigned int master_port;
+    char *master_user;
+    char *master_password;
+
     char *user;
     char *group;
     char *mysql_host;
@@ -38,8 +62,6 @@ struct slave {
     char          *config_buf;
     unsigned int   config_sz;
 
-    char *user;
-    char *pass;
     int   master_sock;
 
     ev_io     master_io;
@@ -59,6 +81,6 @@ extern struct slave srv;
 extern struct opt_vals opt_vals;
 
 int sock_getline(int fd, char *buf, int max);
-MYSQL *mbs_dup_mysql_conn(void);
+MYSQL *nol_s_dup_mysql_conn(void);
 
 #endif

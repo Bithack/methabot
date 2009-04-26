@@ -1,8 +1,8 @@
 /*-
- * slave.c
- * This file is part of mb-masterd
+ * slave-conn.c
+ * This file is part of Methanol
  *
- * Copyright (c) 2009, Emil Romanus <emil.romanus@gmail.com>
+ * Copyright (c) 2009, Emil Romanus <sdac@bithack.se>
  * http://metha-sys.org/
  * http://bithack.se/projects/methabot/
  *
@@ -25,10 +25,10 @@
 #include <syslog.h>
 #include <ev.h>
 #include "master.h"
-#include "conn.h"
+#include "slave.h"
 #include "nolp.h"
 
-int mbm_create_slave_list_xml();
+int nol_m_create_slave_list_xml();
 
 static int sl_status_command(nolp_t *no, char *buf, int size);
 static int sl_session_complete_command(nolp_t *no, char *buf, int size);
@@ -46,16 +46,17 @@ struct nolp_fn slave_commands[] = {
  * slave by querying the database. Also add the slave to 
  * the global slave list.
  **/
-struct slave *
-mbm_create_slave(const char *user)
+slave_conn_t *
+nol_m_create_slave_conn(const char *user)
 {
-    struct slave *r;
-    static char q[128];
+    slave_conn_t *r;
+    static char  q[128];
     int sz;
     int x;
 
     /* Add this slave to the list of slaves */
-    if (!(srv.slaves = realloc(srv.slaves, (srv.num_slaves+1)*sizeof(struct slave)))) {
+    if (!(srv.slaves = realloc(srv.slaves,
+                    (srv.num_slaves+1)*sizeof(slave_conn_t)))) {
         syslog(LOG_ERR, "out of mem");
         abort();
     }
@@ -94,7 +95,7 @@ mbm_create_slave(const char *user)
 }
 
 int
-mbm_create_slave_list_xml()
+nol_m_create_slave_list_xml()
 {
     int x;
 
@@ -169,7 +170,7 @@ sl_status_parse(nolp_t *no, char *buf, int size)
     int xml_sz = 0;
     char *p, *rp, *re;
     struct conn *conn = no->private;
-    struct slave *sl = &srv.slaves[conn->slave_n];
+    slave_conn_t *sl = &srv.slaves[conn->slave_n];
     struct client *curr;
     char user[65];
     char address[16];
@@ -232,7 +233,7 @@ sl_status_parse(nolp_t *no, char *buf, int size)
     sl->xml.clients.buf = realloc(sl->xml.clients.buf, x);
     sl->xml.clients.sz = x;
 
-    mbm_create_slave_list_xml();
+    nol_m_create_slave_list_xml();
 
     return 0;
 }

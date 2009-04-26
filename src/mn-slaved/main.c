@@ -1,8 +1,10 @@
 /*-
  * main.c
- * This file is part of mb-slaved
+ * This file is part of Methanol
  *
- * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
+ * Copyright (c) 2009, Emil Romanus <sdac@bithack.se>
+ * http://metha-sys.org/
+ * http://bithack.se/projects/methabot/
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,8 +17,6 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- * 
- * http://bithack.se/projects/methabot/
  */
 
 #include <stdlib.h>
@@ -29,21 +29,22 @@
 #include <ev.h>
 
 #include "lmc.h"
-#include "../mb-masterd/server.h"
+#include "../mn-masterd/server.h"
+#include "../mn-masterd/methanol.h"
 #include "client.h"
 #include "slave.h"
 #include "nolp.h"
 #include "hook.h"
 
-int mbs_cleanup();
-static void mbs_ev_sigint(EV_P_ ev_signal *w, int revents);
-static int mbs_load_config();
-static int mbs_master_login();
-static int mbs_master_connect();
-static void mbs_ev_master(EV_P_ ev_io *w, int revents);
-static void mbs_ev_conn_accept(EV_P_ ev_io *w, int revents);
-static void mbs_ev_master_timer(EV_P_ ev_io *w, int revents);
-static void mbs_ev_client_status(EV_P_ ev_async *w, int revents);
+int nol_s_cleanup();
+static void nol_s_ev_sigint(EV_P_ ev_signal *w, int revents);
+static int nol_s_load_config();
+static int nol_s_master_login();
+static int nol_s_master_connect();
+static void nol_s_ev_master(EV_P_ ev_io *w, int revents);
+static void nol_s_ev_conn_accept(EV_P_ ev_io *w, int revents);
+static void nol_s_ev_master_timer(EV_P_ ev_io *w, int revents);
+static void nol_s_ev_client_status(EV_P_ ev_async *w, int revents);
 
 const char *slave_init_cb(void);
 const char *slave_run_cb(void);
@@ -59,7 +60,10 @@ struct lmc_scope slave_scope =
     "slave",
     {
         LMC_OPT_STRING("listen", &opt_vals.listen),
-        LMC_OPT_STRING("master", &opt_vals.master),
+        LMC_OPT_STRING("master_host", &opt_vals.master_host),
+        LMC_OPT_UINT("master_port", &opt_vals.master_port),
+        LMC_OPT_STRING("master_user", &opt_vals.master_user),
+        LMC_OPT_STRING("master_password", &opt_vals.master_password),
         LMC_OPT_STRING("user", &opt_vals.user),
         LMC_OPT_STRING("group", &opt_vals.group),
         LMC_OPT_STRING("exec_dir", &opt_vals.exec_dir),
@@ -81,7 +85,7 @@ main(int argc, char **argv)
     int           nofork = 0;
     signal(SIGPIPE, SIG_IGN);
 
-    _cfg_file = "/etc/mb-slaved.conf";
+    _cfg_file = "/etc/mn-slaved.conf";
     if (argc > 1) {
         if (strcmp(argv[1], "--no-fork") == 0)
             nofork=1;
@@ -105,7 +109,7 @@ main(int argc, char **argv)
      * it should have printed an error message to stderr already */
 
     lmc_destroy(lmc);
-    mbs_cleanup();
+    nol_s_cleanup();
     return r;
 }
 
@@ -117,17 +121,15 @@ slave_init_cb(void)
     int   sock;
     int   o = 1;
 
-    openlog("mb-slaved", LOG_PID, LOG_DAEMON);
+    openlog("mn-slaved", LOG_PID, LOG_DAEMON);
     set_defaults();
 
     if (!(srv.master_io.data = srv.m_nolp = nolp_create(&master_commands, 0)))
         return "nolp init failed";
-    if ((s = strchr(opt_vals.master, ':'))) {
-        srv.master.sin_port = htons(atoi(s+1));
-        *s = '\0';
-    } else
-        srv.master.sin_port = htons(5505);
-    srv.master.sin_addr.s_addr = inet_addr(opt_vals.master);
+
+    /* set up master login info */
+    srv.master.sin_port        = htons(opt_vals.master_port);
+    srv.master.sin_addr.s_addr = inet_addr(opt_vals.master_host);
 
     if ((s = strchr(opt_vals.listen, ':'))) {
         srv.addr.sin_port = htons(atoi(s+1));
@@ -151,12 +153,12 @@ slave_init_cb(void)
         return "listen() failed";
     }
 
-    if (!(srv.mysql = mbs_dup_mysql_conn()))
+    if (!(srv.mysql = nol_s_dup_mysql_conn()))
         return "could not connect to mysql server";
-    if (mbs_master_connect() != 0)
+    if (nol_s_master_connect() != 0)
         return "could not connect to master server";
-    if (mbs_master_login() != 0)
-        return "loggin in to master failed";
+    if (nol_s_master_login() != 0)
+        return "logging in to master failed";
 
     srv.listen_sock = sock;
 
@@ -171,12 +173,16 @@ void
 set_defaults(void)
 {
     if (!opt_vals.listen)
-        opt_vals.listen = "127.0.0.1";
-    if (!opt_vals.master)
-        opt_vals.master = "127.0.0.1";
+        opt_vals.listen = strdup("127.0.0.1");
+    if (!opt_vals.master_host)
+        opt_vals.master_host = strdup("127.0.0.1");
+    if (!opt_vals.master_port)
+        opt_vals.master_port = NOL_MASTER_DEFAULT_PORT;
 
-    srv.user = strdup("default");
-    srv.pass = strdup("default");
+    if (!opt_vals.master_user)
+        opt_vals.master_user = strdup("default");
+    if (!opt_vals.master_password)
+        opt_vals.master_password = strdup("default");
 }
 
 const char*
@@ -193,11 +199,11 @@ slave_run_cb(void)
         return 1;
 
     syslog(LOG_INFO, "listening on %s:%hd", inet_ntoa(srv.addr.sin_addr), ntohs(srv.addr.sin_port));
-    ev_signal_init(&sigint_listen, &mbs_ev_sigint, SIGINT);
-    ev_signal_init(&sigterm_listen, &mbs_ev_sigint, SIGTERM);
-    ev_io_init(&io_listen, &mbs_ev_conn_accept, srv.listen_sock, EV_READ);
-    ev_io_init(&srv.master_io, &mbs_ev_master, srv.master_sock, EV_READ);
-    ev_async_init(&srv.client_status, &mbs_ev_client_status);
+    ev_signal_init(&sigint_listen, &nol_s_ev_sigint, SIGINT);
+    ev_signal_init(&sigterm_listen, &nol_s_ev_sigint, SIGTERM);
+    ev_io_init(&io_listen, &nol_s_ev_conn_accept, srv.listen_sock, EV_READ);
+    ev_io_init(&srv.master_io, &nol_s_ev_master, srv.master_sock, EV_READ);
+    ev_async_init(&srv.client_status, &nol_s_ev_client_status);
 
     /* catch SIGINT so we can close connections and clean up properly */
     ev_signal_start(loop, &sigint_listen);
@@ -218,7 +224,7 @@ slave_run_cb(void)
     pthread_mutex_destroy(&srv.pending_lk);
     pthread_mutex_destroy(&srv.clients_lk);
 
-    mbs_hook_invoke(HOOK_CLEANUP);
+    nol_s_hook_invoke(HOOK_CLEANUP);
     return 0;
 }
 
@@ -227,7 +233,7 @@ slave_run_cb(void)
  * mysql settings, "duplicate" the connection
  **/
 MYSQL *
-mbs_dup_mysql_conn(void)
+nol_s_dup_mysql_conn(void)
 {
     MYSQL *ret;
     my_bool reconnect = 1;
@@ -263,7 +269,7 @@ mbs_dup_mysql_conn(void)
  * the client is running or idle (1 = running).
  **/
 static void
-mbs_ev_client_status(EV_P_ ev_async *w,
+nol_s_ev_client_status(EV_P_ ev_async *w,
                      int revents)
 {
     char *out;
@@ -298,7 +304,7 @@ mbs_ev_client_status(EV_P_ ev_async *w,
  * and the client must report a valid token.
  **/
 static void
-mbs_ev_conn_accept(EV_P_ ev_io *w, int revents)
+nol_s_ev_conn_accept(EV_P_ ev_io *w, int revents)
 {
     struct client *cl;
     struct sockaddr_in addr;
@@ -330,7 +336,7 @@ mbs_ev_conn_accept(EV_P_ ev_io *w, int revents)
             }
             if (addr.sin_addr.s_addr == srv.pending[x]->addr.s_addr) {
                 pthread_t thr;
-                if (pthread_create(&thr, 0, mbs_client_init, (void*)sock) != 0)
+                if (pthread_create(&thr, 0, nol_s_client_init, (void*)sock) != 0)
                     abort();
                 break;
             }
@@ -361,7 +367,7 @@ sock_getline(int fd, char *buf, int max)
  * Called when a message is sent from the server
  **/
 static void
-mbs_ev_master(EV_P_ ev_io *w, int revents)
+nol_s_ev_master(EV_P_ ev_io *w, int revents)
 {
     if ((revents & EV_ERROR) || nolp_recv(srv.m_nolp) != 0) {
         /* reach here if connection was closed or a socket error occured */
@@ -369,7 +375,7 @@ mbs_ev_master(EV_P_ ev_io *w, int revents)
         close(w->fd);
         ev_io_stop(EV_A_ w);
         ev_timer_init(&srv.master_timer,
-                &mbs_ev_master_timer,
+                &nol_s_ev_master_timer,
                 5.0f, 0.f);
         srv.master_timer.repeat = 5;
         ev_timer_start(EV_A_ &srv.master_timer);
@@ -377,15 +383,15 @@ mbs_ev_master(EV_P_ ev_io *w, int revents)
 }
 
 static void
-mbs_ev_master_timer(EV_P_ ev_io *w, int revents)
+nol_s_ev_master_timer(EV_P_ ev_io *w, int revents)
 {
-    if (mbs_master_connect() == 0) {
-        if (mbs_master_login() != 0)
+    if (nol_s_master_connect() == 0) {
+        if (nol_s_master_login() != 0)
             close(srv.master_sock);
         else {
             ev_timer_stop(EV_A_ &srv.master_timer);
             memset(&srv.master_io, 0, sizeof(ev_io));
-            ev_io_init(&srv.master_io, &mbs_ev_master, srv.master_sock, EV_READ);
+            ev_io_init(&srv.master_io, &nol_s_ev_master, srv.master_sock, EV_READ);
             ev_io_start(loop, &srv.master_io);
             return;
         }
@@ -395,18 +401,18 @@ mbs_ev_master_timer(EV_P_ ev_io *w, int revents)
 }
 
 static void
-mbs_ev_sigint(EV_P_ ev_signal *w, int revents)
+nol_s_ev_sigint(EV_P_ ev_signal *w, int revents)
 {
     ev_unloop(EV_A_ EVUNLOOP_ALL);
 }
 
 /** 
- * Connect to the master server specified in mb-slaved.conf
+ * Connect to the master server specified in mn-slaved.conf
  *
  * 0 on success
  **/
 static int
-mbs_master_connect()
+nol_s_master_connect()
 {
     if ((srv.master_sock = socket(AF_INET, SOCK_STREAM, 0)) == -1)
         return 1;
@@ -428,21 +434,23 @@ mbs_master_connect()
  * 0 on success
  **/
 static int
-mbs_master_login()
+nol_s_master_login()
 {
     int len;
     int n;
     char str[128];
     char *p;
-    if (strlen("AUTH slave ")+strlen(srv.user)
-            +strlen(srv.pass)+3 >= 128) {
-
+    if (strlen("AUTH slave ")+strlen(opt_vals.master_user)
+            +strlen(opt_vals.master_password)+3 >= 128) {
         syslog(LOG_ERR, "buffer exceeded");
-        abort();
+        return 1;
     }
-    len = sprintf(str, "AUTH slave %s %s\n", srv.user, srv.pass);
+    len = sprintf(str, "AUTH slave %s %s\n",
+            opt_vals.master_user,
+            opt_vals.master_password);
     if (send(srv.master_sock, str, len, MSG_NOSIGNAL) == -1)
         return 1;
+
     if ((len = sock_getline(srv.master_sock, str, 127)) > 0
             && atoi(str) == 100) {
         syslog(LOG_INFO, "logged in to master");
@@ -454,11 +462,13 @@ mbs_master_login()
 }
 
 int
-mbs_cleanup()
+nol_s_cleanup()
 {
     if (srv.m_nolp) nolp_free(srv.m_nolp);
     if (opt_vals.listen) free(opt_vals.listen);
-    if (opt_vals.master) free(opt_vals.master);
+    if (opt_vals.master_host) free(opt_vals.master_host);
+    if (opt_vals.master_user) free(opt_vals.master_user);
+    if (opt_vals.master_password) free(opt_vals.master_password);
     if (opt_vals.mysql_host) free(opt_vals.mysql_host);
     if (opt_vals.mysql_sock) free(opt_vals.mysql_sock);
     if (opt_vals.mysql_user) free(opt_vals.mysql_user);
@@ -467,7 +477,5 @@ mbs_cleanup()
     if (opt_vals.user) free(opt_vals.user);
     if (opt_vals.group) free(opt_vals.group);
     if (opt_vals.exec_dir) free(opt_vals.exec_dir);
-    if (srv.user) free(srv.user);
-    if (srv.pass) free(srv.pass);
 }
 

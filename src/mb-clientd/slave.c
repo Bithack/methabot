@@ -19,6 +19,7 @@
  * http://bithack.se/projects/methabot/
  */
 
+#include <string.h>
 #include <syslog.h>
 
 #include "client.h"
@@ -43,6 +44,8 @@ struct nolp_fn sl_commands[] = {
     {0}
 };
 
+char *arg;
+
 static int
 mbc_slave_on_start(nolp_t *no, char *buf, int size)
 {
@@ -63,8 +66,12 @@ mbc_slave_on_start(nolp_t *no, char *buf, int size)
         syslog(LOG_ERR, "unknown crawler '%s' from slave", buf);
         return -1;
     }
+    if (arg)
+        free(arg);
+    if (!(arg = strdup(p)))
+        return -1;
     send(mbc.sock, "STATUS 1\n", 9, 0);
-    lmetha_exec_async(mbc.m, 1, &p);
+    lmetha_exec_async(mbc.m, 1, &arg);
     return 0;
 }
 

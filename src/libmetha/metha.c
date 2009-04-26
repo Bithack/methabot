@@ -665,6 +665,9 @@ lmetha_exec_async(metha_t *m, int argc, const char **argv)
     struct async_data as;
     M_CODE r = M_OK;
 
+#ifdef DEBUG
+    fprintf(stderr, "* metha:(%p) async exec with crawler '%s'\n", m, m->crawlers[m->crawler]->name);
+#endif
     as.m = m;
 
     if (m->state != LM_STATE_PREPARED)
@@ -710,6 +713,7 @@ do_async_main(void* in)
     metha_t *m            = as->m;
     as->status            = M_OK;
 
+    /* signal back to the waiting thread at lmetha_exec_async() */
     pthread_mutex_lock(&as->mtx);
     pthread_cond_signal(&as->cond);
     pthread_mutex_unlock(&as->mtx);
@@ -738,8 +742,6 @@ msg_loop(metha_t *m)
                 return;
         }
     }
-
-    fprintf(stderr, "OUT OF LOOP %d\n", n);
 }
 
 /** 

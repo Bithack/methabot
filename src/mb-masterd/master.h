@@ -9,6 +9,12 @@
 
 #define NOL_MASTER_DEFAULT_PORT 5505
 
+enum {
+    HOOK_SESSION_COMPLETE,
+    HOOK_CLEANUP,
+    NUM_HOOKS,
+};
+
 struct crawler;
 struct filetype;
 
@@ -17,13 +23,13 @@ struct opt_val_list {
     char *config_file;
     char *user;
     char *group;
-    char *session_complete_hook;
     char *mysql_host;
     unsigned int mysql_port;
     char *mysql_sock;
     char *mysql_user;
     char *mysql_pass;
     char *mysql_db;
+    char *hooks[NUM_HOOKS];
 };
 
 /* run-time generated information */
@@ -42,6 +48,11 @@ struct master {
     unsigned           num_filetypes;
     struct crawler   **crawlers;
     unsigned           num_crawlers;
+
+    struct {
+        char     *buf;
+        size_t    sz;
+    } hooks[NUM_HOOKS];
 
     struct {
         struct {

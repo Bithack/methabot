@@ -30,6 +30,8 @@ static int on_kill_all(nolp_t *no, char *buf, int size);
 static int on_config(nolp_t *no, char *buf, int size);
 static int on_config_recv(nolp_t *no, char *buf, int size);
 static int on_client(nolp_t *no, char *buf, int size);
+static int on_hook(nolp_t *no, char *buf, int size);
+static int on_hook_recv(nolp_t *no, char *buf, int size);
 void       msg_all_clients(int msg);
 
 /**
@@ -42,6 +44,7 @@ struct nolp_fn master_commands[] = {
     {"KILL-ALL", &on_kill_all},
     {"CONFIG", &on_config},
     {"CLIENT", &on_client},
+    {"HOOK",   &on_hook},
     {0}
 };
 
@@ -152,6 +155,27 @@ on_client(nolp_t *no, char *buf, int size)
         send(no->fd, out, ok, 0);
     }
 
+    return 0;
+}
+
+static char hook_name[32];
+/** 
+ * HOOK <name> <length>\n
+ **/
+static int
+on_hook(nolp_t *no, char *buf, int size)
+{
+    int expect;
+    sscanf(buf, "%31s %d", hook_name, &expect);
+    return nolp_expect(no, expect, &on_hook_recv);
+}
+
+/* receive the script for a hook, the name of the 
+ * hook have been set by on_hook() in hook_name */
+static int
+on_hook_recv(nolp_t *no, char *buf, int size)
+{
+    mbs_hook_assign(hook_name, buf, size);
     return 0;
 }
 

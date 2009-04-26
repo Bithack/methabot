@@ -35,7 +35,6 @@ static int sl_session_complete_command(nolp_t *no, char *buf, int size);
 static int sl_status_parse(nolp_t *no, char *buf, int size);
 static int read_token(EV_P_ struct conn *conn);
 static int call_session_complete_hook(long sess_id);
-static void check_sessions();
 
 struct nolp_fn slave_commands[] = {
     {"STATUS", &sl_status_command},
@@ -233,24 +232,12 @@ sl_status_parse(nolp_t *no, char *buf, int size)
     sl->xml.clients.buf = realloc(sl->xml.clients.buf, x);
     sl->xml.clients.sz = x;
 
-    check_sessions();
     mbm_create_slave_list_xml();
 
     return 0;
 }
 
-static int
-call_session_complete_hook(long sess_id)
-{
-    const char *run;
-    if (opt_vals.session_complete_hook) {
-        asprintf(&run, "%s %d", opt_vals.session_complete_hook, sess_id);
-        system(run);
-        free(run);
-    }
-
-    return 0;
-}
+#if 0
 /* check if a session is marked as wait-postprocess */
 static void
 check_sessions()
@@ -283,4 +270,5 @@ check_sessions()
     }
     mysql_free_result(r);
 }
+#endif
 

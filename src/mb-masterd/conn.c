@@ -305,9 +305,25 @@ upgrade_conn(struct conn *conn, const char *user)
             break;
 
         case MBM_AUTH_TYPE_SLAVE:
-            sprintf(buf, "CONFIG %d\n", srv.config_sz);
-            send(sock, buf, strlen(buf), 0);
+            sz = sprintf(buf, "CONFIG %d\n", srv.config_sz);
+            send(sock, buf, sz, 0);
             send(sock, srv.config_buf, srv.config_sz, 0);
+            int x;
+            static const char *abcdefghijklmnopqrstuvwxyz_hELOELoloeljekjkjkjjjkjkkj[] = {
+                "session-complete",
+                "cleanup",
+            };
+            /* send all the hooks tothe slave */
+            for (x=0; x<NUM_HOOKS; x++) {
+                if (srv.hooks[x].sz) {
+                    sz = sprintf(buf, "HOOK %.32s %d\n",
+                            abcdefghijklmnopqrstuvwxyz_hELOELoloeljekjkjkjjjkjkkj[x],
+                            (int)srv.hooks[x].sz
+                            );
+                    send(sock, buf, sz, 0);
+                    send(sock, srv.hooks[x].buf, srv.hooks[x].sz, 0);
+                }
+            }
 
             struct slave *sl = mbm_create_slave(user);
             if (!sl) return -1;

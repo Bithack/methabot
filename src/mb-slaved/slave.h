@@ -23,6 +23,7 @@ struct opt_vals {
     char *mysql_user;
     char *mysql_pass;
     char *mysql_db;
+    char *exec_dir;
 } opt_vals;
 
 /* runtime information about this slave */

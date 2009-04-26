@@ -1,0 +1,37 @@
+/*-
+ * hook.h
+ * This file is part of mb-slaved
+ *
+ * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * 
+ * http://bithack.se/projects/methabot/
+ */
+
+#ifndef _HOOK__H_
+#define _HOOK__H_
+
+/* keep in sync with hook_str in hook.c */
+enum {
+    HOOK_SESSION_COMPLETE,
+    HOOK_CLEANUP,
+
+    NUM_HOOKS
+};
+
+int  mbs_hook_assign(const char *hook_nm, const char *code, size_t code_len);
+void mbs_hook_cleanup_all(void);
+int  mbs_hook_invoke(unsigned hook_id);
+
+#endif

@@ -65,6 +65,8 @@ const char *master = "127.0.0.1";
 const char *user = "test";
 const char *pass = "test";
 
+extern char *arg;
+
 int
 main(int argc, char **argv)
 {
@@ -283,6 +285,8 @@ mbc_ev_idle(EV_P_ ev_async *w, int revents)
     /* wait for our libmetha thread to exit before
      * continuing with the event loop */
     lmetha_wait(mbc.m);
+    free(arg);
+    arg = 0;
     mbc.state = MBC_STATE_STOPPED;
 }
 

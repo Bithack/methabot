@@ -19,6 +19,7 @@
  * http://bithack.se/projects/methabot/
  */
 
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <syslog.h>
@@ -29,6 +30,7 @@
 #include "slave.h"
 #include "client.h"
 #include "nolp.h"
+#include "hook.h"
 
 void mbs_client_main(struct client *this, int sock);
 static int get_and_send_url(struct client *cl);
@@ -446,7 +448,12 @@ on_status(nolp_t *no, char *buf, int size)
 #ifdef DEBUG
             syslog(LOG_DEBUG, "session %ld finished", cl->session_id);
 #endif
-            sprintf(q, "UPDATE `nol_session` SET state='wait-hook', latest=NOW() WHERE id=%ld",
+            sprintf(q, "UPDATE `nol_session` SET state='hook', latest=NOW() WHERE id=%ld",
+                    cl->session_id);
+            mysql_query(cl->mysql, q);
+
+            mbs_hook_invoke(HOOK_SESSION_COMPLETE);
+            sprintf(q, "UPDATE `nol_session` SET state='done', latest=NOW() WHERE id=%ld",
                     cl->session_id);
             mysql_query(cl->mysql, q);
         }

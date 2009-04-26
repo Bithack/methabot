@@ -37,6 +37,8 @@ static void mbm_ev_sigint(EV_P_ ev_signal *w, int revents);
 static void mbm_ev_sigterm(EV_P_ ev_signal *w, int revents);
 const char* master_init_cb(void);
 const char* master_start_cb(void);
+const char* load_hooks();
+void free_hooks();
 
 static const char *_cfg_file;
 struct master       srv;
@@ -48,7 +50,8 @@ struct lmc_scope master_scope =
     {
         LMC_OPT_STRING("listen", &opt_vals.listen),
         LMC_OPT_STRING("config_file", &opt_vals.config_file),
-        LMC_OPT_STRING("session_complete_hook", &opt_vals.session_complete_hook),
+        LMC_OPT_STRING("session_complete_hook", &opt_vals.hooks[HOOK_SESSION_COMPLETE]),
+        LMC_OPT_STRING("cleanup_hook", &opt_vals.hooks[HOOK_CLEANUP]),
         LMC_OPT_STRING("user", &opt_vals.user),
         LMC_OPT_STRING("group", &opt_vals.group),
         LMC_OPT_STRING("mysql_host", &opt_vals.mysql_host),
@@ -170,7 +173,51 @@ master_init_cb(void)
     }
 
     srv.listen_sock = sock;
+    return load_hooks();
+}
+
+/** 
+ * load all set hooks into memory, so we can send them to 
+ * connecting slaves
+ *
+ * return 0 or a static char buffer describing the error
+ **/
+const char*
+load_hooks()
+{
+    int     x;
+    FILE  *fp;
+    size_t length;
+
+    for (x=0; x<NUM_HOOKS; x++) {
+        if (opt_vals.hooks[x]) {
+            if (!(fp = fopen(opt_vals.hooks[x], "r")))
+                return "could not open hook script";
+            fseek(fp, 0, SEEK_END);
+            length = (int)ftell(fp);
+            rewind(fp);
+
+            if (!(srv.hooks[x].buf = malloc(length)))
+                return "out of mem";
+            srv.hooks[x].sz = length;
+            fread(srv.hooks[x].buf, 1, length, fp);
+            fclose(fp);
+        }
+    }
+
     return 0;
+}
+
+void
+free_hooks()
+{
+    int x;
+    for (x=0; x<NUM_HOOKS; x++) {
+        if (srv.hooks[x].sz) {
+            free(srv.hooks[x].buf);
+            srv.hooks[x].sz = 0;
+        }
+    }
 }
 
 /** 
@@ -577,5 +624,7 @@ mbm_cleanup()
     if (opt_vals.mysql_user) free(opt_vals.mysql_user);
     if (opt_vals.mysql_pass) free(opt_vals.mysql_pass);
     if (opt_vals.mysql_db) free(opt_vals.mysql_db);
+
+    free_hooks();
 }
 

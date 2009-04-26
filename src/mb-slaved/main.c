@@ -33,6 +33,7 @@
 #include "client.h"
 #include "slave.h"
 #include "nolp.h"
+#include "hook.h"
 
 int mbs_cleanup();
 static void mbs_ev_sigint(EV_P_ ev_signal *w, int revents);
@@ -61,6 +62,7 @@ struct lmc_scope slave_scope =
         LMC_OPT_STRING("master", &opt_vals.master),
         LMC_OPT_STRING("user", &opt_vals.user),
         LMC_OPT_STRING("group", &opt_vals.group),
+        LMC_OPT_STRING("exec_dir", &opt_vals.exec_dir),
         LMC_OPT_STRING("mysql_host", &opt_vals.mysql_host),
         LMC_OPT_STRING("mysql_sock", &opt_vals.mysql_sock),
         LMC_OPT_STRING("mysql_user", &opt_vals.mysql_user),
@@ -158,6 +160,9 @@ slave_init_cb(void)
 
     srv.listen_sock = sock;
 
+    if (opt_vals.exec_dir)
+        chdir(opt_vals.exec_dir);
+
     return 0;
 }
 
@@ -212,6 +217,8 @@ slave_run_cb(void)
     closelog();
     pthread_mutex_destroy(&srv.pending_lk);
     pthread_mutex_destroy(&srv.clients_lk);
+
+    mbs_hook_invoke(HOOK_CLEANUP);
     return 0;
 }
 
@@ -459,6 +466,7 @@ mbs_cleanup()
     if (opt_vals.mysql_db) free(opt_vals.mysql_db);
     if (opt_vals.user) free(opt_vals.user);
     if (opt_vals.group) free(opt_vals.group);
+    if (opt_vals.exec_dir) free(opt_vals.exec_dir);
     if (srv.user) free(srv.user);
     if (srv.pass) free(srv.pass);
 }

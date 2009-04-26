@@ -10,5 +10,7 @@ mb_slaved_SOURCES = \
 	../mb-masterd/server.c \
 	master.c \
 	client.h \
+	hook.c \
+	hook.h \
 	slave.h
 

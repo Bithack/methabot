@@ -38,7 +38,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 @ifnottex
 @node Top
-@top Preface
+@top Methanol 1.7.0
 @end ifnottex
 
 This manual is for the Methanol Web Crawling System, version 1.7.0.
@@ -57,7 +57,7 @@ Customization
 * Configuration Files:: Basic to advanced configuration file topics.
 * Parsers:: Extract and parse data.
 * Scripting the Client:: Write your own logic.
-* System Script Hooks:: Create hooks for various system events
+* System Hook Scripts:: Create hooks for various system events
 * Modules:: Module overview and C programming API.
 * Methanol Protocol:: For those who would like to understand the language of the daemons.
 @end menu
@@ -173,7 +173,7 @@ To compile Methanol successfully, you will need the following package dependenci
 installed on your system, depending on which parts you plan to install:
 
 @multitable @columnfractions .33 .33 .33
-@headitem Package                   @tab client-side@footnote{Those programs counted as client-side are @code{mb} and @code{mb-clientd}} @tab server-side@footnote{Those programs counted as server-side are @code{mb-masterd} and @code{mb-slaved}} 
+@headitem Package                   @tab client-side@footnote{Those programs counted as client-side are @code{mb} and @code{mb-clientd}} @tab server-side@footnote{Those programs counted as server-side are @code{mn-masterd} and @code{mn-slaved}} 
 @item MySQL (libmysqlclient) >= 5.0 @tab no                   @tab yes
 @item libcurl >= 7.16.0             @tab yes                  @tab no
 @item SpiderMonkey >= 1.7.0         @tab yes                  @tab no
@@ -191,8 +191,8 @@ $ cd methabot-1.7.0
 @end example
 
 Now its time to configure what parts of the system you would like to install.
-For example, if you are installing a server you should most likely want to install @code{mb-slaved} and/or
-@code{mb-masterd} only, and @code{mb-clientd} on several other client computers.
+For example, if you are installing a server you should most likely want to install @code{mn-slaved} and/or
+@code{mn-masterd} only, and @code{mb-clientd} on several other client computers.
 Or if you are only interested in the command line utility @code{mb}, you don't
 want to compile the server daemons.
 
@@ -206,7 +206,7 @@ $ ./configure
 The above command will configure methabot for installing the command line tool 
 @code{mb} only.
 
-Configure for compiling and installing @code{mb-masterd} and @code{mb-slaved} 
+Configure for compiling and installing @code{mn-masterd} and @code{mn-slaved} 
 only using the following command:
 @example
 $ ./configure --enable-slave --enable-master --disable-cli
@@ -236,11 +236,31 @@ $ make
 $ make install
 @end example
 
+@section Installing phpMadMind
+phpMadMind is an official extension to the Methanol system. It is a 
+set of PHP scripts for administrating a Methanol system. You can find
+phpMadMind in the latest @code{methabot} package, under the @code{src/}
+directory.
+
+To install phpMadMind, you will first need a web server and PHP installed
+You will also need the PHP extension @code{simplexml} installed.
+
+Move the whole phpMadMind tree to any directory reachable from the web server,
+and open up @code{config.example.php}. This file is pretty straight-forward
+and you should be able to configure it on your own. Once you are done, save
+it as @code{config.php} and navigate to the directory using a web browser.
+
+You will be presented with a login screen, if you just installed your 
+system there will be a default user login with username "default" and password "default".
+
 @cindex Installation
 
 @node Methanol Programs
 @chapter Methanol Programs
 @cindex methanol, programs
+
+This chapter will introduce you to the various programs included in the 
+Methanol suite.
 
 @section @code{mb} -- Methabot Command Line Tool
 mb is short for Methabot. Methabot is a handy command line tool
@@ -351,10 +371,6 @@ script hooks.
 
 @code{madmind} is a command line tool for communicating with the Master server.
 It is not available in this release, phpMadMind can be used instead.
-
-@section @code{phpMadMind} -- Web Administration Tool
-@code{phpMadMind} is a set of PHP scripts for administrating a Methanol system. See @code{config.example.php} in the
-source code directory for installation help.
 
 @node Configuration Files
 @chapter Configuration Files
@@ -720,7 +736,7 @@ master @{
 
 The above file will configure the listening address for the server.
 
-Since @code{mb-masterd} will require both @code{mb-slaved} and @code{mb-clientd}
+Since @code{mn-masterd} will require both @code{mn-slaved} and @code{mb-clientd}
 to authenticate once they have connected, you will of course need to 
 set authentication credentials.
 
@@ -749,6 +765,8 @@ The global system configuration file. This file will be sent to all connected cl
 define crawlers and filetypes.
 @item session_complete_hook
 Script to run when a session is completed.
+@item cleanup_hook
+Hook for when the slave exits. See @ref{System Hook Scripts, cleanup}.
 @item user
 Username of a local system user, the daemon will change its user id for security reasons. The value of this
 option should most likely be "nobody".
@@ -768,18 +786,31 @@ The database to select. Make sure the user has full privileges to the database.
 @subsection @code{slave} Option Reference
 
 @section Configuring @code{mn-slaved}
-@code{mb-slaved} loads its configuration file from @code{mb-slaved.conf}, which normally resides at
-@code{/etc/mb-slaved.conf}.
+@code{mn-slaved} loads its configuration file from @code{mn-slaved.conf}, which normally resides at
+@code{/etc/mn-slaved.conf}.
 @subsection Option Reference
 @table @code
 @item listen
 Listen address (and port). Set to "host:port" or "host".
+@item master_host
+Host IP address of the master server. If left unset, @code{127.0.0.1} is used.
+@item master_port
+Optional port number for the master server specified by @code{master_host}. If left
+unset, the default port number @code{5505} is used.
+@item master_user
+Username to use when loggin in to the master server. Corresponds to a @code{slave[]} 
+definition in @code{mn-masterd.conf}. If left unset, @code{default} is used.
+@item master_password
+Password to use when loggin in using the username specified with @code{master_user}.
+If left unset, @code{default} is used.
 @item user
 Username of a local system user, the daemon will change its user id for security reasons. The value of this
-option should most likely be "nobody".
+option should most likely be "nobody", or a user you have specifically created for running
+@code{mn-slaved} as.
 @item group
 Username of a local system group. The value of this
-option should most likely be "nobody".
+option should most likely be "nobody", or a group you have specifically created for running
+@code{mn-slaved} as.
 @item exec_dir
 If you have set up system hook scripts, the slave will download them to this directory before
 executing them. Make sure the user specified using @code{user} has permissions to execute
@@ -1076,14 +1107,14 @@ crawler["..."]
 
 @cindex scripting
 
-@node System Script Hooks
-@chapter System Script Hooks
+@node System Hook Scripts
+@chapter System Hook Scripts
 @cindex hooks
 
-This chapter will talk about script hooks. Script hooks are used in a
+This chapter will talk about hook scripts. Hook scripts are used in a
 Methanol system for customization.
 
-The scripts should be put on the master server. The master server will then distribute 
+The scripts must be put on the master server. The master server will then distribute 
 the scripts to the slave servers. Finally, the slave server(s) will execute the 
 scripts.
 
@@ -1162,7 +1193,7 @@ The @code{cleanup} hook will be invoked before the slave exits. This hook can be
 for cleaning up custom data added to the database, which is no longer needed after
 the slave has disconnected.
 
-See the @code{cleanup_hook} @code{mb-masterd} option.
+See the @code{cleanup_hook} @code{mn-masterd} option.
 
 @subsection @code{session_complete}
 The @code{session_complete} hook will be invoked once a session completes.
@@ -1171,7 +1202,7 @@ This session will last until the client is out of URLs again. Note that
 the definition of a session is dependant on how the clients' crawlers are configured,
 such as depth limit.
 
-See the @code{session_complete_hook} @code{mb-masterd} option.
+See the @code{session_complete_hook} @code{mn-masterd} option.
 
 
 @node Modules

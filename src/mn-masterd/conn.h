@@ -1,8 +1,10 @@
 /*-
  * conn.h
- * This file is part of mb-masterd
+ * This file is part of Methanol
+ * http://metha-sys.org/
+ * http://bithack.se/projects/methabot/
  *
- * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
+ * Copyright (c) 2009, Emil Romanus <sdac@bithack.se>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,12 +17,10 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- * 
- * http://bithack.se/projects/methabot/
  */
 
-#ifndef _MBM_CONN__H_
-#define _MBM_CONN__H_
+#ifndef _NOL_MASTER_CONN__H_
+#define _NOL_MASTER_CONN__H_
 
 #include <ev.h>
 #include <netinet/in.h>
@@ -49,15 +49,15 @@ struct conn {
 };
 
 enum {
-    MBM_AUTH_TYPE_CLIENT = 0,
-    MBM_AUTH_TYPE_SLAVE,
-    MBM_AUTH_TYPE_USER,
+    NOL_AUTH_TYPE_CLIENT = 0,
+    NOL_AUTH_TYPE_SLAVE,
+    NOL_AUTH_TYPE_USER,
 
     NUM_AUTH_TYPES,
 };
 
-void mbm_ev_conn_accept(EV_P_ ev_io *w, int revents);
-void mbm_conn_close(struct conn *conn);
-int  mbm_getline(int fd, char *buf, int max);
+void nol_m_ev_conn_accept(EV_P_ ev_io *w, int revents);
+void nol_m_conn_close(struct conn *conn);
+int  nol_m_getline(int fd, char *buf, int max);
 
 #endif

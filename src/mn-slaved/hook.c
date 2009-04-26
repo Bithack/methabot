@@ -1,8 +1,10 @@
 /*-
  * hook.c
- * This file is part of mb-slaved
+ * This file is part of Methanol
  *
- * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
+ * Copyright (c) 2009, Emil Romanus <sdac@bithack.se>
+ * http://metha-sys.org/
+ * http://bithack.se/projects/methabot/
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,8 +17,6 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- * 
- * http://bithack.se/projects/methabot/
  */
 
 #include <sys/stat.h>
@@ -42,7 +42,7 @@ static int hook_list[NUM_HOOKS];
 
 /* save a script as a hook */
 int
-mbs_hook_assign(const char *hook_nm,
+nol_s_hook_assign(const char *hook_nm,
                 const char *code,
                 size_t code_len)
 {
@@ -85,11 +85,11 @@ mbs_hook_assign(const char *hook_nm,
  * but we should fork and do an exec() instead
  **/
 int
-mbs_hook_invoke(unsigned hook_id)
+nol_s_hook_invoke(unsigned hook_id)
 {
     char    *run;
     va_list  ap;
-    if (hook_id >= NUM_HOOKS)
+    if (hook_id >= NUM_HOOKS || !hook_list[hook_id])
         return -1;
 #ifdef DEBUG
     syslog(LOG_DEBUG, "invoking hook '%s'\n", hook_str[hook_id]);
@@ -108,7 +108,7 @@ mbs_hook_invoke(unsigned hook_id)
 /* remove all created files, this is not critical but its always
  * good to cleanup! */
 void
-mbs_hook_cleanup_all(void)
+nol_s_hook_cleanup_all(void)
 {
     int x;
 

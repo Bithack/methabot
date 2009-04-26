@@ -1,8 +1,10 @@
 /*-
  * client.c
- * This file is part of mb-slaved
+ * This file is part of Methanol
  *
- * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
+ * Copyright (c) 2009, Emil Romanus <sdac@bithack.se>
+ * http://metha-sys.org/
+ * http://bithack.se/projects/methabot/
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,8 +17,6 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- * 
- * http://bithack.se/projects/methabot/
  */
 
 #include <stdio.h>
@@ -32,7 +32,7 @@
 #include "nolp.h"
 #include "hook.h"
 
-void mbs_client_main(struct client *this, int sock);
+void nol_s_client_main(struct client *this, int sock);
 static int get_and_send_url(struct client *cl);
 
 static void client_event(EV_P_ ev_io *w, int revents);
@@ -47,8 +47,8 @@ static int on_target_recv(nolp_t *no, char *buf, int size);
 static int update_ft_attr(struct client *cl, char *attr, int attr_len, char *val, int val_len);
 static int send_config(int sock);
 
-char *mbs_str_filter_quote(char *s, int size);
-char *mbs_str_filter_name(char *s, int size);
+char *nol_s_str_filter_quote(char *s, int size);
+char *nol_s_str_filter_name(char *s, int size);
 
 /* nolp commands, client -> slave */
 struct nolp_fn client_commands[] = {
@@ -69,7 +69,7 @@ struct nolp_fn client_commands[] = {
  * addr should be the clients IP-address
  **/
 struct client*
-mbs_client_create(const char *addr, const char *user)
+nol_s_client_create(const char *addr, const char *user)
 {
     struct client* cl;
     time_t now;
@@ -130,14 +130,14 @@ mbs_client_create(const char *addr, const char *user)
 }
 
 void
-mbs_client_free(struct client *cl)
+nol_s_client_free(struct client *cl)
 {
     free(cl->user);
     free(cl);
 }
 
 void *
-mbs_client_init(void *in)
+nol_s_client_init(void *in)
 {
     int sock = (int)in;
     int n;
@@ -177,7 +177,7 @@ mbs_client_init(void *in)
         }
 
         /* enter main loop */
-        mbs_client_main(this, sock);
+        nol_s_client_main(this, sock);
     } while (0);
 
     if (buf)
@@ -216,7 +216,7 @@ mbs_client_init(void *in)
         }
         pthread_mutex_unlock(&srv.clients_lk);
         ev_async_send(EV_DEFAULT_ &srv.client_status);
-        mbs_client_free(this);
+        nol_s_client_free(this);
 
         ev_async_send(EV_DEFAULT_ &srv.client_status);
     }
@@ -225,7 +225,7 @@ mbs_client_init(void *in)
 }
 
 void
-mbs_client_main(struct client *this, int sock)
+nol_s_client_main(struct client *this, int sock)
 {
     struct ev_loop *loop;
     ev_io           io;
@@ -234,7 +234,7 @@ mbs_client_main(struct client *this, int sock)
         return;
     if (!(loop = this->loop = ev_loop_new(EVFLAG_AUTO)))
         return;
-    if (!(this->mysql = mbs_dup_mysql_conn()))
+    if (!(this->mysql = nol_s_dup_mysql_conn()))
         return;
 
     ((nolp_t *)(this->no))->private = this;
@@ -452,7 +452,7 @@ on_status(nolp_t *no, char *buf, int size)
                     cl->session_id);
             mysql_query(cl->mysql, q);
 
-            mbs_hook_invoke(HOOK_SESSION_COMPLETE);
+            nol_s_hook_invoke(HOOK_SESSION_COMPLETE);
             sprintf(q, "UPDATE `nol_session` SET state='done', latest=NOW() WHERE id=%ld",
                     cl->session_id);
             mysql_query(cl->mysql, q);
@@ -690,7 +690,7 @@ update_ft_attr(struct client *cl,
     len = sprintf(q, "UPDATE ft_%.64s SET %.*s = '",
             cl->filetype_name,
             attr_len,
-            mbs_str_filter_name(attr, attr_len));
+            nol_s_str_filter_name(attr, attr_len));
 
     len += mysql_real_escape_string(cl->mysql, q+len, val, val_len);
     len += sprintf(q+len, "' WHERE id=%ld LIMIT 1;", cl->target_id);
@@ -715,7 +715,7 @@ update_ft_attr(struct client *cl,
  * returns the given string
  **/
 char *
-mbs_str_filter_name(char *s, int size)
+nol_s_str_filter_name(char *s, int size)
 {
     char *p = s;
     char *e = s+size;
@@ -738,7 +738,7 @@ mbs_str_filter_name(char *s, int size)
  * returns the given string
  **/
 char *
-mbs_str_filter_quote(char *s, int size)
+nol_s_str_filter_quote(char *s, int size)
 {
     char *p = s;
     char *e = s+size;

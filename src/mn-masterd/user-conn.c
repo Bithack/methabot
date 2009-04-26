@@ -1,8 +1,8 @@
 /*-
  * user.c
- * This file is part of mb-masterd
+ * This file is part of Methanol
  *
- * Copyright (c) 2009, Emil Romanus <emil.romanus@gmail.com>
+ * Copyright (c) 2009, Emil Romanus <sdac@bithack.se>
  * http://metha-sys.org/
  * http://bithack.se/projects/methabot/
  *

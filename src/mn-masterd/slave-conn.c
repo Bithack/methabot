@@ -28,7 +28,7 @@
 #include "slave.h"
 #include "nolp.h"
 
-int mbm_create_slave_list_xml();
+int nol_m_create_slave_list_xml();
 
 static int sl_status_command(nolp_t *no, char *buf, int size);
 static int sl_session_complete_command(nolp_t *no, char *buf, int size);
@@ -47,7 +47,7 @@ struct nolp_fn slave_commands[] = {
  * the global slave list.
  **/
 slave_conn_t *
-mbm_create_slave_conn(const char *user)
+nol_m_create_slave_conn(const char *user)
 {
     slave_conn_t *r;
     static char  q[128];
@@ -95,7 +95,7 @@ mbm_create_slave_conn(const char *user)
 }
 
 int
-mbm_create_slave_list_xml()
+nol_m_create_slave_list_xml()
 {
     int x;
 
@@ -233,7 +233,7 @@ sl_status_parse(nolp_t *no, char *buf, int size)
     sl->xml.clients.buf = realloc(sl->xml.clients.buf, x);
     sl->xml.clients.sz = x;
 
-    mbm_create_slave_list_xml();
+    nol_m_create_slave_list_xml();
 
     return 0;
 }

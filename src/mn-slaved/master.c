@@ -1,8 +1,10 @@
 /*-
  * master.c
- * This file is part of mb-slaved
+ * This file is part of Methanol
  *
- * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
+ * Copyright (c) 2009, Emil Romanus <sdac@bithack.se>
+ * http://metha-sys.org/
+ * http://bithack.se/projects/methabot/
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,8 +17,6 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- * 
- * http://bithack.se/projects/methabot/
  */
 
 #include <syslog.h>
@@ -129,7 +129,7 @@ on_client(nolp_t *no, char *buf, int size)
     ok = 0;
     if (!(s = memchr(buf, ' ', size)))
         return -1;
-    if (!(cl = mbs_client_create(buf, s+1)))
+    if (!(cl = nol_s_client_create(buf, s+1)))
         return -1;
 
     pthread_mutex_lock(&srv.pending_lk);
@@ -149,7 +149,7 @@ on_client(nolp_t *no, char *buf, int size)
 
     if (!ok) {
         send(no->fd, "400\n", 4, 0);
-        mbs_client_free(cl);
+        nol_s_client_free(cl);
     } else {
         ok = sprintf(out, "100 %40s\n", cl->token);
         send(no->fd, out, ok, 0);
@@ -175,7 +175,7 @@ on_hook(nolp_t *no, char *buf, int size)
 static int
 on_hook_recv(nolp_t *no, char *buf, int size)
 {
-    mbs_hook_assign(hook_name, buf, size);
+    nol_s_hook_assign(hook_name, buf, size);
     return 0;
 }
 

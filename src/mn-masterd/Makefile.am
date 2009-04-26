@@ -1,6 +1,6 @@
-bin_PROGRAMS = mb-masterd
+bin_PROGRAMS = mn-masterd
 
-mb_masterd_SOURCES = \
+mn_masterd_SOURCES = \
 	auth.c \
 	conn.h \
 	conf.h \
@@ -18,4 +18,4 @@ mb_masterd_SOURCES = \
 AM_CFLAGS = -I/usr/include/mysql -I../libmetha/ -I../libmethaconfig/
 AM_LDFLAGS = -lmysqlclient
 
-mb_masterd_LDADD = ../libmethaconfig/libmethaconfig.la
+mn_masterd_LDADD = ../libmethaconfig/libmethaconfig.la

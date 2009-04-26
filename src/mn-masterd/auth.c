@@ -1,8 +1,10 @@
 /*-
  * conn.c
- * This file is part of mb-masterd
+ * This file is part of Methanol
+ * http://metha-sys.org/
+ * http://bithack.se/projects/methabot/
  *
- * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
+ * Copyright (c) 2009, Emil Romanus <sdac@bithack.se>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,8 +17,6 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- * 
- * http://bithack.se/projects/methabot/
  */
 
 #include "conn.h"
@@ -29,7 +29,7 @@
 #include <stdio.h>
 #include <errno.h>
 
-int mbm_create_slave_list_xml(void);
+int nol_m_create_slave_list_xml(void);
 
 extern struct nolp_fn slave_commands[];
 extern struct nolp_fn user_commands[];
@@ -42,9 +42,9 @@ const char *auth_types[] = {
 
 static void user_read(EV_P_ ev_io *w, int revents);
 static void slave_read(EV_P_ ev_io *w, int revents);
-static int mbm_token_reply(nolp_t *no, char *buf, int size);
+static int nol_m_token_reply(nolp_t *no, char *buf, int size);
 /* user.c */
-void mbm_user_read(EV_P_ ev_io *w, int revents);
+void nol_m_user_read(EV_P_ ev_io *w, int revents);
 
 static void conn_read(EV_P_ ev_io *w, int revents);
 static int upgrade_conn(struct conn *conn, const char *user);
@@ -57,7 +57,7 @@ static int send_hooks(int sock);
  * Accept a connection and set up a conn struct
  **/
 void
-mbm_ev_conn_accept(EV_P_ ev_io *w, int revents)
+nol_m_ev_conn_accept(EV_P_ ev_io *w, int revents)
 {
     int sock;
     socklen_t sin_sz;
@@ -94,7 +94,7 @@ mbm_ev_conn_accept(EV_P_ ev_io *w, int revents)
 }
 
 int
-mbm_getline(int fd, char *buf, int max)
+nol_m_getline(int fd, char *buf, int max)
 {
     int sz;
     char *nl;
@@ -120,7 +120,7 @@ slave_read(EV_P_ ev_io *w, int revents)
 
     if (nolp_recv(no) != 0) {
         ev_io_stop(EV_A_ w);
-        mbm_conn_close(no->private);
+        nol_m_conn_close(no->private);
     }
 }
 
@@ -136,7 +136,7 @@ user_read(EV_P_ ev_io *w, int revents)
 
     if (nolp_recv(no) != 0) {
         ev_io_stop(EV_A_ w);
-        mbm_conn_close(no->private);
+        nol_m_conn_close(no->private);
     }
 }
 
@@ -155,7 +155,7 @@ conn_read(EV_P_ ev_io *w, int revents)
     struct conn* conn = w->data;
     struct slave *sl;
 
-    if ((sz = mbm_getline(sock, buf, 255)) <= 0)
+    if ((sz = nol_m_getline(sock, buf, 255)) <= 0)
         goto close;
 
     buf[sz] = '\0';
@@ -182,19 +182,19 @@ conn_read(EV_P_ ev_io *w, int revents)
         if (!auth_found)
             goto denied;
 
-        if (conn->auth == MBM_AUTH_TYPE_USER) {
+        if (conn->auth == NOL_AUTH_TYPE_USER) {
             if ((conn->user_id = check_user_login(user, pwd)) == -1)
                 goto denied;
-        } else if (conn->auth == MBM_AUTH_TYPE_SLAVE) {
+        } else if (conn->auth == NOL_AUTH_TYPE_SLAVE) {
             if (check_slave_login(user, pwd) != 0)
                 goto denied;
-        }/* else if (conn->auth == MBM_AUTH_TYPE_CLIENT) {
+        }/* else if (conn->auth == NOL_AUTH_TYPE_CLIENT) {
             if ((conn->user_id = check_slave_login(user, pwd)) == -1)
                 goto denied;
         }*/
 
 
-        if (conn->auth != MBM_AUTH_TYPE_USER)
+        if (conn->auth != NOL_AUTH_TYPE_USER)
             syslog(LOG_INFO, "AUTH type=%s,user=%s OK from #%d", type, user, sock);
         conn->authenticated = 1;
 
@@ -209,7 +209,7 @@ denied:
     send(sock, "200 Denied\n", 11, MSG_NOSIGNAL);
 close:
     ev_io_stop(EV_A_ &conn->fd_ev);
-    mbm_conn_close(conn);
+    nol_m_conn_close(conn);
     return;
 
 invalid:
@@ -354,7 +354,7 @@ upgrade_conn(struct conn *conn, const char *user)
     int  sock = conn->sock;
 
     switch (conn->auth) {
-        case MBM_AUTH_TYPE_CLIENT:
+        case NOL_AUTH_TYPE_CLIENT:
             /* give this client to a slave */
             if (!srv.num_slaves) {
                 /* add to pending list */
@@ -383,13 +383,13 @@ upgrade_conn(struct conn *conn, const char *user)
                 sz = sprintf(buf, "CLIENT %s %.64s\n", inet_ntoa(conn->addr.sin_addr), user);
                 srv.slaves[min_o].client_conn = conn; 
                 nolp_expect_line((nolp_t *)(srv.slaves[min_o].conn->fd_ev.data),
-                        &mbm_token_reply);
+                        &nol_m_token_reply);
                 send(srv.slaves[min_o].conn->sock, buf, sz, 0);
             }
             break;
 
-        case MBM_AUTH_TYPE_SLAVE:
-            if (!(sl = mbm_create_slave_conn(user)))
+        case NOL_AUTH_TYPE_SLAVE:
+            if (!(sl = nol_m_create_slave_conn(user)))
                 return -1;
             if (!(no = nolp_create(slave_commands, sock)))
                 return -1;
@@ -401,7 +401,7 @@ upgrade_conn(struct conn *conn, const char *user)
 
             send_config(sock);
             send_hooks(sock);
-            mbm_create_slave_list_xml();
+            nol_m_create_slave_list_xml();
 
             /* from now on, the data received from this
              * socket will be parsed by the nolp
@@ -409,7 +409,7 @@ upgrade_conn(struct conn *conn, const char *user)
             ev_set_cb(&conn->fd_ev, &slave_read);
             break;
 
-        case MBM_AUTH_TYPE_USER:
+        case NOL_AUTH_TYPE_USER:
             if (!(no = nolp_create(user_commands, sock)))
                 return -1;
 
@@ -426,19 +426,19 @@ upgrade_conn(struct conn *conn, const char *user)
 }
 
 void
-mbm_conn_close(struct conn *conn)
+nol_m_conn_close(struct conn *conn)
 {
     int x;
 
     if (conn->authenticated) {
-        if (conn->auth == MBM_AUTH_TYPE_CLIENT) {
+        if (conn->auth == NOL_AUTH_TYPE_CLIENT) {
             for (x=0; x<srv.num_slaves; x++) {
                 if (srv.slaves[x].client_conn == conn) {
                     srv.slaves[x].client_conn = 0;
                     break;
                 }
             }
-        } else if (conn->auth == MBM_AUTH_TYPE_SLAVE) {
+        } else if (conn->auth == NOL_AUTH_TYPE_SLAVE) {
             syslog(LOG_INFO, "slave %s-%d disconnected",
                     srv.slaves[conn->slave_n].name,
                     srv.slaves[conn->slave_n].id);
@@ -458,7 +458,7 @@ mbm_conn_close(struct conn *conn)
             }
             srv.num_slaves --;
             /* refresh the XML list of slaves */
-            mbm_create_slave_list_xml();
+            nol_m_create_slave_list_xml();
         }
     }
 
@@ -481,7 +481,7 @@ mbm_conn_close(struct conn *conn)
  * corresponding client successfully
  **/
 static int
-mbm_token_reply(nolp_t *no, char *buf, int size)
+nol_m_token_reply(nolp_t *no, char *buf, int size)
 {
     int           sz;
     char          out[70];
@@ -502,7 +502,7 @@ mbm_token_reply(nolp_t *no, char *buf, int size)
 
     /* stop and disconnect the client connection */
     ev_io_stop(EV_DEFAULT, &client->fd_ev);
-    mbm_conn_close(client);
+    nol_m_conn_close(client);
 
     return 0;
 }

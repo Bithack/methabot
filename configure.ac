@@ -46,11 +46,11 @@ AC_ARG_WITH(mysql-lib,
 SUBDIRS_EXTRA=""
 
 if test "x$build_slave" = "xyes"; then
-    SUBDIRS_EXTRA="mb-slaved"
+    SUBDIRS_EXTRA="mn-slaved"
     check_server_stuff="yes";
 fi
 if test "x$build_master" = "xyes"; then
-    SUBDIRS_EXTRA="${SUBDIRS_EXTRA} mb-masterd"
+    SUBDIRS_EXTRA="${SUBDIRS_EXTRA} mn-masterd"
     check_server_stuff="yes";
 fi
 if test "x$build_client" = "xyes"; then
@@ -204,8 +204,8 @@ src/libmethaconfig/Makefile
 src/libmetha/Makefile
 src/methabot/Makefile
 src/metha-config/Makefile
-src/mb-masterd/Makefile
-src/mb-slaved/Makefile
+src/mn-masterd/Makefile
+src/mn-slaved/Makefile
 src/mb-clientd/Makefile
 Makefile
 ])
@@ -217,8 +217,8 @@ echo "Configure of methabot-"AC_PACKAGE_VERSION", done at `date`:"
 echo 
 echo "  Host:                       $host"
 echo "  Installation prefix:        $prefix"
-echo "  Building mb-masterd:        $build_master"
-echo "  Building mb-slaved:         $build_slave"
+echo "  Building mn-masterd:        $build_master"
+echo "  Building mn-slaved:         $build_slave"
 echo "  Building mb-clientd:        $build_client"
 echo "  Building mb:                $build_cli"
 echo "  Debugging enabled:          $debug"

@@ -93,7 +93,7 @@ if test "x$need_libev" = "xyes"; then
 fi
 
 if test "x$debug" = "xyes"; then
-  CFLAGS="${CFLAGS} -DDEBUG -g -O0"
+  CFLAGS="${CFLAGS} -Wall -DDEBUG -g -O0"
 fi
 if test "x$io_debug" = "xyes"; then
   CFLAGS="${CFLAGS} -DIO_DEBUG -g"

@@ -594,8 +594,8 @@ filetype["html_2" copy "html"]
 @{
     /* this defines the filetype "html_2" as a copy of "html" */
     extensions = @{"example"@};
-    /* html_2 will now be identical to HTML, except for the extensions array which 
-       was explicitly set */
+    /* html_2 will now be identical to HTML, except for the extensions
+     * array which was explicitly set */
 @}
 @end example
 You can also combine the copy keyword with extend or override.
@@ -610,13 +610,14 @@ include "audio.conf"
  
 override: filetype["image" copy "audio"]
 @{
-    /* 'image' is defined in image.conf, but since we copied 'audio' to it,
-     * the image filetype will now be identical to the audio filetype.
-     * Of course this does not make sense, it's just to demonstrate. */
+    /* 'image' is defined in image.conf, but since we copied 'audio'
+     * to it, the image filetype will now be identical to the audio
+     * filetype. Of course this does not make sense, it's just to
+     * demonstrate. */
  
     mimetypes = @{"image/jpeg"@};
-    /* the 'image' filetype now requires audio file extensions with image
-     * file mimetypes! */
+    /* the 'image' filetype now requires audio file extensions with
+     * image file mimetypes! */
 @}
 @end example
 
@@ -632,8 +633,8 @@ override: filetype["audio" copy "image"];
 override: filetype["html" copy "image"];
 override: filetype["text" copy "image"];
  
-/* you now have a completely messed up configuration, thinking HTML files 
- * are image files and so on. :) */
+/* you now have a completely messed up configuration,
+ * thinking HTML files are image files and so on. :) */
 @end example
 
 @subsection Advanced Topics
@@ -710,14 +711,14 @@ be discarded, and return @emph{true} or @emph{false}.
 
 The relationship between handlers and parsers is demonstrated below:
 @example
---------+
- Worker |                      +--------+
-        +->-[URL]-->-Handler-+ | [URL]  |
-        |                    +-+ [data] |-->-Parser Chain-->-[URL List]->-+
-        |                      +--------+                                 |
-        |                                                                 v
-        |-<-------<-------<-------<-------<-------<-------<-------<-------+
---------+
+-------+
+Worker |                      +------+
+       +->-[URL]-->-Handler-+ |[URL] |
+       |                    +-+[data]|-->-Parser Chain-->-[URL List]->-+
+       |                      +------+                                 |
+       |                                                               v
+       |<-------<-------<-------<-------<-------<-------<-------<------+
+-------+
 @end example
 Handlers can be set using the @code{handler} filetype option or the @code{default_handler} 
 crawler option.
@@ -1169,7 +1170,7 @@ it anywhere in the system, as long as that partition is not mounted with @code{n
 in this manual we will create it in @code{/var/mn-slaved}.
 @example
 $ mkdir /var/mn-slaved
-$ useradd -r mn-slaved -s /sbin/nologin -d /dev/null
+$ useradd mn-slaved -s /sbin/nologin -d /dev/null
 $ chown mn-slaved:mn-slaved /var/mn-slaved
 @end example
 

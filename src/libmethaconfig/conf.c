@@ -147,12 +147,6 @@ lmc_add_directive(lmc_parser_t *lmc,
         return M_OUT_OF_MEM;
 
     lmc->directives[lmc->num_directives] = (struct lmc_directive *)d;
-
-#ifdef DEBUG
-    fprintf(stderr, "* lmc-parser:(%p) added directive '%s'\n",
-            lmc, d->name);
-#endif
-
     lmc->num_directives ++;
 
     return M_OK;
@@ -171,12 +165,6 @@ lmc_add_class(lmc_parser_t *lmc,
         return M_OUT_OF_MEM;
 
     lmc->classes[lmc->num_classes] = (struct lmc_class *)cl;
-
-#ifdef DEBUG
-    fprintf(stderr, "* lmc-parser:(%p) added class '%s'\n",
-            lmc, cl->name);
-#endif
-
     lmc->num_classes ++;
 
     return M_OK;
@@ -194,12 +182,6 @@ lmc_add_scope(lmc_parser_t *lmc,
         return M_OUT_OF_MEM;
 
     lmc->scopes[lmc->num_scopes] = (struct lmc_scope *)scope;
-
-#ifdef DEBUG
-    fprintf(stderr, "* lmc-parser:(%p) registered scope '%s'\n",
-            lmc, scope->name);
-#endif
-
     lmc->num_scopes ++;
 
     return M_OK;

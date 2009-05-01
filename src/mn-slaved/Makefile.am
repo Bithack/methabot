@@ -7,7 +7,8 @@ mn_slaved_LDADD = ../libmethaconfig/libmethaconfig.la
 mn_slaved_SOURCES = \
 	main.c \
 	client.c \
-	../mn-masterd/server.c \
+	../mn-masterd/daemon.c \
+	../mn-masterd/daemon.h \
 	master.c \
 	client.h \
 	hook.c \

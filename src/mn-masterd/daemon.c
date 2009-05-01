@@ -1,5 +1,5 @@
 /*-
- * server.c
+ * daemon.c
  * This file is part of Methanol
  *
  * Copyright (c) 2009, Emil Romanus <sdac@bithack.se>
@@ -29,13 +29,13 @@
 #include <grp.h>
 
 #include "lmc.h"
-#include "server.h"
+#include "daemon.h"
 
 #define CHILD_SUCCESS 0
 #define CHILD_FAILURE 1
 
 /** 
- * Function used by both mn-masterd and mn-slaved.
+ * Function used by mn-masterd, mn-slaved and mb-clientd.
  *
  * Fork and load the configuration file specified in
  * 'config'. 'user' and 'group' points to strings 
@@ -49,12 +49,12 @@
  *
  * Once the fork and loading of the configuration 
  * is completed, 'run' will be called to start the
- * server.
+ * daemon.
  *
- * Return 0 if the server was successfully started.
+ * Return 0 if the daemon was successfully started.
  **/
 int
-nol_server_launch(const char *config,
+nol_daemon_launch(const char *config,
                   lmc_parser_t *lmc,
                   const char **user,
                   const char **group, 

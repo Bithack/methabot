@@ -1,6 +1,8 @@
 bin_PROGRAMS=mb-clientd
 
 mb_clientd_SOURCES = client.h \
+					 ../mn-masterd/daemon.c \
+					 ../mn-masterd/daemon.h \
 					 slave.c \
 					 main.c
 

@@ -94,7 +94,7 @@ main(int argc, char **argv)
     lmc_add_scope(lmc, &master_scope);
     lmc_add_class(lmc, &nol_slave_class);
 
-    if ((r = nol_server_launch(
+    if ((r = nol_daemon_launch(
                 _cfg_file,
                 lmc,
                 &opt_vals.user,
@@ -113,7 +113,7 @@ main(int argc, char **argv)
  * to a static error buffer on failure
  *
  * this will be run by the forked process, and called from
- * nol_server_launch()
+ * nol_daemon_launch()
  * */
 const char *
 master_init_cb(void)
@@ -231,7 +231,7 @@ free_hooks()
  * start the event loop and begin accepting
  * connections
  *
- * called by nol_server_launch()
+ * called by nol_daemon_launch()
  **/
 const char*
 master_start_cb()
@@ -484,7 +484,10 @@ nol_m_reconfigure()
 
     lmc_add_class(lmc, &nol_m_filetype_class);
     lmc_add_class(lmc, &nol_m_crawler_class);
-    lmc_parse_file(lmc, opt_vals.config_file);
+    if (lmc_parse_file(lmc, opt_vals.config_file) != M_OK) {
+        fprintf(stderr, "%s", lmc->last_error);
+        return -1;
+    }
 
     for (n=0; n<srv.num_filetypes; n++) {
         name = srv.filetypes[n]->name;

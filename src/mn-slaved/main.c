@@ -29,7 +29,7 @@
 #include <ev.h>
 
 #include "lmc.h"
-#include "../mn-masterd/server.h"
+#include "../mn-masterd/daemon.h"
 #include "../mn-masterd/methanol.h"
 #include "client.h"
 #include "slave.h"
@@ -102,13 +102,13 @@ main(int argc, char **argv)
     }
 
     lmc_add_scope(lmc, &slave_scope);
-    if ((r = nol_server_launch(
+    if ((r = nol_daemon_launch(
                 _cfg_file, lmc,
                 &opt_vals.user, &opt_vals.group,
                 &slave_init_cb, &slave_run_cb,
                 nofork==1?0:1)) == 0)
         fprintf(stdout, "started\n");
-    /* if nol_server_launch() does not return 0,
+    /* if nol_daemon_launch() does not return 0,
      * it should have printed an error message to stderr already */
 
     lmc_destroy(lmc);
@@ -116,7 +116,7 @@ main(int argc, char **argv)
     return r;
 }
 
-/* called by nol_server_launch(), return 0 on success */
+/* called by nol_daemon_launch(), return 0 on success */
 const char *
 slave_init_cb(void)
 {

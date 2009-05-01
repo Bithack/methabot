@@ -29,6 +29,7 @@
 #include "client.h"
 #include "../libmetha/metha.h"
 #include "../libmetha/worker.h"
+#include "../mn-masterd/daemon.h"
 
 #define TIMER_WAIT 5.f
 
@@ -61,11 +62,28 @@ struct mbc mbc = {
 
 extern struct nolp_fn sl_commands[];
 
-const char *master = "127.0.0.1";
-const char *user = "test";
-const char *pass = "test";
+char *master_host     = 0;
+unsigned master_port     = 0;
+char *master_username = 0;
+char *master_password = 0;
+char *user = 0;
+char *group = 0;
 
 extern char *arg;
+
+struct lmc_scope client_scope =
+{
+    "client",
+    {
+        LMC_OPT_STRING("master_host", &master_host),
+        LMC_OPT_UINT("master_port", &master_port),
+        LMC_OPT_STRING("master_username", &master_username),
+        LMC_OPT_STRING("master_password", &master_password),
+        LMC_OPT_STRING("user", &user),
+        LMC_OPT_STRING("group", &group),
+        LMC_OPT_END,
+    }
+};
 
 int
 main(int argc, char **argv)
@@ -74,6 +92,7 @@ main(int argc, char **argv)
     ev_signal sigint_listen;
     ev_signal sigterm_listen;
     ev_signal sighup_listen;
+    lmc_parser_t *lmc;
 
     signal(SIGPIPE, SIG_IGN);
     openlog("mb-clientd", 0, 0);
@@ -95,6 +114,13 @@ main(int argc, char **argv)
     lmetha_setopt(mbc.m, LMOPT_PRIMARY_SCRIPT_DIR, "/usr/share/metha/scripts");
 
     mbc.loop = ev_default_loop(0);
+
+    lmc = lmc_create(0);
+    lmc_add_scope(lmc, &client_scope);
+    if (lmc_parse_file(lmc, "/etc/mb-clientd.conf") != M_OK) {
+        fprintf(stderr, "%s\n", lmc->last_error);
+        return 1;
+    }
 
     /* catch signals */
     ev_signal_init(&sigint_listen, &mbc_ev_sig, SIGINT);
@@ -430,8 +456,8 @@ mbc_master_connect()
         syslog(LOG_ERR, "socket() failed: %s\n", strerror(errno));
     else {
         mbc.master.sin_family      = AF_INET;
-        mbc.master.sin_port        = htons(5505);
-        mbc.master.sin_addr.s_addr = inet_addr(master);
+        mbc.master.sin_port        = htons(master_port);
+        mbc.master.sin_addr.s_addr = inet_addr(master_host);
 
         return connect(mbc.sock, (struct sockaddr*)&mbc.master, sizeof(struct sockaddr_in));
     }

@@ -339,6 +339,16 @@ communicates with a Methanol system.
 @code{mb-clientd} can not be configured directly. It will always 
 receive its configuration from a master server. @code{mb-clientd} 
 only requires an IP-address to a master server when it is started.
+
+In order to give @code{mb-clientd} the login credentials to the 
+master server, it does however require a very minimal configuration file. 
+This file will usually be locate at @code{/etc/mb-clientd.conf} depending
+on where you have installed Methanol. You can also use a custom configuration
+file by providing it using the @code{--config} command line option.
+
+If a default configuration file does not exist, @code{mb-cientd}
+will attempt to connect to a master server running on 127.0.0.1:5505,
+username @emph{default} and password @emph{default}.
 @section @code{mn-masterd} -- The Master Server
 @code{mn-masterd}, also known as the master server, is the heart of
 a Methanol system. The purpose of the master is to distribute all 
@@ -348,7 +358,7 @@ startup and when connecting new slaves or clients to the system.
 Once the system is up and running, no master is required.
 
 When the master has been started it will listen for incoming connections,
-by default on port 5503, but that can be changed.
+by default on port 5505, but that can be changed.
 
 @code{mn-masterd} loads its configuration settings from @code{mn-masterd.conf}.
 Normally this file is located at @code{/etc/mn-masterd.conf}. It is 
@@ -388,7 +398,6 @@ same server as the active @code{mn-masterd}, and not on the local
 host running the instance of @code{mb-clientd}.
 
 @subsection Tutorial
-@subsubsection Basic Concepts
 Currently there are two kinds of classes you can create objects
 from in configuration files; crawlers and filetypes. Crawlers
 specify  crawling behaviour, while each filetype specify properties
@@ -725,7 +734,7 @@ crawler option.
 
 A handler can, just like a parser, be either a C or a Javascript function.
 
-@section Configuring @code{mn-masterd}
+@section @code{mn-masterd.conf}: Configuring the Master Server
 @code{mn-masterd} is configured through @code{mn-masterd.conf}, normally
 this file can be found at @code{/etc/mn-masterd.conf}. The layout of this file
 is simple, all options should be put inside a scope named @code{master}, like this:
@@ -786,7 +795,7 @@ The database to select. Make sure the user has full privileges to the database.
 @subsection @code{user} Option Reference
 @subsection @code{slave} Option Reference
 
-@section Configuring @code{mn-slaved}
+@section @code{mn-slaved.conf}: Configuring the Slave Server
 @code{mn-slaved} loads its configuration file from @code{mn-slaved.conf}, which normally resides at
 @code{/etc/mn-slaved.conf}.
 @subsection Option Reference
@@ -825,6 +834,30 @@ MySQL user password.
 @item mysql_db
 The database to select. Make sure the user has full privileges to the database.
 @end table
+
+@section @code{mb-clientd.conf}: Configuring the Client Daemon
+@code{mb-clientd.conf} is used to set up login credentials for
+the client daemon to use when logging in to the master server. 
+Configuration such as filetypes and crawlers can not be set in this 
+file, but they will be received from the master server once connected.
+
+If @code{mb-clientd.conf} can not be found by the daemon, it will
+assume the IP address of the master to be 127.0.0.1, the port 5505,
+username @emph{default} and password @emph{default}.
+@subsection Option Reference
+@table @code
+@item master_host
+Host IP address of the master server. If left unset, @code{127.0.0.1} is used.
+@item master_port
+Optional port number for the master server specified by @code{master_host}. If left
+unset, the default port number @code{5505} is used.
+@item master_username
+Username to use when loggin in to the master server. Corresponds to a @code{slave[]} 
+definition in @code{mn-masterd.conf}. If left unset, @code{default} is used.
+@item master_password
+Password to use when loggin in using the username specified with @code{master_user}.
+@end table
+
 
 @node Parsers
 @chapter Parsers
@@ -1211,7 +1244,8 @@ See the @code{session_complete_hook} @code{mn-masterd} option.
 
 @section Supported modules
 @subsection @code{lmm_mysql} -- Javascript-MySQL Bindings
-@subsection @code{lmm_hash} -- Hash functions
+@subsection @code{lmm_hash} -- Functions for calculating checksums
+@subsection @code{lmm_file} -- C-like file and directory handling
 @section Module C API
 @subsection Example parser: Convert to lowercase
 @subsection Creating a simple build system

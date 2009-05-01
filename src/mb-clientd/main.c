@@ -98,6 +98,8 @@ main(int argc, char **argv)
     openlog("mb-clientd", 0, 0);
     syslog(LOG_INFO, "started");
 
+    lmetha_global_init();
+
     if (!(mbc.m = lmetha_create()))
         exit(1);
 
@@ -149,6 +151,7 @@ main(int argc, char **argv)
 
     ev_default_destroy();
     lmetha_destroy(mbc.m);
+    lmetha_global_cleanup();
     return 0;
 }
 

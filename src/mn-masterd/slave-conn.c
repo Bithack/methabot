@@ -200,7 +200,7 @@ sl_status_parse(nolp_t *no, char *buf, int size)
     char *p, *rp, *re;
     struct conn *conn = no->private;
     slave_conn_t *sl = &srv.slaves[conn->slave_n];
-    struct client *curr;
+    client_conn_t *curr;
     char user[65];
     char address[16];
     int status;
@@ -213,7 +213,7 @@ sl_status_parse(nolp_t *no, char *buf, int size)
     rp = buf;
     re = buf+size;
     while (rp < re-1) {
-        if (!(sl->clients = realloc(sl->clients, sizeof(struct client)*(sl->num_clients+1))))
+        if (!(sl->clients = realloc(sl->clients, sizeof(client_conn_t)*(sl->num_clients+1))))
             return -1;
         curr = &sl->clients[sl->num_clients];
         sscanf(rp, "%40s%15s%64s%u%u",

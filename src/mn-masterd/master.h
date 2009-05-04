@@ -25,11 +25,12 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <time.h>
+#include <mysql.h>
 
 #include "methanol.h"
 #include "slave.h"
+#include "client.h"
 #include "conn.h"
-#include "mysql.h"
 
 enum {
     HOOK_SESSION_COMPLETE,
@@ -71,9 +72,16 @@ struct master {
     struct crawler   **crawlers;
     unsigned           num_crawlers;
 
+    /** 
+     * used for authenticating slaves and clients,
+     * filled by an lmc parser using classes 
+     * defined in client-class.c and slave-class.c
+     **/
     struct {
-        slave_t **slaves;
-        unsigned  num_slaves;
+        slave_t   **slaves;
+        unsigned    num_slaves;
+        client_t  **clients;
+        unsigned    num_clients;
     } auth;
 
     struct {
@@ -88,7 +96,7 @@ struct master {
         } slave_list;
     } xml;
 
-    /* set in main() */
+    /* set in main(), only used for calculating the uptime of the master */
     time_t start_time;
 };
 

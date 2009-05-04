@@ -186,7 +186,7 @@ user_client_info_command(nolp_t *no, char *buf, int size)
     char out[256];
     slave_conn_t  *sl;
     struct conn   *conn;
-    struct client *c;
+    client_conn_t *c;
 
     if (size != 40)
         return -1; /* return -1 to close the connection */

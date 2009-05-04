@@ -22,14 +22,18 @@
 #ifndef _NOL_CLIENT__H_
 #define _NOL_CLIENT__H_
 
-/* describe a slave oject as declared in mn-masterd.conf, 
+#include "lmc.h"
+#include "conn.h"
+
+/* describe a client object as declared in mn-masterd.conf, 
  * created and filled by an lmc parser
- * */,
-typedef struct slave {
+ * */
+typedef struct client {
     char     *name;
     char     *password;
+    char     *slave;
     uint32_t  flags;
-} slave_t;
+} client_t;
 
 typedef struct client_conn {
     char         token[40];
@@ -39,6 +43,8 @@ typedef struct client_conn {
     unsigned int state;
     unsigned int session_id;
 } client_conn_t;
+
+extern struct lmc_class nol_client_class;
 
 #endif
 

@@ -31,6 +31,7 @@
 #include "conn.h"
 #include "conf.h"
 #include "slave.h"
+#include "client.h"
 
 int nol_m_main();
 int nol_m_cleanup();
@@ -93,6 +94,7 @@ main(int argc, char **argv)
 
     lmc_add_scope(lmc, &master_scope);
     lmc_add_class(lmc, &nol_slave_class);
+    lmc_add_class(lmc, &nol_client_class);
 
     if ((r = nol_daemon_launch(
                 _cfg_file,

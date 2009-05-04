@@ -24,6 +24,7 @@
 
 #include "lmc.h"
 #include "conn.h"
+#include "client.h"
 
 enum {
     SL_STATE_NONE,
@@ -42,7 +43,7 @@ typedef struct slave_conn {
     int            name_len;
     int            id;
     struct conn   *conn;
-    struct client *clients;
+    client_conn_t *clients;
     int            num_clients;
     /* client conn will be set if we are waiting for
      * a TOKEN for the given client */

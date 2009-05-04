@@ -43,26 +43,19 @@ AC_ARG_WITH(mysql-lib,
     mc_lib="$withval",
     mc_lib="")
 
-SUBDIRS_EXTRA=""
+AM_CONDITIONAL(SLAVE, test x$build_slave = xyes)
+AM_CONDITIONAL(MASTER, test x$build_master = xyes)
+AM_CONDITIONAL(CLI, test x$build_cli = xyes)
+AM_CONDITIONAL(CLIENT, test x$build_client = xyes)
 
 if test "x$build_slave" = "xyes"; then
-    SUBDIRS_EXTRA="mn-slaved"
-    check_server_stuff="yes";
+    check_mysql="yes";
 fi
 if test "x$build_master" = "xyes"; then
-    SUBDIRS_EXTRA="${SUBDIRS_EXTRA} mn-masterd"
-    check_server_stuff="yes";
-fi
-if test "x$build_client" = "xyes"; then
-    SUBDIRS_EXTRA="${SUBDIRS_EXTRA} libmetha metha-config mb-clientd"
-else
-    SUBDIRS_EXTRA="${SUBDIRS_EXTRA} libmetha metha-config"
-fi
-if test "x$build_cli" = "xyes"; then
-    SUBDIRS_EXTRA="${SUBDIRS_EXTRA} methabot"
+    check_mysql="yes";
 fi
 
-if test "x$check_server_stuff" = "xyes"; then
+if test "x$check_mysql" = "xyes"; then
     if test "x$mc_inc" != "x"; then
         CFLAGS="${CFLAGS} -I${mc_inc}"
     else
@@ -78,16 +71,16 @@ if test "x$check_server_stuff" = "xyes"; then
 
     AC_CHECK_LIB(mysqlclient_r, mysql_real_connect,,AC_MSG_ERROR(could not link libmysqlclient_r))
     LIBS="-lmysqlclient_r"
-    need_libev=yes
+    check_libev=yes
 else
     if test "x$build_client" = "xyes"; then
-        need_libev=yes;
+        check_libev=yes;
     else
-        need_libev=no;
+        check_libev=no;
     fi
 fi
 
-if test "x$need_libev" = "xyes"; then
+if test "x$check_libev" = "xyes"; then
     AC_CHECK_HEADERS([ev.h],,AC_MSG_ERROR([could not find ev.h]))
     AC_CHECK_LIB(ev, ev_loop,,AC_MSG_ERROR(could not link with libev))
 fi
@@ -195,8 +188,6 @@ AC_DEFINE_UNQUOTED(BUILD_LIBS, "${LIBS}", [used by modules to link the same libr
 AC_DEFINE_UNQUOTED(BUILD_CFLAGS, "${JS_INCLUDE_PATH} -D_GNU_SOURCE -DJS_THREADSAFE -DXP_UNIX ${BUILD_FLAGS_EXTRA}", [used by modules to build with the same flags at libmetha])
 
 includedir=$includedir/metha
-
-AC_SUBST(SUBDIRS_EXTRA)
 
 AC_OUTPUT([
 src/Makefile

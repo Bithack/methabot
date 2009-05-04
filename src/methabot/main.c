@@ -27,9 +27,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "metha.h"
+#include "../libmetha/metha.h"
+#include "../libmetha/str.h"
 #include "config.h"
-#include "str.h"
 #include "methabot.h"
 
 static metha_t     *m;

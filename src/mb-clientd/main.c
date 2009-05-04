@@ -340,8 +340,12 @@ mbc_ev_master(EV_P_ ev_io *w, int revents)
                 if ((msg = atoi(buf)) == 100) {
                     syslog(LOG_INFO, "logged on to master, waiting for token");
                     mbc.state = MBC_STATE_WAIT_TOKEN;
-                } else
+                } else {
+                    syslog(LOG_INFO,
+                            "logging in to master failed, code %d",
+                            atoi(buf));
                     fail = 1;
+                }
                 break;
 
             case MBC_STATE_WAIT_TOKEN:
@@ -490,7 +494,15 @@ sock_getline(int fd, char *buf, int max)
 static int
 mbc_master_send_login()
 {
-    send(mbc.sock, "AUTH client test test\n", strlen("AUTH client test test\n"), 0);
+    char buf[256];
+    int  sz;
+
+    sz = sprintf(buf, "AUTH client %.64s %.64s\n", 
+            master_username ? master_username : "default",
+            master_password ? master_password : "default");
+
+    if (send(mbc.sock, buf, sz, 0) <= 0)
+        return -1;
 
     return 0;
 }

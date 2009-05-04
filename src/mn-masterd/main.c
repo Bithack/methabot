@@ -125,6 +125,31 @@ master_init_cb(void)
     int o = 1, sock;
     openlog("mn-masterd", LOG_PID, LOG_DAEMON);
 
+    if (!srv.auth.num_slaves) {
+        syslog(LOG_WARNING, "No slave login declared, using default:default!");
+        srv.auth.num_slaves = 1;
+        if (!(srv.auth.slaves = calloc(1, sizeof(slave_t*)))
+                || !(srv.auth.slaves[0] = calloc(1, sizeof(slave_t))))
+            return "out of mem";
+        slave_t *sl = srv.auth.slaves[0];
+        if (!(sl->name = strdup("default")))
+            return "out of mem";
+        if (!(sl->password = strdup("default")))
+            return "out of mem";
+    }
+    if (!srv.auth.num_clients) {
+        syslog(LOG_WARNING, "No client login declared, using default:default!");
+        srv.auth.num_clients = 1;
+        if (!(srv.auth.clients = calloc(1, sizeof(client_t*)))
+                || !(srv.auth.clients[0] = calloc(1, sizeof(client_t))))
+            return "out of mem";
+        client_t *cl = srv.auth.clients[0];
+        if (!(cl->name = strdup("default")))
+            return "out of mem";
+        if (!(cl->password = strdup("default")))
+            return "out of mem";
+    }
+
     if (!opt_vals.config_file)
         return "no configuration file";
 

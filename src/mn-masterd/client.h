@@ -1,5 +1,5 @@
 /*-
- * conn.h
+ * client.h
  * This file is part of Methanol
  * http://metha-sys.org/
  * http://bithack.se/projects/methabot/
@@ -19,36 +19,26 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _NOL_MASTER_CONN__H_
-#define _NOL_MASTER_CONN__H_
+#ifndef _NOL_CLIENT__H_
+#define _NOL_CLIENT__H_
 
-#include <ev.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+/* describe a slave oject as declared in mn-masterd.conf, 
+ * created and filled by an lmc parser
+ * */,
+typedef struct slave {
+    char     *name;
+    char     *password;
+    uint32_t  flags;
+} slave_t;
 
-struct conn {
-    int   sock;
-    int   auth;
-    int   authenticated;
-    int   action;
-    int   user_id;
-    /* if this is connection to a slave, the slave
-     * "id" will be set here */
-    int   slave_n;
-    struct sockaddr_in addr;
-    ev_io fd_ev;
-};
-
-enum {
-    NOL_AUTH_TYPE_CLIENT = 0,
-    NOL_AUTH_TYPE_SLAVE,
-    NOL_AUTH_TYPE_USER,
-
-    NUM_AUTH_TYPES,
-};
-
-void nol_m_ev_conn_accept(EV_P_ ev_io *w, int revents);
-void nol_m_conn_close(struct conn *conn);
-int  nol_m_getline(int fd, char *buf, int max);
+typedef struct client_conn {
+    char         token[40];
+    char        *user;
+    char        *addr;
+    unsigned int status;
+    unsigned int state;
+    unsigned int session_id;
+} client_conn_t;
 
 #endif
+

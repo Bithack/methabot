@@ -50,6 +50,7 @@ static void conn_read(EV_P_ ev_io *w, int revents);
 static int upgrade_conn(struct conn *conn, const char *user);
 static int check_user_login(const char *user, const char *pwd);
 static int check_slave_login(const char *user, const char *pwd);
+static int check_client_login(const char *user, const char *pwd);
 static int send_config(int sock);
 static int send_hooks(int sock);
 
@@ -188,10 +189,11 @@ conn_read(EV_P_ ev_io *w, int revents)
         } else if (conn->auth == NOL_AUTH_TYPE_SLAVE) {
             if (check_slave_login(user, pwd) != 0)
                 goto denied;
-        }/* else if (conn->auth == NOL_AUTH_TYPE_CLIENT) {
-            if ((conn->user_id = check_slave_login(user, pwd)) == -1)
+        } else if (conn->auth == NOL_AUTH_TYPE_CLIENT) {
+            if (check_client_login(user, pwd) != 0)
                 goto denied;
-        }*/
+        } else
+            goto denied;
 
 
         if (conn->auth != NOL_AUTH_TYPE_USER)
@@ -247,6 +249,7 @@ check_user_login(const char *user, const char *pwd)
                 return atoi(row[0]);
     return -1;
 }
+
 /**
  * verify the slave login
  *
@@ -270,6 +273,30 @@ check_slave_login(const char *user, const char *pwd)
     /* username not found */
     return -1;
 }
+/**
+ * verify the client login
+ *
+ * return 0 if valid
+ **/
+static int
+check_client_login(const char *user, const char *pwd)
+{
+    int x;
+    for (x=0; x<srv.auth.num_clients; x++) {
+        if (strcmp(srv.auth.clients[x]->name, user) == 0) {
+            /* found the username, if the password does not 
+             * match then we return -1 */
+            if (strcmp(srv.auth.clients[x]->password, pwd) == 0)
+                return 0;
+            else
+                return -1;
+        }
+    }
+
+    /* username not found */
+    return -1;
+}
+
 
 /** 
  * send the active configuration to the given sock,

@@ -12,6 +12,8 @@ mn_masterd_SOURCES = \
 	daemon.c \
 	slave-class.c \
 	slave.h \
+	client.h \
+	client-class.c \
 	methanol.h \
 	daemon.h
 

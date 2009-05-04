@@ -1,4 +1,4 @@
-AC_INIT(methabot, 1.7.0, http://bithack.se/projects/methabot/)
+AC_INIT(methanol, 1.7.0, http://metha-sys.org/)
 
 AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
 
@@ -213,7 +213,7 @@ Makefile
 echo
 echo ----
 echo
-echo "Configure of methabot-"AC_PACKAGE_VERSION", done at `date`:"
+echo "Configure of methanol-"AC_PACKAGE_VERSION", done at `date`:"
 echo 
 echo "  Host:                       $host"
 echo "  Installation prefix:        $prefix"

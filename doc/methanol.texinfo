@@ -47,8 +47,9 @@ Understanding and running Methanol
 
 @menu
 * Introduction:: Introduction to Methanol.
-* Installation:: How to install Methanol and its programs.
 * Methanol Programs:: Get introduced to the programs included in the Methanol suite.
+* Installation:: How to install Methanol and its programs.
+* Post-Installation Setup and Testing:: Set Up and Test the Server Environment.
 @end menu
 
 Customization
@@ -155,197 +156,6 @@ has been uploaded, they will be available in the MySQL
 database.
 
 @cindex introduction
-
-@node Installation
-@chapter Installation
-
-Methanol is a part of the @code{methabot} package. The latest @code{methabot} 
-packages includes all the source code required to build any specific part of 
-the system you should want.
-
-@section Building from source
-This section will describe how to compile and install Methanol. During this
-section of the manual, you will get to choose parts and configure your own
-installation depending on what programs in the Methanol suite you need.
-
-@subsection Package dependencies
-To compile Methanol successfully, you will need the following package dependencies
-installed on your system, depending on which parts you plan to install:
-
-@multitable @columnfractions .33 .33 .33
-@headitem Package                   @tab client-side@footnote{Those programs counted as client-side are @code{mb} and @code{mb-clientd}} @tab server-side@footnote{Those programs counted as server-side are @code{mn-masterd} and @code{mn-slaved}} 
-@item MySQL (libmysqlclient) >= 5.0 @tab no                   @tab yes
-@item libcurl >= 7.16.0             @tab yes                  @tab no
-@item SpiderMonkey >= 1.7.0         @tab yes                  @tab no
-@item libev                         @tab @emph{only mb-clientd}@tab no
-@item pthread                       @tab yes                  @tab yes
-@end multitable
-
-@subsection Running @code{configure}
-
-Extract @code{methabot-1.7.0.tar.gz} and enter the created directory
-using the following commands:
-@example
-$ tar xzf methabot-1.7.0.tar.gz
-$ cd methabot-1.7.0
-@end example
-
-Now its time to configure what parts of the system you would like to install.
-For example, if you are installing a server you should most likely want to install @code{mn-slaved} and/or
-@code{mn-masterd} only, and @code{mb-clientd} on several other client computers.
-Or if you are only interested in the command line utility @code{mb}, you don't
-want to compile the server daemons.
-
-By default, the configure script will configure the command line utility only, 
-and the server daemons will not be compiled. The reason why they are not 
-compiled by default is because they are still experimental and will be moved
-to a separate package in the next release.
-@example
-$ ./configure
-@end example
-The above command will configure methabot for installing the command line tool 
-@code{mb} only.
-
-Configure for compiling and installing @code{mn-masterd} and @code{mn-slaved} 
-only using the following command:
-@example
-$ ./configure --enable-slave --enable-master --disable-cli
-@end example
-
-Notice the @code{--disable-cli} option, by disabling the compilation of the
-command line utility you don't have to have dependencies such as SpiderMonkey
-installed if you only want the server part installed.
-
-Configure for compiling and installing the client daemon using the following command:
-@example
-$ ./configure --enable-client
-@end example
-
-Finally, to get a list of all available options, run the following command:
-@example
-$ ./configure --help
-@end example
-
-@subsection Compiling and installing
-Once you have configured the package to fit your needs, its time to compile
-the code. The two following commands will compile and install the parts of 
-the system that you configured it to install. Note that you might need root
-privileges to invoke the second command:
-@example
-$ make
-$ make install
-@end example
-
-@section Post-Installation Setup and Testing
-@emph{This section does not apply to the client programs.}
-
-This section will help you set up and test an initial installation
-of the server programs included in Methanol.
-
-Installed on your system you should have two configuration files,
-@code{mn-masterd.example.conf} and @code{mn-slaved.example.conf}.
-Usually, they are installed to the @code{/etc} directory, but it
-might depend on how you invoked @code{configure} during the
-installation part. These two files are skeleton configuration files
-for running the system for the first time. Rename them so
-@code{mn-masterd} and @code{mn-slaved} can find them:
-@example
-$ cd /etc
-$ mv mn-masterd.example.conf mn-masterd.conf
-$ mv mn-slaved.example.conf mn-slaved.conf
-@end example
-
-These two files require information so that both server daemons
-will be able to connect to the MySQL server. If you have a MySQL
-database and user ready, then you can fill
-that information in right now and skip the next section.
-
-@subsection Creating a MySQL Database and User
-To set up a database and user login for Methanol to use, first connect
-to the MySQL server, either through a web interface such as phpMyAdmin
-or from command line as shown below:
-@example
-$ mysql --user root --password
-@end example
-Now there are two MySQL statements that we need to execute. First, 
-you must create the actual database that Methanol uses, and secondly
-a user which Methanol will log in to MySQL using.
-@example
-mysql> CREATE DATABASE `methanol`;
-mysql> GRANT ALL PRIVILEGES ON `methanol`.* to `username`@@`localhost` 
-        IDENTIFIED BY 'password';
-mysql> FLUSH PRIVILEGES;
-@end example
-
-Substitue @emph{methanol} with a database name of choice, @emph{username}
-with a username of choice and @emph{password} with a password of choice. 
-Also, you might want to modify the @emph{localhost} to accept connections
-from other locations than the local host, depending on where you will be
-running the Methanol system and where the MySQL server is located.
-
-Use the information you provided here to fill in the options in 
-@code{mn-masterd.conf} and @code{mn-slaved.conf}.
-
-@subsection Node Authentication
-Security is always an important factor. The term @emph{node} in the
-case of Methanol refers to any process connected to the system. Node
-authentication is used to
-prevent others from connecting a client or a slave server to your master
-server. When you
-start @code{mn-masterd} using the skeleton configuration, it will accept
-any client or slave authenticating with the username @emph{default} and
-password @emph{default}.
-
-As long as you are testing the system locally and trust your local
-users, you should however be safe.
-
-Refer to @ref{Configuration Files, @code{mn-masterd.conf}: Configuring the Master Server}
-for information about how to set up node authentication.
-
-@subsection Starting and Troubleshooting
-Start the master server by invoking:
-@example
-$ mn-masterd
-@end example
-The process will fork and run in the background. If an error
-occurs it will notify you and exit with a status code of 1.
-
-If an error occurs and you think the error message reported in the
-terminal doesn't help you find the cause of the error, then 
-check your system messages. Both @code{mn-masterd} and @code{mn-slaved}
-uses @emph{@code{syslog}} to log error messages and warnings.
-Where these messages are stored depends on your syslog installation,
-but most likely you get the latest messages by running:
-@example
-$ tail /var/log/messages
-@end example
-
-Once @code{mn-masterd} is up and running, you can try connecting
-@code{mn-slaved} to it. In this case, it is important that the @code{master_host}
-option in @code{mn-slaved.conf} matches the listening address of the 
-master server.
-
-@code{mn-slaved} will log its error and warning messages using 
-syslog as well.
-
-@section Installing phpMadMind
-phpMadMind is an official extension to the Methanol system. It is a 
-set of PHP scripts for administrating a Methanol system. You can find
-phpMadMind in the latest @code{methabot} package, under the @code{src/}
-directory.
-
-To install phpMadMind, you will first need a web server and PHP installed
-You will also need the PHP extension @code{simplexml} installed.
-
-Move the whole phpMadMind tree to any directory reachable from the web server,
-and open up @code{config.example.php}. This file is pretty straight-forward
-and you should be able to configure it on your own. Once you are done, save
-it as @code{config.php} and navigate to the directory using a web browser.
-
-You will be presented with a login screen, if you just installed your 
-system there will be a default user login with username "default" and password "default".
-
-@cindex Installation
 
 @node Methanol Programs
 @chapter Methanol Programs
@@ -473,6 +283,203 @@ script hooks.
 
 @code{madmind} is a command line tool for communicating with the Master server.
 It is not available in this release, phpMadMind can be used instead.
+
+
+@node Installation
+@chapter Installation
+
+Methanol is a part of the @code{methabot} package. The latest @code{methabot} 
+packages includes all the source code required to build any specific part of 
+the system you should want.
+
+@section Building from source
+This section will describe how to compile and install Methanol. During this
+section of the manual, you will get to choose parts and configure your own
+installation depending on what programs in the Methanol suite you need.
+
+@subsection Package dependencies
+To compile Methanol successfully, you will need the following package dependencies
+installed on your system, depending on which parts you plan to install:
+
+@multitable @columnfractions .33 .33 .33
+@headitem Package                   @tab client-side@footnote{Those programs counted as client-side are @code{mb} and @code{mb-clientd}} @tab server-side@footnote{Those programs counted as server-side are @code{mn-masterd} and @code{mn-slaved}} 
+@item MySQL (libmysqlclient) >= 5.0 @tab no                   @tab yes
+@item libcurl >= 7.16.0             @tab yes                  @tab no
+@item SpiderMonkey >= 1.7.0         @tab yes                  @tab no
+@item libev                         @tab @emph{only mb-clientd}@tab no
+@item pthread                       @tab yes                  @tab yes
+@end multitable
+
+@subsection Running @code{configure}
+
+Extract @code{methabot-1.7.0.tar.gz} and enter the created directory
+using the following commands:
+@example
+$ tar xzf methabot-1.7.0.tar.gz
+$ cd methabot-1.7.0
+@end example
+
+Now its time to configure what parts of the system you would like to install.
+For example, if you are installing a server you should most likely want to install @code{mn-slaved} and/or
+@code{mn-masterd} only, and @code{mb-clientd} on several other client computers.
+Or if you are only interested in the command line utility @code{mb}, you don't
+want to compile the server daemons.
+
+By default, the configure script will configure the command line utility only, 
+and the server daemons will not be compiled. The reason why they are not 
+compiled by default is because they are still experimental and will be moved
+to a separate package in the next release.
+@example
+$ ./configure
+@end example
+The above command will configure methabot for installing the command line tool 
+@code{mb} only.
+
+Configure for compiling and installing @code{mn-masterd} and @code{mn-slaved} 
+only using the following command:
+@example
+$ ./configure --enable-slave --enable-master --disable-cli
+@end example
+
+Notice the @code{--disable-cli} option, by disabling the compilation of the
+command line utility you don't have to have dependencies such as SpiderMonkey
+installed if you only want the server part installed.
+
+Configure for compiling and installing the client daemon using the following command:
+@example
+$ ./configure --enable-client
+@end example
+
+Finally, to get a list of all available options, run the following command:
+@example
+$ ./configure --help
+@end example
+
+@subsection Compiling and installing
+Once you have configured the package to fit your needs, its time to compile
+the code. The two following commands will compile and install the parts of 
+the system that you configured it to install. Note that you might need root
+privileges to invoke the second command:
+@example
+$ make
+$ make install
+@end example
+
+@section Installing phpMadMind
+phpMadMind is an official extension to the Methanol system. It is a 
+set of PHP scripts for administrating a Methanol system. You can find
+phpMadMind in the latest @code{methabot} package, under the @code{src/}
+directory.
+
+To install phpMadMind, you will first need a web server and PHP installed
+You will also need the PHP extension @code{simplexml} installed.
+
+Move the whole phpMadMind tree to any directory reachable from the web server,
+and open up @code{config.example.php}. This file is pretty straight-forward
+and you should be able to configure it on your own. Once you are done, save
+it as @code{config.php} and navigate to the directory using a web browser.
+
+You will be presented with a login screen, if you just installed your 
+system there will be a default user login with username "default" and password "default".
+
+@node Post-Installation Setup and Testing
+@chapter Post-Installation Setup and Testing
+@cindex setup, testing
+
+This chapter will help you set up and test an initial installation
+of the server programs included in Methanol.
+
+Installed on your system you should have two configuration files,
+@code{mn-masterd.example.conf} and @code{mn-slaved.example.conf}.
+Usually, they are installed to the @code{/etc} directory, but it
+might depend on how you invoked @code{configure} during the
+installation part. These two files are skeleton configuration files
+for running the system for the first time. Rename them so
+@code{mn-masterd} and @code{mn-slaved} can find them:
+@example
+$ cd /etc
+$ mv mn-masterd.example.conf mn-masterd.conf
+$ mv mn-slaved.example.conf mn-slaved.conf
+@end example
+
+These two files require information so that both server daemons
+will be able to connect to the MySQL server. If you have a MySQL
+database and user ready, then you can fill
+that information in right now and skip the next section.
+
+Security is always an important factor. Node
+authentication is used to
+prevent others from connecting a client or a slave server to your master
+server. When you
+start @code{mn-masterd} using the skeleton configuration, it will accept
+any client or slave authenticating with the username @emph{default} and
+password @emph{default}.
+
+As long as you are testing the system locally and trust your local
+users, you should however be safe.
+
+Refer to @ref{Configuration Files, @code{mn-masterd.conf}: Configuring the Master Server}
+for information about how to set up node authentication.
+
+@section Creating a MySQL Database and User
+To set up a database and user login for Methanol to use, first connect
+to the MySQL server, either through a web interface such as phpMyAdmin
+or from command line as shown below:
+@example
+$ mysql --user root --password
+@end example
+Now there are two MySQL statements that we need to execute. First, 
+you must create the actual database that Methanol uses, and secondly
+a user which Methanol will log in to MySQL using.
+@example
+mysql> CREATE DATABASE `methanol`;
+mysql> GRANT ALL PRIVILEGES ON `methanol`.* to `username`@@`localhost` 
+        IDENTIFIED BY 'password';
+mysql> FLUSH PRIVILEGES;
+@end example
+
+Substitute @emph{methanol} with a database name of choice, @emph{username}
+with a username of choice and @emph{password} with a password of choice. 
+Also, you might want to modify the @emph{localhost} to accept connections
+from other locations than the local host, depending on where you will be
+running the Methanol system and where the MySQL server is located.
+
+Use the information you provided here to fill in the options in 
+@code{mn-masterd.conf} and @code{mn-slaved.conf}.
+
+@c @section Example 1: Setup Master and Slave on a Single Server
+@c In many cases it might be feasible to run all system nodes on 
+@c a single server. This section will give an example of how to set 
+@c up such an environment.j
+
+
+@section Starting and Troubleshooting
+Start the master server by invoking:
+@example
+$ mn-masterd
+@end example
+The process will fork and run in the background. If an error
+occurs it will notify you and exit with a status code of 1.
+
+If an error occurs and you think the error message reported in the
+terminal doesn't help you find the cause of the error, then 
+check your system messages. Both @code{mn-masterd} and @code{mn-slaved}
+uses @emph{@code{syslog}} to log error messages and warnings.
+Where these messages are stored depends on your syslog installation,
+but most likely you get the latest messages by running:
+@example
+$ tail /var/log/messages
+@end example
+
+Once @code{mn-masterd} is up and running, you can try connecting
+@code{mn-slaved} to it. In this case, it is important that the @code{master_host}
+option in @code{mn-slaved.conf} matches the listening address of the 
+master server.
+
+@code{mn-slaved} will log its error and warning messages using 
+syslog as well.
+
+@cindex Installation
 
 @node Configuration Files
 @chapter Configuration Files
@@ -760,48 +767,6 @@ forcing a switch to another crawler configuration is often referred
 to as a gateway filetype; when a worker matches a URL with this filetype
 it will switch its current crawler configuration to what's specified
 in @code{crawler_switch}.
-@subsubsection Parser Chaining
-Parser chaining is a concept introduced in libmetha-1.6.0. Parser
-chaining allows multiple parsers to work on the same data and share
-their modifications.
-
-@example
-data -> [ parser_1 -> parser_2 -> parser_3 ] -> output_data
-             |           |           |
-             v           v           v
-        +----------------------------------+
-        |        List of found URLs        |
-        +----------------------------------+
-@end example
-
-If parser_1 modified the data, parser_2 will receive the modified
-version, and so on. Parser chaining works with any type of parser,
-thus you can freely use either javascript or C parsers anywhere in
-the chain.
-
-To set a filetype to use a parser chain, you should provide it with
-a comma-separated list of parsers instead of just a single name of a
-parser. As an example, if you have created your own javascript parser
-that uses E4X to extract some metadata about a web page, you should
-most likely want to send the data (HTML) to the @code{xmlconv}
-builtin parser before your javascript parser receives it, to
-avoid XML errors caused by the HTML.
-
-@example
-filetype["your_filetype"]
-@{
-        parser = "xmlconv, yourfile.js/yourparser";
-@}
-@end example
-Furthermore, if your parser does not extract URLs but only extracts
-meta-information about the page, you can send it to the default
-HTML parser afterwards, which will extract all URLs for you: 
-@example
-filetype["your_filetype"]
-@{
-        parser = "xmlconv, yourfile.js/yourparser, html";
-@}
-@end example
 
 @subsubsection Handler Functions
 Handlers are called before the parsers. The purpose of a handler is a to download the data
@@ -960,6 +925,49 @@ retrieved URL.
 
 Currently, a parser can be programmed in either C or Javascript.
 Multiple parsers can be chained and share the same data buffer.
+
+@section Parser Chaining
+Parser chaining is a concept introduced in libmetha-1.6.0. Parser
+chaining allows multiple parsers to work on the same data and share
+their modifications.
+
+@example
+data -> [ parser_1 -> parser_2 -> parser_3 ] -> output_data
+             |           |           |
+             v           v           v
+        +----------------------------------+
+        |        List of found URLs        |
+        +----------------------------------+
+@end example
+
+If parser_1 modified the data, parser_2 will receive the modified
+version, and so on. Parser chaining works with any type of parser,
+thus you can freely use either javascript or C parsers anywhere in
+the chain.
+
+To set a filetype to use a parser chain, you should provide it with
+a comma-separated list of parsers instead of just a single name of a
+parser. As an example, if you have created your own javascript parser
+that uses E4X to extract some metadata about a web page, you should
+most likely want to send the data (HTML) to the @code{xmlconv}
+builtin parser before your javascript parser receives it, to
+avoid XML errors caused by the HTML.
+
+@example
+filetype["your_filetype"]
+@{
+        parser = "xmlconv, yourfile.js/yourparser";
+@}
+@end example
+Furthermore, if your parser does not extract URLs but only extracts
+meta-information about the page, you can send it to the default
+HTML parser afterwards, which will extract all URLs for you: 
+@example
+filetype["your_filetype"]
+@{
+        parser = "xmlconv, yourfile.js/yourparser, html";
+@}
+@end example
 
 @section List of built-in parsers
 The following table lists the built-in parsers bundled with this version of @code{libmetha}.
@@ -1287,8 +1295,7 @@ the interpreter applies on the slave server(s).
 
 @section Preparing @code{mn-slaved}
 @code{mn-slaved} will save the scripts received from the master to one file per script. To 
-do this, the slave must have write permissions to a directory in the system. Furthermore, 
-it will need execute permissions on the same directory to be able to execute the scripts.
+do this, the slave must have write permissions to a directory in the system.
 
 First we create a directory where @code{mn-slaved} will be working. You can choose to create
 it anywhere in the system, as long as that partition is not mounted with @code{noexec}, but

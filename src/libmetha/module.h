@@ -24,7 +24,6 @@
 
 #include "wfunction.h"
 #include "errors.h"
-#include "lmc.h"
 
 typedef struct lm_mod_properties {
     const char *name;

@@ -1,16 +1,17 @@
 1.7.0
 =====
-We are proud to release  the  first  version  of Methabot featuring Methanol web 
+We are proud to release  the  first  version  of Methabot featuring Methanol web
 crawling system. This release  features  the  two  new server daemons mn-masterd
 and mn-slaved, along with the new client daemon mb-clientd. These three together
 form a Methanol system, so you can now build your own customized distributed web
 crawling system, with all the features and goodies of libmetha integrated!
 
+From now on, Methabot will be released in the new Methanol package.
+
 You can read more about Methanol at the new website:
 http://metha-sys.org/
 
-The old website and wiki  will  however  still be the primary resource for docu-
-mentation and project related new:
+The old website and wiki can still be found at:
 http://bithack.se/projects/methabot/
 
 Changes and new features:
@@ -24,6 +25,9 @@ Changes and new features:
 * Lots of memory usage optimizations and cleanup fixes
 * Bugfix, a syntax error would  in  some  rare  cases occur when parsing integer
   values in configuration files
+* The documentation available in the wiki has been copied to a texinfo file,
+  from now on all documentation will be put in this texinfo file and available
+  as a manual both online and offline
 * Bugfix, when javascript filetype parsers did not return a value, it was
   treated as a string, "undefined", and used as a relative URL
 * Support for  filetype attributes.  Parsers can now set custom data that will

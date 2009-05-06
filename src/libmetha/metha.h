@@ -35,7 +35,7 @@
 #include "wfunction.h"
 #include "events.h"
 #include "lmopt.h"
-#include "lmc.h"
+#include "../libmethaconfig/lmc.h"
 
 enum {
     LM_SIGNAL_EXIT,

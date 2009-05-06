@@ -236,6 +236,98 @@ $ make
 $ make install
 @end example
 
+@section Post-Installation Setup and Testing
+@emph{This section does not apply to the client programs.}
+
+This section will help you set up and test an initial installation
+of the server programs included in Methanol.
+
+Installed on your system you should have two configuration files,
+@code{mn-masterd.example.conf} and @code{mn-slaved.example.conf}.
+Usually, they are installed to the @code{/etc} directory, but it
+might depend on how you invoked @code{configure} during the
+installation part. These two files are skeleton configuration files
+for running the system for the first time. Rename them so
+@code{mn-masterd} and @code{mn-slaved} can find them:
+@example
+$ cd /etc
+$ mv mn-masterd.example.conf mn-masterd.conf
+$ mv mn-slaved.example.conf mn-slaved.conf
+@end example
+
+These two files require information so that both server daemons
+will be able to connect to the MySQL server. If you have a MySQL
+database and user ready, then you can fill
+that information in right now and skip the next section.
+
+@subsection Creating a MySQL Database and User
+To set up a database and user login for Methanol to use, first connect
+to the MySQL server, either through a web interface such as phpMyAdmin
+or from command line as shown below:
+@example
+$ mysql --user root --password
+@end example
+Now there are two MySQL statements that we need to execute. First, 
+you must create the actual database that Methanol uses, and secondly
+a user which Methanol will log in to MySQL using.
+@example
+mysql> CREATE DATABASE `methanol`;
+mysql> GRANT ALL PRIVILEGES ON `methanol`.* to `username`@@`localhost` 
+        IDENTIFIED BY 'password';
+mysql> FLUSH PRIVILEGES;
+@end example
+
+Substitue @emph{methanol} with a database name of choice, @emph{username}
+with a username of choice and @emph{password} with a password of choice. 
+Also, you might want to modify the @emph{localhost} to accept connections
+from other locations than the local host, depending on where you will be
+running the Methanol system and where the MySQL server is located.
+
+Use the information you provided here to fill in the options in 
+@code{mn-masterd.conf} and @code{mn-slaved.conf}.
+
+@subsection Node Authentication
+Security is always an important factor. The term @emph{node} in the
+case of Methanol refers to any process connected to the system. Node
+authentication is used to
+prevent others from connecting a client or a slave server to your master
+server. When you
+start @code{mn-masterd} using the skeleton configuration, it will accept
+any client or slave authenticating with the username @emph{default} and
+password @emph{default}.
+
+As long as you are testing the system locally and trust your local
+users, you should however be safe.
+
+Refer to @ref{Configuration Files, @code{mn-masterd.conf}: Configuring the Master Server}
+for information about how to set up node authentication.
+
+@subsection Starting and Troubleshooting
+Start the master server by invoking:
+@example
+$ mn-masterd
+@end example
+The process will fork and run in the background. If an error
+occurs it will notify you and exit with a status code of 1.
+
+If an error occurs and you think the error message reported in the
+terminal doesn't help you find the cause of the error, then 
+check your system messages. Both @code{mn-masterd} and @code{mn-slaved}
+uses @emph{@code{syslog}} to log error messages and warnings.
+Where these messages are stored depends on your syslog installation,
+but most likely you get the latest messages by running:
+@example
+$ tail /var/log/messages
+@end example
+
+Once @code{mn-masterd} is up and running, you can try connecting
+@code{mn-slaved} to it. In this case, it is important that the @code{master_host}
+option in @code{mn-slaved.conf} matches the listening address of the 
+master server.
+
+@code{mn-slaved} will log its error and warning messages using 
+syslog as well.
+
 @section Installing phpMadMind
 phpMadMind is an official extension to the Methanol system. It is a 
 set of PHP scripts for administrating a Methanol system. You can find

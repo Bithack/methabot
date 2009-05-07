@@ -115,7 +115,12 @@ m_builtin_parsers[] = {
         .purpose = LM_WFUNCTION_PURPOSE_PARSER,
         .name = "entityconv",
         .fn.native_parser = &lm_parser_entityconv
-    },
+    }, {
+        .type    = LM_WFUNCTION_TYPE_NATIVE,
+        .purpose = LM_WFUNCTION_PURPOSE_HANDLER,
+        .name = "writefile",
+        .fn.native_parser = &lm_handler_writefile
+    }
 };
 
 #define NUM_DIRECTIVES sizeof(directives)/sizeof(struct lmc_directive)
@@ -221,7 +226,7 @@ lmetha_setopt(metha_t *m, LMOPT opt, ...)
             for (x=0; x<LM_NUM_BUILTIN_PARSERS; x++)
                 lmetha_add_wfunction(m, m_builtin_parsers[x].name,
                                      m_builtin_parsers[x].type,
-                                     LM_WFUNCTION_PURPOSE_PARSER,
+                                     m_builtin_parsers[x].purpose,
                                      m_builtin_parsers[x].fn.native_parser);
             break;
 

@@ -157,6 +157,7 @@ iohandle_t *lm_iohandle_obtain(io_t *io);
 void        lm_iohandle_destroy(iohandle_t *ioh);
 M_CODE      lm_io_get(iohandle_t *h, url_t *url);
 M_CODE      lm_io_head(iohandle_t *h, url_t *url);
+M_CODE      lm_io_save(iohandle_t *h, url_t *url, const char *name);
 M_CODE      lm_iothr_stop(io_t *io);
 M_CODE      lm_io_provide(iohandle_t *h, const char *buf, size_t len);
 

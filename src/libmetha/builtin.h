@@ -38,5 +38,6 @@ M_CODE lm_parser_ftp(struct worker *w, struct iobuf *buf, struct uehandle *ue_h,
 M_CODE lm_parser_text(struct worker *w, struct iobuf *buf, struct uehandle *ue_h, struct url *url, struct attr_list *al);
 M_CODE lm_extract_css_urls(struct uehandle *ue_h, char *p, size_t sz);
 M_CODE lm_extract_text_urls(struct uehandle *ue_h, char *p, size_t sz);
+M_CODE lm_handler_writefile(worker_t *w, iohandle_t *io, url_t *url);
 
 #endif

@@ -46,9 +46,22 @@ struct {
  * Default CSS parser
  **/
 M_CODE
-lm_parser_css(worker_t *w, iobuf_t *buf, uehandle_t *ue_h, url_t *url, attr_list_t *al)
+lm_parser_css(worker_t *w, iobuf_t *buf, uehandle_t *ue_h,
+              url_t *url, attr_list_t *al)
 {
     return lm_extract_css_urls(ue_h, buf->ptr, buf->sz);
+}
+
+/** 
+ * download the data to a local file instead of
+ * to memory, a random file name will be used
+ **/
+M_CODE
+lm_handler_tmpfile(worker_t *w, io_t *io,
+                   url_t *url)
+{
+
+    return M_OK;
 }
 
 /** 

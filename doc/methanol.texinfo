@@ -1093,7 +1093,6 @@ Test your parser by running @code{mb} with your configuration file. If it "does 
 then try adding the @code{-e} flag to @code{mb} so Methabot won't discard google.com because
 it is an external URL.
 
-@subsection The @code{this} object
 Now let us get back to @code{this}. @code{this} is an object directly connected 
 to a worker in @code{libmetha}. A worker is a thread, so each thread will have its
 own @code{this} object when running javascript code. The @code{this} object contains

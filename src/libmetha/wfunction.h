@@ -27,7 +27,7 @@
  * M_CODE name(worker_t *, iobuf_t *, uehandle_t *, url_t *, attr_list_t *al);
  *
  * Handler Callback Syntax:
- * M_CODE name(worker_t *, io_t *, url_t *);
+ * M_CODE name(worker_t *, iohandle_t *, url_t *);
  *
  * See io.h for iobuf_t.
  *

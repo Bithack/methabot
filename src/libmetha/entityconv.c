@@ -361,7 +361,7 @@ lm_entity_hashtbl_cleanup(void)
 {
     int x;
     if (hashtbl_initialized == 1) {
-        for (x=0; x<NUM_ENTITIES; x++) {
+        for (x=0; x<128; x++) {
             if (e_tbl[x].count)
                 free(e_tbl[x].ptr);
         }

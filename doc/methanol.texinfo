@@ -1011,14 +1011,20 @@ safely handle lots of FTP server's differing directory listing outputs.
 @chapter Scripting the Client
 Methabot can be scripted in Javascript with E4X. Scripting is useful for 
 creating custom parsers and extracting data from complex XML.
-@section Functions
+@section Global Functions
 Additionally to the standard Javascript functions, @code{libmetha} 
 provides the following functions that you can use:
 @table @code
-@item print
+@item print (str)
 Print a message to the user, without an ending new-line character.
-@item println
+@item println (str)
 Print a message to the user, with an ending new-line character.
+@item getc ()
+Get a character from @emph{stdin}.
+@item exec (command)
+Execute @code{command} in the default shell. Returns @emph{false} on error. Returns
+the full output (i.e. the data written to @emph{stdout} by the child process)
+as a @emph{string}.
 @end table
 @section The @code{this} object
 @code{this} is an object available in all javascript functions called
@@ -1038,6 +1044,14 @@ The URL of the current page and the contents of @code{this.data}.
 The raw data as returned from the server or a previous parser in the parser
 chain.
 @end table
+
+@subsection Member Functions
+@table @code
+@item set_attribute (name, value)
+Set the @code{name} attribute to @code{value} for the current 
+URL.
+@end table
+
 @section Tutorial: Writing a parser in Javascript with E4X
 E4X is a very easy-to-use but powerful and flexible extension to Javasceript. This tutorial
 will help you get started with writing parsers for @code{libmeth} clients using

@@ -125,7 +125,8 @@ lm_handler_writefile(worker_t *w, iohandle_t *h,
         h->buf.ptr = name;
         h->buf.sz = strlen(name);
         h->buf.cap = a_sz;
-    }
+    } else
+        free(name);
 
     free(ext);
     return M_OK;

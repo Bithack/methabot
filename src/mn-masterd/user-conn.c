@@ -321,12 +321,17 @@ user_passwd_command(nolp_t *no, char *buf, int size)
         }\
     }
 #define BUF_ADD(_s, _x) {\
-        BUF_CHK(_x); \
-        if (!_x) \
-            memcpy(b_ptr+b_sz, _s, strlen(_s)); \
-        else \
+        int _z; \
+        if (!_x) {\
+            _z = strlen(_s); \
+            BUF_CHK(_z); \
+            memcpy(b_ptr+b_sz, _s, _z); \
+        } else {\
+            BUF_CHK(_x); \
             memcpy(b_ptr+b_sz, _s, _x); \
-        b_sz += _x; \
+            _z = _x; \
+        } \
+        b_sz += _z; \
     }
 
 static int
@@ -348,8 +353,6 @@ user_session_info_command(nolp_t *no, char *buf, int size)
     b_cap = BUF_SZ;
     b_sz  = 0;
 
-    BUF_ADD("SELECT ", 0);
-
     /* create the query, first we need to find out what count_* columns we have */
     mysql_query(srv.mysql, "SHOW COLUMNS FROM `nol_session` WHERE `Field` LIKE 'count_%';");
     if (!(r = mysql_store_result(srv.mysql))) {
@@ -358,6 +361,7 @@ user_session_info_command(nolp_t *no, char *buf, int size)
         send(no->fd, MSG300, sizeof(MSG300)-1, 0);
         return -1;
     }
+    BUF_ADD("SELECT ", 0);
     while (row = mysql_fetch_row(r)) {
         BUF_CHK(strlen("`nol_session`.``, as 'num-'")+strlen(row[0])*2);
         b_sz += sprintf(b_ptr+b_sz,
@@ -367,7 +371,9 @@ user_session_info_command(nolp_t *no, char *buf, int size)
     mysql_free_result(r);
 
     BUF_ADD(
-            "`cl`.`token` as token, `a`.`crawler` as crawler, `a`.`input` as input "
+            "`cl`.`token` as client, `a`.`crawler` as crawler, `a`.`input` as input, "
+            "`nol_session`.`date` as started, `nol_session`.`latest` as updated, "
+            "`nol_session`.`state` as state "
             "FROM "
                 "`nol_session` "
             "LEFT JOIN "
@@ -381,6 +387,7 @@ user_session_info_command(nolp_t *no, char *buf, int size)
             "WHERE `nol_session`.`id` = ", 0);
     BUF_CHK(25);
     b_sz += sprintf(b_ptr+b_sz, "%u LIMIT 0,1;", session_id);
+    syslog(LOG_ERR, "%s", b_ptr);
 
     if (mysql_real_query(srv.mysql, b_ptr, b_sz) != 0) {
         syslog(LOG_ERR, "selecting session info failed: %s",
@@ -400,13 +407,8 @@ user_session_info_command(nolp_t *no, char *buf, int size)
         free(b_ptr);
         return 0;
     }
-    if (!(lengths = mysql_fetch_lengths(r))) {
-        mysql_free_result(r);
-        send(no->fd, MSG300, sizeof(MSG300)-1, 0);
-        free(b_ptr);
-        return -1;
-    }
-    if (!(fields = mysql_fetch_fields(srv.mysql))) {
+    if (!(lengths = mysql_fetch_lengths(r))
+        || !(fields = mysql_fetch_fields(r))) {
         mysql_free_result(r);
         send(no->fd, MSG300, sizeof(MSG300)-1, 0);
         free(b_ptr);
@@ -420,23 +422,28 @@ user_session_info_command(nolp_t *no, char *buf, int size)
 
     BUF_ADD("<session-info for=\"", 0);
     BUF_CHK(15);
-    b_sz += sprintf(b_ptr, "%u\">", session_id);
+    b_sz += sprintf(b_ptr+b_sz, "%u\">", session_id);
 
     for (x=0; x<num; x++) {
         BUF_CHK(fields[x].name_length*2 + lengths[x] + 5);
-        b_sz += sprintf(b_ptr, "<%s>%s</%s>",
+        b_sz += sprintf(b_ptr+b_sz, "<%s>%s</%s>",
                 fields[x].name,
                 row[x]?row[x]:"",
                 fields[x].name);
     }
     BUF_ADD("</session-info>", 0);
+    BUF_CHK(20);
+    x = sprintf(b_ptr+b_sz, "100 %u\n", b_sz);
 
-    if (send(no->fd, b_ptr, b_sz, 0) <= 0) {
-        mysql_free_result(r);
+    mysql_free_result(r);
+
+    if (send(no->fd, b_ptr+b_sz, x, 0) <= 0
+        || send(no->fd, b_ptr, b_sz, 0) <= 0) {
+        free(b_ptr);
         return -1;
     }
 
-    mysql_free_result(r);
+    free(b_ptr);
     return 0;
 }
 

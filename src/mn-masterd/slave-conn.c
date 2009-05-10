@@ -239,7 +239,7 @@ sl_status_parse(nolp_t *no, char *buf, int size)
                         +slave_str_len
                         +15+40+64+15
                         )+
-                    sizeof("<client-list for=\"\"></client-list>")-1))))
+                    sizeof("<client-list for=\"\"></client-list>")))))
         return -1;
     p += sprintf(p, "<client-list for=\"%s\">", slave_str);
     for (x=0; x<sl->num_clients; x++) {

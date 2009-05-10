@@ -142,7 +142,14 @@ class Metha
         $status = (int)@$r[0];
         if ($status != 100)
             return false;
-        return @fread($this->fp, $len);
+        $count = 0;
+        $x = "";
+        do {
+            $b = @fread($this->fp, $len-$count);
+            $count += strlen($b);
+            $x .= $b;
+        } while ($count < $len);
+        return $x;
     }
 }
 ?>

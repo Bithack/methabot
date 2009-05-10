@@ -670,6 +670,8 @@ lm_worker_bind_url(worker_t *w, url_t *url,
     uehandle_t *ue_h = w->ue_h;
     crawler_t  *cr = w->crawler;
 
+    lm_filetype_counter_inc(ft);
+
     if (FT_FLAG_ISSET(ft, FT_FLAG_HAS_PARSER)
           || FT_FLAG_ISSET(ft, FT_FLAG_HAS_HANDLER)) {
         lm_url_bind(url, ft->id);

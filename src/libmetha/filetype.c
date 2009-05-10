@@ -48,6 +48,10 @@ lm_filetype_create(const char *name, uint32_t nlen)
     ret->parser_chain.num_parsers = 0;
     ret->handler.name  = 0;
 
+#if HAVE_BUILTIN_ATOMIC == 0
+    pthread_mutex_init(&ret->counter_lk, 0);
+#endif
+
     return ret;
 }
 
@@ -56,6 +60,9 @@ lm_filetype_destroy(filetype_t *ft)
 {
     free(ft->name);
     lm_filetype_clear(ft);
+#if HAVE_BUILTIN_ATOMIC == 0
+    pthread_mutex_destroy(&ft->counter_lk);
+#endif
     free(ft);
 }
 

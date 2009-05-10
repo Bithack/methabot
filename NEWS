@@ -52,6 +52,7 @@ Changes and new features:
 * phpMadMind is a web interface for administrating a Methanol system
 * --external option set to false can no longer be circumvented using a HTTP-
   redirect
+* Added internal counters useful for keeping statistics
 
 1.6.0
 =====

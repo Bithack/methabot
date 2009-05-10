@@ -187,6 +187,23 @@ AC_CHECK_FUNCS([strdup realloc strncasecmp memmem epoll_ctl])
 AC_DEFINE_UNQUOTED(BUILD_LIBS, "${LIBS}", [used by modules to link the same libraries as libmetha])
 AC_DEFINE_UNQUOTED(BUILD_CFLAGS, "${JS_INCLUDE_PATH} -D_GNU_SOURCE -DJS_THREADSAFE -DXP_UNIX ${BUILD_FLAGS_EXTRA}", [used by modules to build with the same flags at libmetha])
 
+AC_MSG_CHECKING([if your compiler supports __sync_add_and_fetch])
+
+AC_TRY_LINK(,
+[
+  int v = 1;
+  return (__sync_add_and_fetch(&v, 1) == 2 ? 0 : 1);
+],
+[
+  AC_MSG_RESULT([yes])
+  AC_DEFINE(HAVE_BUILTIN_ATOMIC, 1, [Define 1 if your version of gcc supports __sync_add_and_fetch])
+],
+[
+  AC_MSG_RESULT(no)
+  AC_DEFINE(HAVE_BUILTIN_ATOMIC, 0, [Define 1 if your version of gcc supports __sync_add_and_fetch])
+]
+)
+
 includedir=$includedir/metha
 
 AC_OUTPUT([

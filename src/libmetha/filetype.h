@@ -26,12 +26,29 @@
 #include "errors.h"
 #include "wfunction.h"
 #include "umex.h"
+#include "config.h"
 
 #define FT_FLAG_HAS_PARSER   1
 #define FT_FLAG_HAS_HANDLER  2
 
 #define FT_FLAG_ISSET(ft, x) ((ft)->flags & (x))
 #define FT_ID_NULL ((FT_ID)-1)
+
+#if HAVE_BUILTIN_ATOMIC == 1
+#define lm_filetype_counter_inc(ft) __sync_add_and_fetch(&(ft)->counter, 1)
+#else
+#include <pthread.h>
+#define lm_filetype_counter_inc(ft) {\
+    pthread_mutex_lock(&(ft)->counter_lk); \
+    ft->counter++;\
+    pthread_mutex_unlock(&(ft)->counter_lk); \
+    }
+#endif
+
+/* shouldn't be called while running, and if it is it
+ * should be an atomic operation on most architures i
+ * know of anyway (since it's a 4-byte variable) */
+#define lm_filetype_counter_reset(ft) (ft)->counter = 1
 
 typedef uint8_t FT_ID;
 
@@ -76,7 +93,12 @@ typedef struct filetype {
         char        *name;
     } handler;
 
-    uint8_t flags;
+    /* counter for how many URLs that matches this filetype */
+    volatile uint32_t    counter;
+#if HAVE_BUILTIN_ATOMIC == 0
+    pthread_mutex_t      counter_lk;
+#endif
+    uint8_t              flags;
 } filetype_t;
 
 filetype_t *lm_filetype_create(const char *name, uint32_t nlen);

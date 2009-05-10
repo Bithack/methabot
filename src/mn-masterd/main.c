@@ -536,6 +536,18 @@ nol_m_reconfigure()
 
         mysql_real_query(srv.mysql, tq, len);
 
+        /* add this filetype as a counter column in the session table,
+         * this query might fail but it doesnt matter, because then
+         * the column probably exists already */
+        len = sprintf(tq,
+                "ALTER TABLE `nol_session` "
+                "ADD COLUMN count_%.60s INT UNSIGNED",
+                name);
+        if (mysql_real_query(srv.mysql, tq, len) != 0) {
+            syslog(LOG_ERR, "%s", mysql_error(srv.mysql));
+        }
+
+
         /** 
          * Now add all the columns. Many of these queries will probably
          * fail because the column already exists, but this is expected

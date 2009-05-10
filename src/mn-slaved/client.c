@@ -42,6 +42,7 @@ static void timer_reached(EV_P_ ev_timer *w, int revents);
 static int on_status(nolp_t *no, char *buf, int size);
 static int on_url(nolp_t *no, char *buf, int size);
 static int on_target(nolp_t *no, char *buf, int size);
+static int on_count(nolp_t *no, char *buf, int size);
 static int on_target_recv(nolp_t *no, char *buf, int size);
 
 static int update_ft_attr(struct client *cl, char *attr, int attr_len, char *val, int val_len);
@@ -55,6 +56,7 @@ struct nolp_fn client_commands[] = {
     {"STATUS", &on_status},
     {"URL", &on_url},
     {"TARGET", &on_target},
+    {"COUNT", &on_count},
     {0}
 };
 
@@ -703,6 +705,45 @@ update_ft_attr(struct client *cl,
     }
 
     free(q);
+    return 0;
+}
+
+/** 
+ * COUNT reports the amount of matched URLs against
+ * a filetype. Syntax:
+ *
+ * COUNT <filetype-name> <count>\n
+ **/
+static int
+on_count(nolp_t *no, char *buf, int size)
+{
+    struct client *cl;
+    char     *s;
+    char      q[128];
+    uint32_t  count;
+    int       sz;
+
+    cl = ((struct client *)no->private);
+    if (!cl->running || !cl->session_id)
+        return -1;
+
+    if (!(s = memchr(buf, ' ', size)))
+        return -1;
+
+    s++;
+    count = (uint32_t)atoi(s);
+
+    sz = sprintf(q, "UPDATE `nol_session` WHERE id=%d SET count_%s = %d",
+                 cl->session_id,
+                 nol_s_str_filter_name(buf, (s-1)-buf),
+                 count);
+
+    if (mysql_real_query(cl->mysql, q, sz) != 0) {
+        syslog(LOG_ERR, "updating session statistics failed: %s",
+                mysql_error(cl->mysql));
+        return -1;
+    }
+
     return 0;
 }
 

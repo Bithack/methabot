@@ -310,6 +310,20 @@ mbc_ev_timer(EV_P_ ev_timer *w, int revents)
 void
 mbc_ev_idle(EV_P_ ev_async *w, int revents)
 {
+    char buf[128];
+    int x;
+    int sz;
+
+    /* loop through all filetypes and report their
+     * counters so the server can calculate statistics */
+    for (x=0; x<mbc.m->num_filetypes; x++) {
+        sz = sprintf(buf, "COUNT %.64s %u\n",
+                mbc.m->filetypes[x]->name,
+                mbc.m->filetypes[x]->counter);
+        lm_filetype_counter_reset(mbc.m->filetypes[x]);
+        send(mbc.sock, buf, sz, 0);
+    }
+
     send(mbc.sock, "STATUS 0\n", 9, 0);
     /* wait for our libmetha thread to exit before
      * continuing with the event loop */

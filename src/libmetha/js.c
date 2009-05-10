@@ -293,6 +293,11 @@ __lm_js_set_attribute(JSContext *cx, JSObject *this,
     if (!(w = JS_GetPrivate(cx, this)))
         return JS_FALSE;
 
+    if (argc != 2) {
+        *ret = JSVAL_FALSE;
+        return JS_TRUE;
+    }
+
     if (!JS_ConvertArguments(cx, argc, argv, "ss", &attr, &val))
         return JS_FALSE;
 
@@ -316,7 +321,7 @@ __lm_js_exec(JSContext *cx, JSObject *this, uintN argc,
     FILE *fp;
     char *cmd;
     char *buf = 0;
-    int n, sz = 0;
+    size_t n, sz = 0;
     JSString *str;
 
     if (!argc) {
@@ -333,16 +338,28 @@ __lm_js_exec(JSContext *cx, JSObject *this, uintN argc,
                 pclose(fp);
                 return JS_FALSE;
             }
-            sz += (n = fread(buf, 1, BUFSZ, fp));
+            sz += (n = (size_t)fread(buf+sz, 1, BUFSZ, fp));
         } while (n);
 
-        if (!(str = JS_NewString(cx, buf, sz))) {
-            pclose(fp);
-            return JS_FALSE;
-        }
-
-        *ret = STRING_TO_JSVAL(str);
         pclose(fp);
+
+        if (!sz) {
+            /* no data, we'll return an empty string */
+            JS_free(cx, buf);
+            *ret = JS_GetEmptyStringValue(cx);
+        } else {
+            /* free wasted space */
+            if (!(buf = JS_realloc(cx, buf, sz+1)))
+                return JS_FALSE;
+            buf[sz] = '\0'; /* the documentation said NOTHING about this,
+                             * why do I have to null-terminate AND provide the length? 
+                             * plain stupid mozilla-shit */
+            if (!(str = JS_NewString(cx, buf, sz))) {
+                JS_free(cx, buf);
+                return JS_FALSE;
+            }
+            *ret = STRING_TO_JSVAL(str);
+        }
     } else
         *ret = JSVAL_FALSE;
 

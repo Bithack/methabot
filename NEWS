@@ -38,6 +38,8 @@ Changes and new features:
 * API support for custom status, error/warning and target reporter functions
 * lmetha_global_setopt() is no longer available, replaced with lmetha_setopt()
   options
+* New global Javascript function exec()
+* New built-in handler function writefile
 * libmetha no longer depends on libev, but instead uses pipes and epoll() for
   inter-thread communication and waiting for events on sockets.
 * mb-clientd is  a version of the methabot client, running in the background and

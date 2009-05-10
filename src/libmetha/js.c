@@ -34,6 +34,7 @@ static JSBool __lm_js_get(JSContext *cx, JSObject *this, uintN argc, jsval *argv
 static JSBool __lm_js_http_post(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
 static JSBool __lm_js_filesize(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
 static JSBool __lm_js_set_attribute(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
+static JSBool __lm_js_exec(JSContext *cx, JSObject *this, uintN argc, jsval *argv, jsval *ret);
 
 JSFunctionSpec lm_js_allfunctions[] = {
     {"print", __lm_js_print, 1},
@@ -42,6 +43,7 @@ JSFunctionSpec lm_js_allfunctions[] = {
     {"get", __lm_js_get, 1},
     {"http_post", __lm_js_http_post, 2},
     {"filesize", __lm_js_filesize, 1},
+    {"exec", __lm_js_exec, 1},
     {0}
 };
 
@@ -297,6 +299,51 @@ __lm_js_set_attribute(JSContext *cx, JSObject *this,
     if (lm_attribute_set(&w->attributes, attr, val, strlen(val)) == M_OK)
         *ret = JSVAL_TRUE;
     else
+        *ret = JSVAL_FALSE;
+
+    return JS_TRUE;
+}
+
+#define BUFSZ 512
+/** 
+ * execute the given command, return the 
+ * output of the command
+ **/
+static JSBool
+__lm_js_exec(JSContext *cx, JSObject *this, uintN argc,
+             jsval *argv, jsval *ret)
+{
+    FILE *fp;
+    char *cmd;
+    char *buf = 0;
+    int n, sz = 0;
+    JSString *str;
+
+    if (!argc) {
+        *ret = JSVAL_FALSE;
+        return JS_TRUE;
+    }
+
+    str = JS_ValueToString(cx, argv[0]);
+    cmd = JS_GetStringBytes(str);
+
+    if ((fp = popen(cmd, "r"))) {
+        do {
+            if (!(buf = JS_realloc(cx, buf, sz+BUFSZ))) {
+                pclose(fp);
+                return JS_FALSE;
+            }
+            sz += (n = fread(buf, 1, BUFSZ, fp));
+        } while (n);
+
+        if (!(str = JS_NewString(cx, buf, sz))) {
+            pclose(fp);
+            return JS_FALSE;
+        }
+
+        *ret = STRING_TO_JSVAL(str);
+        pclose(fp);
+    } else
         *ret = JSVAL_FALSE;
 
     return JS_TRUE;

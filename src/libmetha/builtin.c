@@ -22,6 +22,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <sys/stat.h>
 
 #include "errors.h"
 #include "ftpparse.h"
@@ -46,9 +47,89 @@ struct {
  * Default CSS parser
  **/
 M_CODE
-lm_parser_css(worker_t *w, iobuf_t *buf, uehandle_t *ue_h, url_t *url, attr_list_t *al)
+lm_parser_css(worker_t *w, iobuf_t *buf, uehandle_t *ue_h,
+              url_t *url, attr_list_t *al)
 {
     return lm_extract_css_urls(ue_h, buf->ptr, buf->sz);
+}
+
+/** 
+ * download the data to a local file instead of
+ * to memory
+ *
+ * the parser chain will receive the file name in
+ * this.data instead of the real buffer.
+ **/
+M_CODE
+lm_handler_writefile(worker_t *w, iohandle_t *h,
+                     url_t *url)
+{
+    int r;
+    char *name;
+    char *ext;
+    char *s;
+    int x;
+    int ext_offs;
+    int a_sz;
+    int sz;
+    struct stat st;
+
+    /** 
+     * create a filename to download to
+     **/
+    if (url->ext_o) {
+        for (x = url->ext_o; *(url->str+x) && *(url->str+x) != '?'; x++)
+            ;
+
+        if (!(ext = malloc(x-url->ext_o+1)))
+            return M_OUT_OF_MEM;
+
+        memcpy(ext, url->str+url->ext_o, x-url->ext_o);
+        ext[x-url->ext_o] = '\0';
+
+        ext_offs = url->ext_o-(url->file_o+1);
+    } else {
+        ext = strdup("");
+        for (x = url->file_o+1; *(url->str+x) && *(url->str+x) != '?'; x++)
+            ;
+        ext_offs = x-(url->file_o+1);
+    }
+
+    if (url->file_o+1 == url->sz) {
+        if (!(name = malloc(a_sz = sizeof("index.html")+32)))
+            return M_OUT_OF_MEM;
+        memcpy(name, "index.html", sizeof("index.html"));
+        ext_offs = strlen("index");
+        ext = strdup(".html");
+    } else {
+        if (!(name = malloc(a_sz = ext_offs+strlen(ext)+1+32)))
+            return M_OUT_OF_MEM;
+
+        memcpy(name, url->str+url->file_o+1, ext_offs);
+        strcpy(name+ext_offs, ext);
+    }
+
+    x=0;
+    if (stat(name, &st) == 0) {
+        do {
+            x++;
+            sz = sprintf(name+ext_offs, "-%d%s", x, ext);
+        } while (stat(name, &st) == 0);
+    }
+
+    r = lm_io_save(h, url, name);
+
+    if (r == M_OK) {
+        /* set the I/O buffer to the name of the file */
+        free(h->buf.ptr);
+        h->buf.ptr = name;
+        h->buf.sz = strlen(name);
+        h->buf.cap = a_sz;
+    } else
+        free(name);
+
+    free(ext);
+    return M_OK;
 }
 
 /** 

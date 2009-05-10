@@ -294,6 +294,17 @@ lm_io_data_cb(char *ptr, size_t size,
 
     return sz;
 }
+/** 
+ * Used by the PRIMARY transfer handle of an iohandle_t,
+ * write the data to a file instead of to memory
+ **/
+int 
+lm_io_data_save_cb(char *ptr, size_t size,
+                   size_t nmemb, void *s)
+{
+    FILE *fp = (FILE*)s;
+    return fwrite(ptr, size, nmemb, fp);
+}
 
 /** 
  * Perform an HTTP HEAD on the given URL.
@@ -335,6 +346,40 @@ lm_io_provide(iohandle_t *h, const char *buf, size_t len)
 
     h->provided = 1;
     return M_OK;
+}
+
+/** 
+ * Download the given URL to a local file with
+ * the given name.
+ **/
+M_CODE
+lm_io_save(iohandle_t *h, url_t *url,
+           const char *name)
+{
+    FILE  *fp;
+    M_CODE r;
+    /* TODO: support provided data by writing
+     *       it to the file */
+    if (h->io->synchronous)
+        lm_iothr_wait(h->io, 0);
+
+    h->buf.sz = 0;
+    h->buf.ptr[0] = '\0';
+
+    memset(&h->transfer, 0, sizeof(iostat_t));
+
+    if (!(fp = fopen(name, "w+"))) 
+        return M_COULD_NOT_OPEN;
+
+    curl_easy_setopt(h->primary, CURLOPT_WRITEDATA, fp);
+    curl_easy_setopt(h->primary, CURLOPT_WRITEFUNCTION, &lm_io_data_save_cb);
+    curl_easy_setopt(h->primary, CURLOPT_NOBODY, 0);
+    curl_easy_setopt(h->primary, CURLOPT_URL, url->str);
+
+    r = __perform[url->protocol](h, url);
+
+    fclose(fp);
+    return r;
 }
 
 /** 
@@ -912,7 +957,6 @@ lm_iothr_main(io_t *io)
                 lm_iothr_fd_event(io, events[x].data.fd, events[x].events);
         }
     }
-
 
 #ifdef DEBUG
     fprintf(stderr, "* io:(%p) stopped\n", io);

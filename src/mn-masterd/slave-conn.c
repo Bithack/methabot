@@ -236,6 +236,7 @@ sl_status_parse(nolp_t *no, char *buf, int size)
                     slave_str_len+
                     sl->num_clients*(
                         sizeof("<client id=\"\"><user></user><slave></slave><status></status><address></address></client>")-1
+                        64+1+16
                         +slave_str_len
                         )+
                     sizeof("<client-list for=\"\"></client-list>")-1))))

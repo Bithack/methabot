@@ -1291,8 +1291,9 @@ lm_str_to_wfunction(metha_t *m, const char *name, uint8_t purpose)
                     JS_GetProperty(m->e4x_cx, m->e4x_global, s+1, &func);
                     if (JS_TypeOfValue(m->e4x_cx, func) == JSTYPE_FUNCTION) {
                         *s = '/';
-                        if (lmetha_add_wfunction(m, p, LM_WFUNCTION_TYPE_JAVASCRIPT,
-                                    purpose, JS_ValueToFunction(m->e4x_cx, func)) != M_OK)
+                        if (lmetha_add_wfunction(m, p,
+                                    LM_WFUNCTION_TYPE_JAVASCRIPT,
+                                    purpose, func) != M_OK)
                             return 0;
 
                         return m->functions[m->num_functions-1];
@@ -1369,8 +1370,10 @@ lmetha_add_crawler(metha_t *m, crawler_t *cr)
  * Add a wfunction (parser, handler)
  **/
 M_CODE
-lmetha_add_wfunction(metha_t *m, const char *name, uint8_t type, uint8_t purpose, void *fun)
+lmetha_add_wfunction(metha_t *m, const char *name, uint8_t type,
+                     uint8_t purpose, ...)
 {
+    va_list ap;
 #ifdef DEBUG
     static const char *wfun_types[] = {
         "NATIVE",
@@ -1381,6 +1384,7 @@ lmetha_add_wfunction(metha_t *m, const char *name, uint8_t type, uint8_t purpose
         "PARSER",
     };
 #endif
+    va_start(ap, purpose);
 
     if (!(m->functions = realloc(m->functions, (m->num_functions+1)*sizeof(wfunction_t*))))
         return M_OUT_OF_MEM;
@@ -1393,8 +1397,15 @@ lmetha_add_wfunction(metha_t *m, const char *name, uint8_t type, uint8_t purpose
     wf->type = type;
     wf->purpose = purpose;
     wf->name = strdup(name);
-    wf->fn.native_parser = fun;
-
+    switch (type) {
+        case LM_WFUNCTION_TYPE_NATIVE:
+            wf->fn.native_parser = va_arg(ap, void*);
+            break;
+        case LM_WFUNCTION_TYPE_JAVASCRIPT:
+            wf->fn.javascript = va_arg(ap, jsval);
+            break;
+    }
+    va_end(ap);
     m->num_functions ++;
 
 #ifdef DEBUG

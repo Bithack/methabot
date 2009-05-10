@@ -166,7 +166,7 @@ M_CODE   lmetha_exec(metha_t *m, int argc, const char **argv);
 M_CODE   lmetha_exec_provided(metha_t *m, const char *base_url, const char *buf, size_t len);
 M_CODE   lmetha_exec_async(metha_t *m, int argc, const char **argv);
 
-M_CODE   lmetha_add_wfunction(metha_t *m, const char *name, uint8_t type, uint8_t purpose, void *fun);
+M_CODE   lmetha_add_wfunction(metha_t *m, const char *name, uint8_t type, uint8_t purpose, ...);
 M_CODE   lmetha_add_filetype(metha_t *m, filetype_t *ft);
 M_CODE   lmetha_add_crawler(metha_t *m, crawler_t *cr);
 M_CODE   lmetha_register_worker_object(metha_t *m, const char *name, JSClass *class);

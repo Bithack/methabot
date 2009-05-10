@@ -776,9 +776,9 @@ lm_worker_perform(worker_t *w)
                         JS_NewStringCopyN(w->e4x_cx, w->ue_h->current->str,
                             w->ue_h->current->sz)
                         );
-                r = ((JS_CallFunction(w->e4x_cx, w->e4x_this,
-                                      wf->fn.javascript, 1,
-                                      &url, &ret)
+                r = ((JS_CallFunctionValue(w->e4x_cx, w->e4x_this,
+                                           wf->fn.javascript, 1,
+                                           &url, &ret)
                         == JS_TRUE) ? M_OK : M_FAILED);
                 JS_EndRequest(w->e4x_cx);
             default:
@@ -887,7 +887,8 @@ lm_worker_perform(worker_t *w)
                     JS_SetProperty(w->e4x_cx, w->e4x_this, "status_code", &ret);
                 }
 
-                if (JS_CallFunction(w->e4x_cx, w->e4x_this, p->fn.javascript, 0, 0, &ret) != JS_TRUE) {
+                if (JS_CallFunctionValue(w->e4x_cx, w->e4x_this,
+                                         p->fn.javascript, 0, 0, &ret) != JS_TRUE) {
                     w->m->error_cb(w->m, "calling javascript parser failed");
                 } else
                     lm_jsval_foreach(w->e4x_cx, ret,

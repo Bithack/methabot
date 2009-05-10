@@ -38,6 +38,7 @@ Changes and new features:
 * API support for custom status, error/warning and target reporter functions
 * lmetha_global_setopt() is no longer available, replaced with lmetha_setopt()
   options
+* SpiderMonkey-1.8.0 support added
 * New global Javascript function exec()
 * New built-in handler function writefile
 * libmetha no longer depends on libev, but instead uses pipes and epoll() for

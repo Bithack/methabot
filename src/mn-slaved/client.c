@@ -83,7 +83,7 @@ nol_s_client_create(const char *addr, const char *user)
     MYSQL_RES *res;
     MYSQL_ROW *row;
 
-    if ((cl = malloc(sizeof(struct client)))) {
+    if ((cl = calloc(1, sizeof(struct client)))) {
         if ((cl->addr.s_addr = inet_addr(addr)) == (in_addr_t)-1
                 || !(cl->user = strdup(user))) {
             syslog(LOG_ERR, "invalid address/user");
@@ -330,12 +330,15 @@ timer_reached(EV_P_ ev_timer *w, int revents)
     char *p;
     /* return 0 if we successfully found a URL and sent
      * it to the client */
+        syslog(LOG_DEBUG, "timer reached, cl '%.7s'", ((struct client*)w->data)->token);
     switch (get_and_send_url((struct client*)w->data)) {
         case -1:
             p = mysql_error(((struct client*)w->data)->mysql);
             syslog(LOG_ERR, "URL get and send failed: %s", p?(*p?p:"error"):"error");
+            ev_timer_stop(EV_A_ w);
             ev_unloop(EV_A_ EVUNLOOP_ONE);
         case 0:
+            ev_timer_stop(EV_A_ w);
             return;
         case 1:
             ev_timer_again(loop, w);
@@ -406,13 +409,16 @@ get_and_send_url(struct client *cl)
                     "SET date = DATE_ADD(NOW(), INTERVAL 1 DAY) "
                     "WHERE id=%d LIMIT 1;",
                     id);
-            if (mysql_real_query(cl->mysql, buf, sz) != 0)
+            if (mysql_real_query(cl->mysql, buf, sz) != 0) {
+                syslog(LOG_WARNING, "mysql error when updating nol_added: %s",
+                                mysql_error(cl->mysql));
                 ret = -1;
+            } else 
+                ret = 0;
         } else
             ret = -1;
 
         free(buf);
-        ret = 0;
     } else
         ret = 1;
     mysql_free_result(res);
@@ -460,19 +466,21 @@ on_status(nolp_t *no, char *buf, int size)
             mysql_query(cl->mysql, q);
         }
 
-        switch (get_and_send_url(cl)) {
-            case -1:
-                p = mysql_error(cl->mysql);
-                syslog(LOG_ERR, "URL get and send failed: %s",
-                        p?(*p?p:"error"):"error");
-                ev_unloop(cl->loop, EVUNLOOP_ONE);
-            case 0:
-                return;
-            case 1:
-                ev_timer_init(&cl->timer, &timer_reached, 5.f, .0f);
-                cl->timer.data = cl;
-                cl->timer.repeat = 5.f;
-                ev_timer_start(cl->loop, &cl->timer);
+        if (!ev_is_active(&cl->timer)) {
+            switch (get_and_send_url(cl)) {
+                case -1:
+                    p = mysql_error(cl->mysql);
+                    syslog(LOG_ERR, "URL get and send failed: %s",
+                            p?(*p?p:"error"):"error");
+                    ev_unloop(cl->loop, EVUNLOOP_ONE);
+                case 0:
+                    return 0;
+                case 1:
+                    ev_timer_init(&cl->timer, &timer_reached, 5.f, .0f);
+                    cl->timer.data = cl;
+                    cl->timer.repeat = 5.f;
+                    ev_timer_start(cl->loop, &cl->timer);
+            }
         }
     }
 
@@ -734,10 +742,10 @@ on_count(nolp_t *no, char *buf, int size)
     s++;
     count = (uint32_t)atoi(s);
 
-    sz = sprintf(q, "UPDATE `nol_session` WHERE id=%d SET count_%s = %d",
-                 cl->session_id,
+    sz = sprintf(q, "UPDATE `nol_session` SET count_%s = %d WHERE id=%d",
                  nol_s_str_filter_name(buf, (s-1)-buf),
-                 count);
+                 count,
+                 cl->session_id);
 
     if (mysql_real_query(cl->mysql, q, sz) != 0) {
         syslog(LOG_ERR, "updating session statistics failed: %s",

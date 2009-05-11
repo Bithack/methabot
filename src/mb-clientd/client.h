@@ -55,4 +55,6 @@ struct mbc {
 
 extern struct mbc mbc;
 
+int mbc_end_session(void);
+
 #endif

@@ -495,6 +495,8 @@ lm_io_perform_http(iohandle_t *h, url_t *url)
                             h->transfer.headers.location = (char*)new_url;
                     }
                     curl_easy_getinfo(h->primary, CURLINFO_CONTENT_TYPE, &h->transfer.headers.content_type);
+                    if (!h->transfer.headers.content_type)
+                        h->transfer.headers.content_type = "";
                 }
                 done = 1;
                 break;

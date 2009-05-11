@@ -6,7 +6,7 @@ if ($info) {
 <div class="content-layer">
   <table style="float:left;">
     <tr><th>Started</th><td><?=$info->started?></td></tr>
-    <tr><th>Last Update</th><td><?=$info->latest?></td></tr>
+    <tr><th>Last Update</th><td><?=$info->updated?></td></tr>
     <tr><th>Current state</th><td class="state"><?=$info->state?></td></tr>
   </table>
   <table style="float:left;">

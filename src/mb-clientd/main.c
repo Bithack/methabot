@@ -296,8 +296,11 @@ mbc_ev_timer(EV_P_ ev_timer *w, int revents)
             } else
                 syslog(LOG_WARNING, "could not connect to master");
 
-        default:
             ev_timer_again(EV_A_ &mbc.timer_ev);
+            break;
+
+        default:
+            syslog(LOG_ERR, "timer error");
             break;
     }
 }
@@ -310,6 +313,21 @@ mbc_ev_timer(EV_P_ ev_timer *w, int revents)
 void
 mbc_ev_idle(EV_P_ ev_async *w, int revents)
 {
+    if (mbc_end_session() != 0) {
+        syslog(LOG_ERR, "ending the session failed");
+        ev_unloop(EV_A_ EVUNLOOP_ALL);
+    }
+    free(arg);
+    arg = 0;
+    mbc.state = MBC_STATE_STOPPED;
+}
+
+/* end the current crawling session, and report the
+ * results to the slave 
+ * return 0 on success */
+int
+mbc_end_session(void)
+{
     char buf[128];
     int x;
     int sz;
@@ -321,16 +339,16 @@ mbc_ev_idle(EV_P_ ev_async *w, int revents)
                 mbc.m->filetypes[x]->name,
                 mbc.m->filetypes[x]->counter);
         lm_filetype_counter_reset(mbc.m->filetypes[x]);
-        send(mbc.sock, buf, sz, 0);
+        if (send(mbc.sock, buf, sz, 0) <= 0)
+            return -1;
     }
 
-    send(mbc.sock, "STATUS 0\n", 9, 0);
+    if (send(mbc.sock, "STATUS 0\n", 9, 0) <= 0)
+        return -1;
     /* wait for our libmetha thread to exit before
      * continuing with the event loop */
     lmetha_wait(mbc.m);
-    free(arg);
-    arg = 0;
-    mbc.state = MBC_STATE_STOPPED;
+    return 0;
 }
 
 void
@@ -412,8 +430,19 @@ mbc_ev_slave(EV_P_ ev_io *w, int revents)
 {
     mbc.no->fd = w->fd;
     if (nolp_recv(mbc.no) != 0) {
-        syslog(LOG_INFO, "connection to slave lost");
+        syslog(LOG_ERR, "connection to slave lost");
         close(w->fd);
+
+        if (mbc.state == MBC_STATE_RUNNING) {
+#ifdef DEBUG
+            syslog(LOG_DEBUG,
+                   "forcing running session to exit because slave connection was lost");
+#endif
+            lmetha_signal(mbc.m, LM_SIGNAL_EXIT);
+            lmetha_wait(mbc.m);
+            lmetha_reset(mbc.m);
+        }
+
         mbc.state = MBC_STATE_DISCONNECTED;
         mbc_set_active(EV_A_ MBC_NONE);
     }

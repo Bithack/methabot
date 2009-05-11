@@ -61,6 +61,16 @@ mbc_slave_on_start(nolp_t *no, char *buf, int size)
     syslog(LOG_DEBUG, "received url '%s' from slave", p);
 #endif
 
+    if (mbc.state == MBC_STATE_RUNNING) {
+        /* we received a new START signal even though the slave
+         * should have known we're already running */
+#ifdef DEBUG
+        syslog(LOG_DEBUG, "START override, why? User signal?");
+#endif
+        lmetha_signal(mbc.m, LM_SIGNAL_EXIT);
+        mbc_end_session();
+    }
+
     lmetha_reset(mbc.m);
     if (lmetha_setopt(mbc.m, LMOPT_INITIAL_CRAWLER, buf) != M_OK) {
         syslog(LOG_ERR, "unknown crawler '%s' from slave", buf);
@@ -70,8 +80,11 @@ mbc_slave_on_start(nolp_t *no, char *buf, int size)
         free(arg);
     if (!(arg = strdup(p)))
         return -1;
+
     send(mbc.sock, "STATUS 1\n", 9, 0);
     lmetha_exec_async(mbc.m, 1, &arg);
+
+    mbc.state = MBC_STATE_RUNNING;
     return 0;
 }
 

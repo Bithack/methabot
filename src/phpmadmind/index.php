@@ -20,7 +20,7 @@ if (isset($_GET['do'])) {
         case "login":
             if ($_SERVER['REQUEST_METHOD'] == "POST") {
                 $m = new Metha;
-                if ($m->connect($config['master'], 5505) 
+                if ($m->connect($config['master-host'], $config['master-port']) 
                        && $m->authenticate($_POST['user'], $_POST['pass'])) {
                     $_SESSION['authenticated'] = 1;
                     $_SESSION['user'] = $_POST['user'];
@@ -43,7 +43,7 @@ if (isset($_GET['do'])) {
 
 if ($_SESSION['authenticated'] == 1) {
     $m = new Metha;
-    if (!$m->connect($config['master'], 5505))
+    if (!$m->connect($config['master-host'], $config['master-port']))
         $page = "disconnected.php";
     else if (!$m->authenticate($_SESSION['user'], $_SESSION['pass']))
         $page = "login.php";

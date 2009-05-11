@@ -8,20 +8,22 @@ body {
 h1 {
     font-family: sans-serif;
     font-size: 1.8em;
-    color: #222;
+    color: #eee;
     margin: 0px;
+    padding-top: 12px;
+    display:inline-block;
 }
 
 h2 {
     font-family: sans-serif;
     margin: 0 0 0.4em 0;
-    font-size: .9em;
+    font-size: 1.3em;
     font-weight: bold;
-    padding: 0.2em;
+    padding: 0.0em;
     background-color: #eee;
     border-bottom: 1px solid #aaa;
     border-right: 1px solid #aaa;
-    color: #666;
+    color: #444;
 }
 
 h2.error {
@@ -34,11 +36,13 @@ h2.error {
 h3 {
     font-family: sans-serif;
     margin: 0 0 0.4em 0;
-    font-size: 1.00em;
+    font-size: 12px;
     font-weight: bold;
-    padding: 0.1em;
-    background-color: #eee;
     color: #222;
+    padding: 4px 0 4px 2px;
+    background-color: #eee;
+    /*background-image: url(img/h3bg.png);*/
+    background-repeat: repeat-x;
 }
 
 h4 {
@@ -134,7 +138,7 @@ a.button:hover {
 
 #container {
     background-color: #f2f2f2;
-    padding: 0.6em;
+    padding: 0 0.6em;
     max-width: 1024px;
     overflow: auto;
 }
@@ -150,9 +154,9 @@ a.button:hover {
 #content-inner {
     border-left: 1px solid #bbb;
     margin:0 0;
-    margin-top: 1.5em;
-    margin-bottom: 1.5em;
-    padding: 0em 1.5em 1.5em 1.5em;
+    margin-top: 0.8em;
+    margin-bottom: 0.5em;
+    padding: 0em 0.2em 0.2em 1.5em;
     float:left;
     min-height: 60px;
 }
@@ -176,16 +180,18 @@ input.submit {
 
 #header {
     min-height: 48px;
+    background-color: #121212;
+    padding: 0 0.6em;
 }
 
-#header h1 {
-    display:inline;
-}
-
-#header-info {
-    font-style: italic;
-    float:right;
+#login-info {
     background-color: #ffd;
+    float:right;
+    padding:0.5em;
+    margin-top: 6px;
+}
+#header-inner {
+    max-width: 1024px;
 }
 
 #left {
@@ -209,6 +215,7 @@ a img {
 
 #left ul li {
     border-bottom: 1px dotted #aaa;
+    min-height: 22px;
 }
 
 #left ul li a {
@@ -247,7 +254,7 @@ td.url {
     font-weight:bold;
 }
 
-td.session, td.state {
+td.sep {
     border-right: 2px solid #bbb;
 }
 

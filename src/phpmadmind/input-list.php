@@ -34,7 +34,7 @@ if ($info) {
   <table>
   <?php $x=1; foreach ($info->input as $i) { ?>
     <tr<?=$x=!$x?" class=\"odd\"":""?>>
-      <td><?=$i->crawler?> &lt;- <span class="input"><?=$i->value?></span></td>
+      <td><?=$i->crawler?> &larr; <span class="input"><?=$i->value?></span></td>
       <td>[<a href="#">remove</a>] [<a href="#">force recrawl</a>]</td>
     </tr>
   <?php } ?>

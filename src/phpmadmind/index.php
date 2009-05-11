@@ -20,7 +20,7 @@ if (isset($_GET['do'])) {
         case "login":
             if ($_SERVER['REQUEST_METHOD'] == "POST") {
                 $m = new Metha;
-                if ($m->connect($config['master']) 
+                if ($m->connect($config['master'], 5505) 
                        && $m->authenticate($_POST['user'], $_POST['pass'])) {
                     $_SESSION['authenticated'] = 1;
                     $_SESSION['user'] = $_POST['user'];
@@ -43,7 +43,7 @@ if (isset($_GET['do'])) {
 
 if ($_SESSION['authenticated'] == 1) {
     $m = new Metha;
-    if (!$m->connect($config['master']))
+    if (!$m->connect($config['master'], 5505))
         $page = "disconnected.php";
     else if (!$m->authenticate($_SESSION['user'], $_SESSION['pass']))
         $page = "login.php";
@@ -68,16 +68,17 @@ if ($_SESSION['authenticated'] == 1) {
         <link rel="stylesheet" type="text/css" href="style.css" />
     </head> 
     <body>
+        <div id="header">
+          <div id="header-inner">
+            <?php if ($_SESSION['authenticated'] == 1) { ?><span id="login-info">Welcome, <strong><?=$_SESSION['user']?></strong> [<a href="?do=logout">Log out</a>]</span><?php } ?>
+            <h1><?=$config["header"]?></h1>
+          </div>
+        </div>
         <div id="container">
-            <div id="header">
-                <?php if ($_SESSION['authenticated'] == 1) { ?><span id="header-info">Logged in as <strong><?=$_SESSION['user']?></strong> [<a href="?do=logout">Log out</a>]</span><?php } ?>
-                <img src="img/methanol_48x48.png" />
-                <h1><?=$config["header"]?></h1>
-            </div>
             <div id="content">
             <?php if ($_SESSION['authenticated'] == 1) { ?>
                 <div id="left">
-                    <ul>
+                    <ul style="clear: both;">
                         <li><a href="?p=overview"><img src="img/overview.png" /> Overview</a></li>
                         <li><a href="?p=input-list"><img src="img/input-data.png" /> Input Data</a></li>
                         <li><a href="?p=session-list"><img src="img/sessions.png" /> Sessions</a></li>

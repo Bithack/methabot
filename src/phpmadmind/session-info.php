@@ -11,7 +11,7 @@ if ($info) {
   </table>
   <table style="float:left;">
     <tr><th>Client</th><td><a class="id" href="?p=client-info&id=<?=$info->client?>"><?=$info->client?></a></td></tr>
-    <tr><th>Input</th><td><?=$info->crawler?> &lt;- <span class="input"><?=htmlspecialchars($info->input)?></span></td></tr>
+    <tr><th>Input</th><td><?=$info->crawler?> &larr; <span class="input"><?=htmlspecialchars($info->input)?></span></td></tr>
   </table>
 </div>
 <?php if ($info->state == 'done') { ?>

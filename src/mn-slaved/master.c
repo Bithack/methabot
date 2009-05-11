@@ -21,10 +21,12 @@
 
 #include <syslog.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include "slave.h"
 #include "client.h"
 #include "nolp.h"
+#include "hook.h"
 
 static int on_kill_all(nolp_t *no, char *buf, int size);
 static int on_config(nolp_t *no, char *buf, int size);

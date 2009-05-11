@@ -387,7 +387,6 @@ user_session_info_command(nolp_t *no, char *buf, int size)
             "WHERE `nol_session`.`id` = ", 0);
     BUF_CHK(25);
     b_sz += sprintf(b_ptr+b_sz, "%u LIMIT 0,1;", session_id);
-    syslog(LOG_ERR, "%s", b_ptr);
 
     if (mysql_real_query(srv.mysql, b_ptr, b_sz) != 0) {
         syslog(LOG_ERR, "selecting session info failed: %s",

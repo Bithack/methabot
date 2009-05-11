@@ -726,9 +726,10 @@ on_count(nolp_t *no, char *buf, int size)
     cl = ((struct client *)no->private);
     if (!cl->running || !cl->session_id)
         return -1;
-
     if (!(s = memchr(buf, ' ', size)))
         return -1;
+
+    *s = '\0';
 
     s++;
     count = (uint32_t)atoi(s);

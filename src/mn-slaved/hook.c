@@ -88,7 +88,6 @@ int
 nol_s_hook_invoke(unsigned hook_id)
 {
     char    *run;
-    va_list  ap;
     if (hook_id >= NUM_HOOKS || !hook_list[hook_id])
         return -1;
 #ifdef DEBUG

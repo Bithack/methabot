@@ -247,7 +247,7 @@ td.url {
     font-weight:bold;
 }
 
-td.session {
+td.session, td.state {
     border-right: 2px solid #bbb;
 }
 

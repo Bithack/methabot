@@ -39,12 +39,14 @@ static int user_add_command(nolp_t *no, char *buf, int size);
 static int user_useradd_command(nolp_t *no, char *buf, int size);
 static int user_userdel_command(nolp_t *no, char *buf, int size);
 static int user_passwd_command(nolp_t *no, char *buf, int size);
+static int user_passwd_id_command(nolp_t *no, char *buf, int size);
 static int user_session_info_command(nolp_t *no, char *buf, int size);
 static int user_session_report_command(nolp_t *no, char *buf, int size);
 static int user_list_sessions_command(nolp_t *no, char *buf, int size);
 static int user_list_input_command(nolp_t *no, char *buf, int size);
 static int user_kill_all_command(nolp_t *no, char *buf, int size);
 static int user_system_info_command(nolp_t *no, char *buf, int size);
+static int user_hello_command(nolp_t *no, char *buf, int size);
 
 struct nolp_fn user_commands[] = {
     {"LIST-SLAVES", &user_list_slaves_command},
@@ -57,12 +59,14 @@ struct nolp_fn user_commands[] = {
     {"USERADD", user_useradd_command},
     {"USERDEL", user_userdel_command},
     {"PASSWD", user_passwd_command},
+    {"PASSWD-ID", user_passwd_id_command},
     {"SESSION-INFO", user_session_info_command},
     {"SESSION-REPORT", user_session_report_command},
     {"LIST-SESSIONS", user_list_sessions_command},
     {"LIST-INPUT", user_list_input_command},
     {"KILL-ALL", user_kill_all_command},
     {"SYSTEM-INFO", user_system_info_command},
+    {"HELLO", user_hello_command},
     {0},
 };
 
@@ -188,6 +192,11 @@ user_client_info_command(nolp_t *no, char *buf, int size)
     struct conn   *conn;
     client_conn_t *c;
 
+    if (conn->level < NOL_LEVEL_READ) {
+        send(no->fd, MSG203, sizeof(MSG203)-1, 0);
+        return 0;
+    }
+
     if (size != 40)
         return -1; /* return -1 to close the connection */
 
@@ -243,6 +252,11 @@ user_show_config_command(nolp_t *no, char *buf, int size)
     struct conn   *conn;
     int            x;
 
+    if (conn->level < NOL_LEVEL_ADMIN) {
+        send(no->fd, MSG200, sizeof(MSG200)-1, 0);
+        return 0;
+    }
+
     conn = (struct conn *)no->private;
     x = sprintf(out, "100 %d\n", srv.config_sz);
     send(conn->sock, out, x, 0);
@@ -268,6 +282,13 @@ user_add_command(nolp_t *no, char *buf, int size)
     char *e;
     int  len;
     int  x;
+    struct conn *conn = (struct conn *)no->private;
+
+    if (conn->level < NOL_LEVEL_WRITE) {
+        send(no->fd, MSG200, sizeof(MSG200)-1, 0);
+        return 0;
+    }
+
     e = buf+size;
     buf[size] = '\0';
     if (!(len = sscanf(buf, "%64s", &crawler)))
@@ -293,23 +314,256 @@ user_add_command(nolp_t *no, char *buf, int size)
     send(no->fd, MSG100, sizeof(MSG100)-1, 0);
     return 0;
 }
+/** 
+ * Syntax:
+ * <username>\n
+ * <password>\n
+ * <full-name>\n
+ * <level>\n
+ * <extra>
+ **/
+static int
+user_useradd_recv(nolp_t *no, char *buf, int size)
+{
+    char *q, *q_start;
+    int   sz;
+    int level;
+    char *username;
+    int   u_len;
+    char *password;
+    int   p_len;
+    char *fullname;
+    int   f_len;
+    char *extra;
+    int   e_len;
+    struct conn *conn;
+    conn = (struct conn *)no->private;
 
+    username = buf;
+
+    if (!(password = memchr(buf, '\n', size)))
+        goto invalid;
+    *password = '\0';
+    u_len = password-buf;
+    password ++;
+
+    if (!(fullname = memchr(password, '\n', size-(password-buf))))
+        goto invalid;
+    *fullname = '\0';
+    p_len = fullname-password;
+    fullname ++;
+
+    if (!(extra = memchr(fullname, '\n', size-(fullname-buf))))
+        goto invalid;
+    f_len = extra-fullname;
+    level = atoi(extra+1);
+    if (!(extra = memchr(extra+1, '\n', size-(extra-buf)-1)))
+        goto invalid;
+
+    extra++;
+    e_len = (buf+size)-extra;
+
+    if (!(q = q_start = malloc(size*2 + 196))) {/* this should be sufficient :o */
+        syslog(LOG_ERR, "out of mem");
+        return -1;
+    }
+
+    q += sprintf(q, 
+            "INSERT INTO `nol_user` (`user`, `pass`, `fullname`, `level`, `extra`) "
+            "VALUES ('"
+            );
+
+    q += mysql_real_escape_string(srv.mysql, q, username, u_len);
+    q += sprintf(q, "', MD5('");
+    q += mysql_real_escape_string(srv.mysql, q, password, p_len);
+    q += sprintf(q, "'), '");
+    q += mysql_real_escape_string(srv.mysql, q, fullname, f_len);
+    q += sprintf(q, "', %d, '", level);
+    q += mysql_real_escape_string(srv.mysql, q, extra, e_len);
+    q += sprintf(q, "')");
+
+    if (mysql_real_query(srv.mysql, q_start, q-q_start) != 0) {
+        syslog(LOG_ERR, "adding user failed: %s", mysql_error(srv.mysql));
+        send(no->fd, MSG300, sizeof(MSG300)-1, 0);
+        free(q_start);
+        return -1;
+    }
+
+    syslog(LOG_INFO, "#%d added new user `%s`, level %d", no->fd, username, level);
+    free(q_start);
+    send(no->fd, MSG100, sizeof(MSG100)-1, 0);
+    return 0;
+
+invalid:
+    syslog(LOG_ERR, "incorrect USERADD buffer syntax");
+    send(no->fd, MSG201, sizeof(MSG201)-1, 0);
+    return -1;
+}
+
+
+/** 
+ * USERADD <bufsz>\n
+ **/
 static int
 user_useradd_command(nolp_t *no, char *buf, int size)
 {
-    
+    int sz;
+
+    if (conn->level < NOL_LEVEL_MANAGER) {
+        send(no->fd, MSG200, sizeof(MSG200)-1, 0);
+        return 0;
+    }
+
+    if (!(sz = atoi(buf)))
+        return -1;
+    return nolp_expect(no, sz, &user_useradd_recv);
 }
 
+/** 
+ * USERDEL <id>\n
+ **/
 static int
 user_userdel_command(nolp_t *no, char *buf, int size)
 {
+    struct conn *conn;
+    char q[128];
+    int  sz;
+    int user_id;
+    conn = (struct conn *)no->private;
+    if (conn->level < NOL_LEVEL_MANAGER) {
+        send(no->fd, MSG200, sizeof(MSG200)-1, 0);
+        return 0;
+    }
 
+    user_id = atoi(buf);
+
+    sz = sprintf(q, "UPDATE `nol_user` SET deleted=1 WHERE id=%d", user_id);
+    if (mysql_real_query(srv.mysql, q, sz) != 0) {
+        syslog(LOG_ERR, "could not delete user with id %d: %s", user_id, mysql_error(srv.mysql));
+        send(no->fd, MSG300, sizeof(MSG300)-1, 0);
+        return 0;
+    }
+
+    if (mysql_affected_rows(srv.mysql) < 1) {
+        send(no->fd, MSG203, sizeof(MSG203)-1, 0);
+        return 0;
+    }
+
+    send(no->fd, MSG100, sizeof(MSG100)-1, 0);
+    return 0;
 }
 
+/** 
+ * Set the users own password
+ *
+ * PASSWD <new-password>
+ **/
 static int
 user_passwd_command(nolp_t *no, char *buf, int size)
 {
+    struct conn *conn;
+    conn = (struct conn *)no->private;
+    char *user;
+    char q[size+64];
+    char *pwd_escaped;
+    int  sz;
 
+    set_password_by_id(conn->user_id, buf, size);
+
+    if ((user = memrchr(buf, ':', size))) {
+        if (conn->level < NOL_LEVEL_MANAGER) {
+            send(no->fd, MSG200, sizeof(MSG200)-1, 0);
+            return 0;
+        }
+        *user = '\0';
+        update_id = atoi(user+1);
+        size -= (buf+size)-user;
+    }
+    if (!(pwd_escaped = malloc(size*2+1))) {
+        syslog(LOG_ERR, "out of mem");
+        return -1;
+    }
+
+    mysql_real_escape_string(srv.mysql, pwd_escaped, buf, size);
+
+    /* chagen the current users passsword */
+    sz = sprintf(q, "UPDATE `nol_user` SET password=MD5('%s') WHERE id=%d",
+                 pwd_escaped, update_id);
+    free(pwd_escaped);
+
+    if (mysql_real_query(srv.mysql, q, sz) != 0) {
+        syslog(LOG_ERR, "PASSWD failed: %s", mysql_error(srv.mysql));
+        send(no->fd, MSG300, sizeof(MSG300)-1, 0);
+        return -1;
+    }
+    if (mysql_affected_rows(srv.mysql) < 1) {
+        send(no->fd, MSG203, sizeof(MSG203)-1, 0);
+        return 0;
+    }
+
+#ifdef DEBUG
+    if (update_id == conn->user_id)
+        syslog(LOG_DEBUG, "#%d set own passwd", no->fd);
+#endif
+    send(no->fd, MSG100, sizeof(MSG100)-1, 0);
+    return 0;
+}
+/** 
+ * Set the password for the user with the given id
+ *
+ * PASSWD-ID <id> <new-password>\n
+ **/
+static int
+user_passwd_id_command(nolp_t *no, char *buf, int size)
+{
+    struct conn *conn;
+    conn = (struct conn *)no->private;
+    char *pwd;
+    char q[size+64];
+    char *pwd_escaped;
+    int  sz;
+    int  user_id;
+
+    if (conn->level < NOL_LEVEL_MANAGER) {
+        send(no->fd, MSG200, sizeof(MSG200)-1, 0);
+        return 0;
+    }
+
+    if (!(pwd = memrchr(buf, ' ', size))) {
+        send(no->fd, MSG201, sizeof(MSG201)-1, 0);
+        return -1;
+    }
+
+    user_id = atoi(buf);
+    sz = size-(pwd-buf);
+
+    if (!(pwd_escaped = malloc(sz*2+1))) {
+        syslog(LOG_ERR, "out of mem");
+        return -1;
+    }
+
+    mysql_real_escape_string(srv.mysql, pwd_escaped, pwd, sz);
+
+    sz = sprintf(q, "UPDATE `nol_user` SET password=MD5('%s') WHERE id=%d",
+                 pwd_escaped, user_id);
+    free(pwd_escaped);
+
+    if (mysql_real_query(srv.mysql, q, sz) != 0) {
+        syslog(LOG_ERR, "PASSWD failed: %s", mysql_error(srv.mysql));
+        send(no->fd, MSG300, sizeof(MSG300)-1, 0);
+        return -1;
+    }
+
+    if (mysql_affected_rows(srv.mysql) < 1) {
+        send(no->fd, MSG203, sizeof(MSG203)-1, 0);
+        return 0;
+    }
+
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "#%d set passwd for id %d", no->fd, update_id);
+#endif
+    send(no->fd, MSG100, sizeof(MSG100)-1, 0);
+    return 0;
 }
 
 #define BUF_SZ 512
@@ -735,5 +989,11 @@ user_system_info_command(nolp_t *no, char *buf, int size)
     send(no->fd, xml+sz, sz2, 0);
     send(no->fd, xml, sz, 0);
     return 0;
+}
+
+static int
+user_hello_command(nolp_t *no, char *buf, int size)
+{
+
 }
 

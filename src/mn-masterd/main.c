@@ -322,7 +322,7 @@ nol_m_mysql_connect()
                     `fullname` VARCHAR(128),\
                     level INT NOT NULL,\
                     extra VARCHAR(128), \
-                    deleted INT(1) NOT NULL DEFAULT 0 \
+                    deleted INT(1) NOT NULL DEFAULT 0, \
                     PRIMARY KEY (id))"
 #define SQL_CLIENT_TBL "\
             CREATE TABLE IF NOT EXISTS \

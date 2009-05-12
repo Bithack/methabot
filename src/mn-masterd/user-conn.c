@@ -408,6 +408,8 @@ static int
 user_useradd_command(nolp_t *no, char *buf, int size)
 {
     int sz;
+    struct conn *conn;
+    conn = (struct conn *)no->private;
 
     if (conn->level < NOL_LEVEL_MANAGER) {
         send(no->fd, MSG200, sizeof(MSG200)-1, 0);
@@ -468,17 +470,6 @@ user_passwd_command(nolp_t *no, char *buf, int size)
     char *pwd_escaped;
     int  sz;
 
-    set_password_by_id(conn->user_id, buf, size);
-
-    if ((user = memrchr(buf, ':', size))) {
-        if (conn->level < NOL_LEVEL_MANAGER) {
-            send(no->fd, MSG200, sizeof(MSG200)-1, 0);
-            return 0;
-        }
-        *user = '\0';
-        update_id = atoi(user+1);
-        size -= (buf+size)-user;
-    }
     if (!(pwd_escaped = malloc(size*2+1))) {
         syslog(LOG_ERR, "out of mem");
         return -1;
@@ -488,7 +479,7 @@ user_passwd_command(nolp_t *no, char *buf, int size)
 
     /* chagen the current users passsword */
     sz = sprintf(q, "UPDATE `nol_user` SET password=MD5('%s') WHERE id=%d",
-                 pwd_escaped, update_id);
+                 pwd_escaped, conn->user_id);
     free(pwd_escaped);
 
     if (mysql_real_query(srv.mysql, q, sz) != 0) {
@@ -502,8 +493,7 @@ user_passwd_command(nolp_t *no, char *buf, int size)
     }
 
 #ifdef DEBUG
-    if (update_id == conn->user_id)
-        syslog(LOG_DEBUG, "#%d set own passwd", no->fd);
+    syslog(LOG_DEBUG, "#%d set own passwd", no->fd);
 #endif
     send(no->fd, MSG100, sizeof(MSG100)-1, 0);
     return 0;
@@ -560,7 +550,7 @@ user_passwd_id_command(nolp_t *no, char *buf, int size)
     }
 
 #ifdef DEBUG
-    syslog(LOG_DEBUG, "#%d set passwd for id %d", no->fd, update_id);
+    syslog(LOG_DEBUG, "#%d set passwd for id %d", no->fd, user_id);
 #endif
     send(no->fd, MSG100, sizeof(MSG100)-1, 0);
     return 0;
@@ -991,9 +981,31 @@ user_system_info_command(nolp_t *no, char *buf, int size)
     return 0;
 }
 
+/** 
+ * Syntax:
+ * HELLO\n
+ *
+ * Returns:
+ * 100 <buf-size>\n
+ * <hello>
+ *   <num-messages></num-messages>
+ *   <user-level></user-level>
+ * </hello>
+ **/
 static int
 user_hello_command(nolp_t *no, char *buf, int size)
 {
+    char out[6+(15*3)+sizeof("<hello><num-messages></num-messages><user-level></user-level></hello>")-1];
+    struct conn *conn = (struct conn*)no->private;
+    int  sz, sz2;
 
+    sz = sprintf(out, "<hello><num-messages>%d</num-messages><user-level>%d</user-level></hello>",
+            0, conn->level);
+    sz2 = sprintf(out+sz, "100 %d\n", sz);
+
+    send(no->fd, out+sz, sz2, 0);
+    send(no->fd, out, sz, 0);
+
+    return 0;
 }
 

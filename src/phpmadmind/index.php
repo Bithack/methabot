@@ -38,16 +38,18 @@ if (isset($_GET['do'])) {
             session_destroy();
             break;
     }
-
 }
 
 if ($_SESSION['authenticated'] == 1) {
     $m = new Metha;
     if (!$m->connect($config['master-host'], $config['master-port']))
         $page = "disconnected.php";
-    else if (!$m->authenticate($_SESSION['user'], $_SESSION['pass']))
+    else if (($hello = $m->authenticate($_SESSION['user'], $_SESSION['pass'])) === false)
         $page = "login.php";
     else {
+        $x = "user-level";
+        $level = (int)(simplexml_load_string($hello)->$x);
+
         if (!isset($_GET['p']))
             $page = "overview.php";
         else
@@ -83,7 +85,11 @@ if ($_SESSION['authenticated'] == 1) {
                         <li><a href="?p=input-list"><img src="img/input-data.png" /> Input Data</a></li>
                         <li><a href="?p=session-list"><img src="img/sessions.png" /> Sessions</a></li>
                         <li><a href="?p=slave-list"><img src="img/slave-list.png" /> Slave List</a></li>
+                        <?php if ($level >= 1024) { ?>
+                        <li>&nbsp;</li>
+                        <li><a href="?p=users"><img src="img/users.png" /> Users</a></li>
                         <li><a href="?p=show-config"><img src="img/configuration.png" /> Configuration</a></li>
+                        <?php } ?>
                     </ul>
                 </div>
                 <div id="content-inner">

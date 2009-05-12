@@ -43,7 +43,7 @@ class Metha
             return false;
         }
 
-        return true;
+        return $this->get_sized_reply("HELLO");
     }
 
     function add_url($url, $crawler="default")

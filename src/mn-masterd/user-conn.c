@@ -31,6 +31,7 @@
 
 static int user_list_clients_command(nolp_t *no, char *buf, int size);
 static int user_list_slaves_command(nolp_t *no, char *buf, int size);
+static int user_list_users_command(nolp_t *no, char *buf, int size);
 static int user_slave_info_command(nolp_t *no, char *buf, int size);
 static int user_client_info_command(nolp_t *no, char *buf, int size);
 static int user_show_config_command(nolp_t *no, char *buf, int size);
@@ -51,6 +52,7 @@ static int user_hello_command(nolp_t *no, char *buf, int size);
 struct nolp_fn user_commands[] = {
     {"LIST-SLAVES", &user_list_slaves_command},
     {"LIST-CLIENTS", user_list_clients_command},
+    {"LIST-USERS", user_list_users_command},
     {"SLAVE-INFO", user_slave_info_command},
     {"CLIENT-INFO", user_client_info_command},
     {"SHOW-CONFIG", user_show_config_command},
@@ -251,13 +253,13 @@ user_show_config_command(nolp_t *no, char *buf, int size)
     char           out[64];
     struct conn   *conn;
     int            x;
+    conn = (struct conn *)no->private;
 
     if (conn->level < NOL_LEVEL_ADMIN) {
         send(no->fd, MSG200, sizeof(MSG200)-1, 0);
         return 0;
     }
 
-    conn = (struct conn *)no->private;
     x = sprintf(out, "100 %d\n", srv.config_sz);
     send(conn->sock, out, x, 0);
     send(conn->sock, srv.config_buf, srv.config_sz, 0);
@@ -824,6 +826,102 @@ user_list_sessions_command(nolp_t *no, char *buf, int size)
 }
 
 /** 
+ * LIST-USERS <start> <count>\n
+ **/
+static int
+user_list_users_command(nolp_t *no, char *buf, int size)
+{
+    int start, limit;
+    char *b;
+    MYSQL_RES *r;
+    MYSQL_ROW row;
+    int sz;
+    struct conn *conn = (struct conn*)no->private;
+
+    if (conn->level < NOL_LEVEL_MANAGER) {
+        send(no->fd, MSG200, sizeof(MSG200)-1, 0);
+        return 0;
+    }
+
+    if (sscanf(buf, "%d %d", &start, &limit) != 2) {
+        send(no->fd, MSG201, sizeof(MSG201)-1, 0);
+        return -1;
+    }
+    if (limit > 100) limit = 100;
+    char **bufs = malloc(sizeof(char *)*limit);
+    int   *sizes = malloc(sizeof(int)*limit);
+
+    sz = asprintf(&b,
+            "SELECT "
+                "`id`, `user`, `fullname`, `extra`, `level` "
+            "FROM `nol_user`"
+            "ORDER BY "
+                "`id` DESC "
+            "LIMIT %d, %d;",
+            start, limit);
+
+    if (!b) {
+        send(no->fd, MSG300, sizeof(MSG300)-1, 0);
+        syslog(LOG_ERR, "out of mem");
+        return -1;
+    }
+    if (mysql_real_query(srv.mysql, b, sz) != 0) {
+        syslog(LOG_ERR,
+                "LIST-USERS failed: %s",
+                mysql_error(srv.mysql));
+        send(no->fd, MSG300, sizeof(MSG300)-1, 0);
+        free(b);
+        return -1;
+    }
+    free(b);
+
+    if ((r = mysql_store_result(srv.mysql))) {
+        int x = 0;
+        int total = 0;
+        while (row = mysql_fetch_row(r)) {
+            unsigned long *l;
+            l = mysql_fetch_lengths(r);
+            char *curr = malloc(l[0]+l[1]+l[2]+l[3]+l[4]+
+                    sizeof("<user id=\"\"><username></username><fullname></fullname><extra></extra><level></level></user>"));
+            sz = sprintf(curr,
+                    "<user id=\"%d\">"
+                      "<username>%s</username>"
+                      "<fullname>%s</fullname>"
+                      "<extra>%s</extra>"
+                      "<level>%s</level>"
+                    "</user>",
+                    atoi(row[0]), row[1]?row[1]:"", row[2]?row[2]:"",
+                    row[3]?row[3]:"",
+                    row[4]?row[4]:""
+                    );
+
+            bufs[x] = curr;
+            sizes[x] = sz;
+            total += sz;
+            x++;
+        }
+        limit = x;
+
+        char *tmp;
+        sz = asprintf(&tmp, "100 %d\n", total+sizeof("<user-list></user-list>")-1);
+        send(no->fd, tmp, sz, 0);
+        free(tmp);
+
+        send(no->fd, "<user-list>", sizeof("<user-list>")-1, 0);
+        for (x=0; x<limit; x++) {
+            send(no->fd, bufs[x], sizes[x], 0);
+            free(bufs[x]);
+        }
+        send(no->fd, "</user-list>", sizeof("</user-list>")-1, 0);
+    } else 
+        syslog(LOG_ERR, "mysql_store_result() failed");
+    free(bufs);
+    free(sizes);
+
+    return 0;
+}
+
+/** 
  * LIST-INPUT\n
  *
  * list the input data by the current user
@@ -935,6 +1033,7 @@ user_kill_all_command(nolp_t *no, char *buf, int size)
  *   <address>... listening address of master ...</address>
  *   <num-slaves>... num connected slaves ...</num-slaves>
  *   <num-sessions>... total session count ...</num-sessions>
+ *   <num-users>... total user count ...</num-sessions>
  * </system-info>
  **/
 static int
@@ -946,11 +1045,13 @@ user_system_info_command(nolp_t *no, char *buf, int size)
     double uptime;
     int  sz, sz2;
     int  num_sessions = 0;
+    int  num_users = 0;
     char xml[sizeof("<system-info><uptime></uptime><address></address>"
                     "<num-slaves></num-slaves>"
                     "<num-sessions></num-sessions>"
+                    "<num-users></num-users>"
                     "</system-info>")
-                    +96];
+                    +128];
     time(&now);
     uptime = difftime(now, srv.start_time);
 
@@ -964,17 +1065,28 @@ user_system_info_command(nolp_t *no, char *buf, int size)
     num_sessions = atoi(row[0]);
     mysql_free_result(res);
 
+    mysql_query(srv.mysql, "SELECT COUNT(*) FROM `nol_user`;");
+    if (!(res = mysql_store_result(srv.mysql)))
+        return -1;
+    if (!(row = mysql_fetch_row(res))) {
+        mysql_free_result(res);
+        return -1;
+    }
+    num_users = atoi(row[0]);
+    mysql_free_result(res);
+
     sz = sprintf(xml, "<system-info>"
                          "<uptime>%ld</uptime>"
                          "<address>%.15s:%hd</address>"
                          "<num-slaves>%d</num-slaves>"
                          "<num-sessions>%d</num-sessions>"
+                         "<num-users>%d</num-users>"
                       "</system-info>",
                       (long)uptime,
                       inet_ntoa(srv.addr.sin_addr),
                       htons(srv.addr.sin_port),
                       srv.num_slaves,
-                      num_sessions);
+                      num_sessions, num_users);
     sz2 = sprintf(xml+sz, "100 %d\n", sz);
     send(no->fd, xml+sz, sz2, 0);
     send(no->fd, xml, sz, 0);

@@ -30,8 +30,8 @@ enum {
     NOL_LEVEL_NONE          = 0,
     NOL_LEVEL_READ          = 1,
     NOL_LEVEL_WRITE         = 2,
-    NOL_LEVEL_SIGNALS       = 512,
     NOL_LEVEL_MANAGER       = 1024,
+    NOL_LEVEL_SIGNALS       = 2048,
     NOL_LEVEL_ADMIN         = 8192,
 };
 

@@ -9,6 +9,7 @@ $config["master-port"] = 5505;
 /*** Content ***/
 $config["title"] = "Methanol Control Panel";
 $config["header"] = "Methanol Control Panel";
+$config["extra-name"] = false;
 
 /**
  * Set the following option to an array of filetype

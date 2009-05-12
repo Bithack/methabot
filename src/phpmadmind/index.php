@@ -1,19 +1,7 @@
 <?php
 session_start();
-require("metha.class.php");
 include("version.php");
-include("config.php");
-
-$pages = Array("overview" => "overview.php",
-               "latest" => "latest.php",
-               "addr" => "addr.php",
-               "show-config" => "show-config.php",
-               "slave-info" => "slave-info.php",
-               "slave-list" => "slave-list.php",
-               "input-list" => "input-list.php",
-               "session-info" => "session-info.php",
-               "session-list" => "session-list.php",
-               "client-info" => "client-info.php");
+include_once("session.php");
 
 if (isset($_GET['do'])) {
     switch ($_GET['do']) {
@@ -39,27 +27,6 @@ if (isset($_GET['do'])) {
             break;
     }
 }
-
-if ($_SESSION['authenticated'] == 1) {
-    $m = new Metha;
-    if (!$m->connect($config['master-host'], $config['master-port']))
-        $page = "disconnected.php";
-    else if (($hello = $m->authenticate($_SESSION['user'], $_SESSION['pass'])) === false)
-        $page = "login.php";
-    else {
-        $x = "user-level";
-        $level = (int)(simplexml_load_string($hello)->$x);
-
-        if (!isset($_GET['p']))
-            $page = "overview.php";
-        else
-            $page = @$pages[$_GET['p']];
-
-        if (!$page)
-            $page = "notfound.php";
-    }
-} else
-    $page = "login.php";
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
@@ -93,10 +60,20 @@ if ($_SESSION['authenticated'] == 1) {
                     </ul>
                 </div>
                 <div id="content-inner">
+                <?php
+                    if (isset($_GET['msg'])) {
+                        if (!$_GET['error']) 
+                            echo "<div class=\"msg\">".htmlspecialchars($_GET['msg'])."</div>";
+                        else
+                            echo "<div class=\"error\">".htmlspecialchars($_GET['msg'])."</div>";
+                    }
+                ?>
             <?php } else { ?>
                 <div id="content-login">
             <?php } ?>
-                    <?php include ($page); ?>
+                    <?php
+                    include ($page);
+                    ?>
                 </div>
             </div>
             <div id="footer"><a href="http://metha-sys.org/"><img src="img/methanol-fueled.png" /></a></div>

@@ -152,12 +152,13 @@ a.button:hover {
 }
 
 #content-inner {
+    width: 800px;
+    float:left;
     border-left: 1px solid #bbb;
     margin:0 0;
     margin-top: 0.8em;
     margin-bottom: 0.5em;
     padding: 0em 0.2em 0.2em 1.5em;
-    float:left;
     min-height: 60px;
 }
 
@@ -171,6 +172,14 @@ a.button:hover {
 label {
     width: 100px;
     float:left;
+}
+
+.hidden-form {
+    display: none;
+    position: absolute;
+    background-color: #fff;
+    border: 2px solid #eef;
+    padding: 1em;
 }
 
 input.submit {
@@ -198,7 +207,7 @@ input.submit {
     padding-top: 0.2em;
     font-family: sans-serif;
     background-color: #fff;
-    float:left;
+    float: left;
     margin:0.5em;
     line-height: 16px;
 }

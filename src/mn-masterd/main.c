@@ -318,7 +318,7 @@ nol_m_mysql_connect()
             CREATE TABLE IF NOT EXISTS \
             nol_user ( \
                     id INT NOT NULL AUTO_INCREMENT, \
-                    user VARCHAR(32), pass VARCHAR(32), \
+                    user VARCHAR(32) UNIQUE, pass VARCHAR(32), \
                     `fullname` VARCHAR(128),\
                     level INT NOT NULL,\
                     extra VARCHAR(128), \
@@ -412,7 +412,7 @@ nol_m_mysql_connect()
                     */
 #define SQL_USER_CHECK "SELECT null FROM nol_user LIMIT 0,1;"
 #define SQL_ADD_DEFAULT_USER \
-    "INSERT INTO nol_user (user, pass, fullname, level) VALUES ('admin', MD5('admin'), 'Administrator', 8192)"
+    "INSERT INTO nol_user (user, pass, fullname, level) VALUES ('admin@localhost', MD5('admin'), 'Administrator', 8192)"
 /** 
  * Set up all default tables
  **/

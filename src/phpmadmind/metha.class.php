@@ -45,11 +45,39 @@ class Metha
 
         return $this->get_sized_reply("HELLO");
     }
+    function del_user($id)
+    {
+        if (false == $this->send("USERDEL $id"))
+            return false;
+        if (false == $r = $this->getline())
+            return false;
+        if ((int)$r < 100 || (int)$r >= 200) {
+            $this->status_code = $r;
+            return false;
+        }
+
+        return true;
+    }
 
     function add_url($url, $crawler="default")
     {
         if (false == $this->send("ADD $crawler $url"))
             return false;
+        if (false == $r = $this->getline())
+            return false;
+        if ((int)$r < 100 || (int)$r >= 200) {
+            $this->status_code = $r;
+            return false;
+        }
+
+        return true;
+    }
+    function add_user($email, $pass, $fullname, $level, $extra)
+    {
+        $o = "$email\n$pass\n$fullname\n$level\n$extra";
+        if (false == $this->send("USERADD ".strlen($o)))
+            return false;
+        $this->raw_send($o);
         if (false == $r = $this->getline())
             return false;
         if ((int)$r < 100 || (int)$r >= 200) {
@@ -73,6 +101,11 @@ class Metha
     function list_slaves()
     {
         return $this->get_sized_reply("LIST-SLAVES 0");
+    }
+
+    function list_users($start=0, $limit=10)
+    {
+        return $this->get_sized_reply("LIST-USERS $start $limit");
     }
 
     function list_sessions()
@@ -113,6 +146,11 @@ class Metha
     function system_info()
     {
         return $this->get_sized_reply("SYSTEM-INFO");
+    }
+
+    private function raw_send($msg)
+    {
+        return @fwrite($this->fp, "$msg");
     }
 
     private function send($msg)

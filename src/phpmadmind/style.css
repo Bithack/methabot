@@ -74,11 +74,20 @@ div.box {
     margin: 0.5em;
 }
 
+div.tablebox {
+    padding: 0.5em;
+    margin: 0.5em;
+}
+
+div.tablebox th {
+    background: transparent;
+}
+
 div.box th {
     background: transparent;
     width: 200px;
 }
-div.box td {
+div.box td, div.tablebox td {
     background: transparent;
     border-left: 1px solid #999;
     padding-left: .6em;

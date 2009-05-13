@@ -3,7 +3,7 @@ class Metha
 {
     private $fp;
     private $connected;
-    private $status_code;
+    public  $status_code;
 
     function __construct()
     {
@@ -48,6 +48,23 @@ class Metha
     function del_user($id)
     {
         if (false == $this->send("USERDEL $id"))
+            return false;
+        if (false == $r = $this->getline())
+            return false;
+        if ((int)$r < 100 || (int)$r >= 200) {
+            $this->status_code = $r;
+            return false;
+        }
+
+        return true;
+    }
+    function passwd($password, $id=false)
+    {
+        if (!$id)
+            $cmd = "PASSWD $password";
+        else
+            $cmd = "PASSWD-ID $id $password";
+        if (false == $this->send($cmd))
             return false;
         if (false == $r = $this->getline())
             return false;

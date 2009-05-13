@@ -13,6 +13,7 @@ if (isset($_GET['do'])) {
                     $_SESSION['authenticated'] = 1;
                     $_SESSION['user'] = $_POST['user'];
                     $_SESSION['pass'] = $_POST['pass'];
+                    $page = "overview.php";
                 } else {
                     $_SESSION['authenticated'] = 0;
                     $_SESSION['user'] = 0;

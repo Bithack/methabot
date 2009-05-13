@@ -144,11 +144,15 @@ a.button:hover {
 }
 
 #content {
+    clear: both;
     font-family: serif;
     font-size: 0.88em;
     color: #202032;
     background-color: #fff;
     overflow: auto;
+    float: left;
+    width: 100%;
+    margin-top: 0.5em;
 }
 
 #content-inner {
@@ -295,6 +299,7 @@ div.error {
 }
 
 div#footer {
+    clear: both;
     text-align: right;
     font-size: .8em;
     font-style: italic;

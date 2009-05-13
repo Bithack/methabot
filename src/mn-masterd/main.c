@@ -377,7 +377,7 @@ nol_m_mysql_connect()
                     `client_id` INT, \
                     `date` DATETIME, \
                     `latest` DATETIME, \
-                    `state` ENUM('running','wait-hook','hook','done') DEFAULT 'running', \
+                    `state` ENUM('running','interrupted','hook','done') DEFAULT 'running', \
                     `report` TEXT, \
                     PRIMARY KEY (id)\
                     )"

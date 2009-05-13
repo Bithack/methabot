@@ -194,7 +194,7 @@ nol_s_client_init(void *in)
         if (this->session_id) {
             char *q = malloc(128);
             int   sz;
-            sz = sprintf(q, "UPDATE `nol_session` SET state='done', latest=NOW() WHERE id=%ld",
+            sz = sprintf(q, "UPDATE `nol_session` SET state='interrupted', latest=NOW() WHERE id=%ld",
                     this->session_id);
             mysql_real_query(this->mysql, q, sz);
             free(q);
@@ -318,6 +318,9 @@ thr_signal(EV_P_ ev_async *w, int revents)
     struct client *cl = (struct client*)w->data;
     switch (cl->msg) {
         case NOL_CLIENT_MSG_KILL:
+            /* stuff such as marking the session as INTERRUPTED will
+             * be taken care of in nol_s_client_main() after the 
+             * call to ev_loop */
             ev_unloop(EV_A_ EVUNLOOP_ONE);
             break;
     }

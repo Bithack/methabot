@@ -571,9 +571,13 @@ nol_m_reconfigure()
                 "ALTER TABLE `nol_session` "
                 "ADD COLUMN count_%.60s INT UNSIGNED",
                 name);
-        /*if (mysql_real_query(srv.mysql, tq, len) != 0) {
-            syslog(LOG_ERR, "%s", mysql_error(srv.mysql));
-        }*/
+/*
+#ifdef DEBUG
+        if (mysql_real_query(srv.mysql, tq, len) != 0) {
+            syslog(LOG_WARNING, "warning: %s", mysql_error(srv.mysql));
+        }
+#endif
+*/
 
         /** 
          * Now add all the columns. Many of these queries will probably

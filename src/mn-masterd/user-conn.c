@@ -193,6 +193,7 @@ user_client_info_command(nolp_t *no, char *buf, int size)
     slave_conn_t  *sl;
     struct conn   *conn;
     client_conn_t *c;
+    conn = (struct conn*)no->private;
 
     if (conn->level < NOL_LEVEL_READ) {
         send(no->fd, MSG203, sizeof(MSG203)-1, 0);
@@ -204,7 +205,6 @@ user_client_info_command(nolp_t *no, char *buf, int size)
 
     found = 0;
     c = 0;
-    conn = (struct conn*)no->private;
 
     /* search through all slaves for a client matching the 
      * given hash */

@@ -306,7 +306,7 @@ installed on your system, depending on which parts you plan to install:
 @item MySQL (libmysqlclient) >= 5.0 @tab no                   @tab yes
 @item libcurl >= 7.16.0             @tab yes                  @tab no
 @item SpiderMonkey >= 1.7.0         @tab yes                  @tab no
-@item libev                         @tab @emph{only mb-clientd}@tab no
+@item libev                         @tab @emph{only mb-clientd}@tab yes
 @item pthread                       @tab yes                  @tab yes
 @end multitable
 
@@ -428,7 +428,7 @@ or from command line as shown below:
 @example
 $ mysql --user root --password
 @end example
-Now there are two MySQL statements that we need to execute. First, 
+Now there are three MySQL statements that we need to execute. First, 
 you must create the actual database that Methanol uses, and secondly
 a user which Methanol will log in to MySQL using.
 @example
@@ -447,11 +447,57 @@ running the Methanol system and where the MySQL server is located.
 Use the information you provided here to fill in the options in 
 @code{mn-masterd.conf} and @code{mn-slaved.conf}.
 
-@c @section Example 1: Setup Master and Slave on a Single Server
-@c In many cases it might be feasible to run all system nodes on 
-@c a single server. This section will give an example of how to set 
-@c up such an environment.j
+@section Example: Setup Master and Slave on a Single Server
+In many cases it might be feasible to run all system nodes on 
+a single server. This section will give an example of how to set 
+up such an environment.
 
+Please walk through the chapter on installing Methanol, and 
+configure Methanol with both the slave and the master daemon,
+and optionally the client daemon as well.
+
+This example system environment will also prepare the slave
+for executing hook scripts.
+
+@subsection Creating a System User
+Both @code{mn-slaved} and @code{mn-masterd} will change their
+user id to the id of the user "nobody". This prevents them from
+touching irrelevant parts of the system, if someone would
+find and exploit a bug in the system.
+
+A custom user still provides the same security as "nobody",
+but with support for executing hook scripts.
+
+This example will create one user account that will be shared
+by both the master and the slave, we'll call it "mn-example".
+
+@example
+$ useradd mn-example -m -s /sbin/nologin
+@end example
+
+The users home directory, @code{/home/mn-example}, will be used
+to structure the various parts of the system.
+
+@subsection Directory Structure
+Here is how we will layout this example system:
+@example
++ /home/mn-example/
++-- config/ : Configuration files should be put here
++-- run/    : Run-time files will be generated here
++-- hooks/  : All hook scripts should be put here
+@end example
+
+@example
+$ cd /home/mn-example
+$ mkdir config run hooks
+$ chown mn-example:mn-example *
+$ chmod 700 *
+@end example
+
+@subsection Configuration
+Set the @code{exec_dir} slave option to @code{/home/mn-example/run}.
+@code{user} and @code{group} should be set to @code{mn-example}, the
+user we created (and its corresponding group).
 
 @section Starting and Troubleshooting
 Start the master server by invoking:

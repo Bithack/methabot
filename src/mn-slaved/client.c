@@ -368,22 +368,42 @@ get_and_send_url(struct client *cl)
     int   id;
     int   ret;
     unsigned long *lengths;
+
+    if (mysql_query(cl->mysql, "LOCK TABLES nol_added WRITE") != 0) {
+        syslog(LOG_ERR, "could not lock url table!");
+        return -1;
+    }
+
     if (mysql_real_query(cl->mysql, Q_GET_NEW_URL, sizeof(Q_GET_NEW_URL)-1) != 0)
-        return -1;
+        goto fail_do_unlock;
     if (!(res = mysql_store_result(cl->mysql)))
-        return -1;
+        goto fail_do_unlock;
     if (mysql_num_rows(res)) {
         if (!(row = mysql_fetch_row(res))
                 || !(lengths = mysql_fetch_lengths(res))) {
             mysql_free_result(res);
-            return -1;
+            goto fail_do_unlock;
         }
-
+        id = atoi(row[0]);
         if ((sz = lengths[1]+lengths[2]+1) < 256)
             sz = 256;
-        id = atoi(row[0]);
-        if (!(buf = malloc(sz+10)))
+        if (!(buf = malloc(sz+10))) {
+            mysql_free_result(res);
+            goto fail_do_unlock;
+        }
+        sz = sprintf(buf, 
+                "UPDATE nol_added "
+                "SET date = DATE_ADD(NOW(), INTERVAL 28 DAY) "
+                "WHERE id=%d LIMIT 1;",
+                id);
+        if (mysql_real_query(cl->mysql, buf, sz) != 0) {
+            syslog(LOG_ERR, "mysql error when updating nol_added: %s",
+                             mysql_error(cl->mysql));
+            mysql_free_result(res);
+            mysql_query(cl->mysql, "UNLOCK TABLES");
             return -1;
+        }
+        mysql_query(cl->mysql, "UNLOCK TABLES");
         sz = sprintf(buf, "START %s %s\n", row[1], row[2]);
 #ifdef DEBUG
         syslog(LOG_DEBUG, "sending url '%.*s' to client '%.7s...'",
@@ -404,26 +424,23 @@ get_and_send_url(struct client *cl)
             syslog(LOG_DEBUG, "client '%.7s...' now running session %ld",
                     cl->token, cl->session_id);
 #endif
-            sz = sprintf(buf, 
-                    "UPDATE nol_added "
-                    "SET date = DATE_ADD(NOW(), INTERVAL 1 DAY) "
-                    "WHERE id=%d LIMIT 1;",
-                    id);
-            if (mysql_real_query(cl->mysql, buf, sz) != 0) {
-                syslog(LOG_WARNING, "mysql error when updating nol_added: %s",
-                                mysql_error(cl->mysql));
-                ret = -1;
-            } else 
-                ret = 0;
+            ret = 0;
         } else
             ret = -1;
 
+        mysql_free_result(res);
         free(buf);
-    } else
+    } else {
+        mysql_query(cl->mysql, "UNLOCK TABLES");
         ret = 1;
-    mysql_free_result(res);
+    }
 
     return ret;
+
+fail_do_unlock:
+    syslog(LOG_ERR, "url get and send failed: %s", mysql_error(cl->mysql));
+    mysql_query(cl->mysql, "UNLOCK TABLES");
+    return -1;
 }
 
 /** 

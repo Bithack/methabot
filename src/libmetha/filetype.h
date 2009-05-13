@@ -28,8 +28,9 @@
 #include "umex.h"
 #include "config.h"
 
-#define FT_FLAG_HAS_PARSER   1
-#define FT_FLAG_HAS_HANDLER  2
+#define FT_FLAG_HAS_PARSER    1
+#define FT_FLAG_HAS_HANDLER   2
+#define FT_FLAG_IGNORE_HOST   4
 
 #define FT_FLAG_ISSET(ft, x) ((ft)->flags & (x))
 #define FT_ID_NULL ((FT_ID)-1)

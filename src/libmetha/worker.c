@@ -675,11 +675,8 @@ lm_worker_bind_url(worker_t *w, url_t *url,
     if (FT_FLAG_ISSET(ft, FT_FLAG_HAS_PARSER)
           || FT_FLAG_ISSET(ft, FT_FLAG_HAS_HANDLER)) {
         lm_url_bind(url, ft->id);
-        if (LM_URL_ISSET(url, LM_URL_EXTERNAL)) {
-            if (!epeek) {
-                if (lm_crawler_flag_isset(cr, LM_CRFLAG_EXTERNAL))
-                    ue_move_to_secondary(ue_h, url);
-            } else {
+        if (LM_URL_ISSET(url, LM_URL_EXTERNAL) && !FT_FLAG_ISSET(ft, FT_FLAG_IGNORE_HOST)) {
+            if (epeek) {
                 /* add this URL to the epeek list */
                 if (!*peek_list) {
                     /* the epeek list is not set up, so this is
@@ -704,6 +701,9 @@ lm_worker_bind_url(worker_t *w, url_t *url,
                 url_t *tmp = lm_ulist_inc(*peek_list);
                 /* swap this URL with an empty URL from the new list */
                 lm_url_swap(url, tmp);
+            } else {
+                if (lm_crawler_flag_isset(cr, LM_CRFLAG_EXTERNAL))
+                    ue_move_to_secondary(ue_h, url);
             }
         } else 
             return 0;

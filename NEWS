@@ -53,6 +53,8 @@ Changes and new features:
 * --external option set to false can no longer be circumvented using a HTTP-
   redirect
 * Added internal counters useful for keeping statistics
+* New filetype option 'ignore_host'
+* Bugfix in the configuration file parser when reading flag values
 
 1.6.0
 =====

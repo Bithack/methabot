@@ -148,6 +148,7 @@ filetype_class =
         LMC_OPT_EXTRA("expr", &lm_filetype_set_expr),
         LMC_OPT_STRING("crawler_switch", offsetof(filetype_t, switch_to.name)),
         LMC_OPT_ARRAY("attributes", &lm_filetype_set_attributes),
+        LMC_OPT_FLAG("ignore_host", FT_FLAG_IGNORE_HOST),
         LMC_OPT_END,
     }
 };

@@ -189,7 +189,7 @@ nol_s_client_init(void *in)
     /* remove this client from the client list, 
      * if it's been added to it earlier */
     if (this) {
-        /* if a session was started but not stopped, we'll mark it as done 
+        /* if a session was started but not stopped, we'll mark it as interrupted 
          * right now */
         if (this->session_id) {
             char *q = malloc(128);

@@ -480,7 +480,7 @@ user_passwd_command(nolp_t *no, char *buf, int size)
     mysql_real_escape_string(srv.mysql, pwd_escaped, buf, size);
 
     /* chagen the current users passsword */
-    sz = sprintf(q, "UPDATE `nol_user` SET password=MD5('%s') WHERE id=%d",
+    sz = sprintf(q, "UPDATE `nol_user` SET pass=MD5('%s') WHERE id=%d",
                  pwd_escaped, conn->user_id);
     free(pwd_escaped);
 
@@ -536,7 +536,7 @@ user_passwd_id_command(nolp_t *no, char *buf, int size)
 
     mysql_real_escape_string(srv.mysql, pwd_escaped, pwd, sz);
 
-    sz = sprintf(q, "UPDATE `nol_user` SET password=MD5('%s') WHERE id=%d",
+    sz = sprintf(q, "UPDATE `nol_user` SET pass=MD5('%s') WHERE id=%d",
                  pwd_escaped, user_id);
     free(pwd_escaped);
 

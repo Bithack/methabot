@@ -333,7 +333,6 @@ timer_reached(EV_P_ ev_timer *w, int revents)
     char *p;
     /* return 0 if we successfully found a URL and sent
      * it to the client */
-        syslog(LOG_DEBUG, "timer reached, cl '%.7s'", ((struct client*)w->data)->token);
     switch (get_and_send_url((struct client*)w->data)) {
         case -1:
             p = mysql_error(((struct client*)w->data)->mysql);

@@ -55,6 +55,7 @@ Changes and new features:
 * Added internal counters useful for keeping statistics
 * New filetype option 'ignore_host'
 * Bugfix in the configuration file parser when reading flag values
+* Support for CURIE in the built-in HTML parser added
 
 1.6.0
 =====

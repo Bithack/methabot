@@ -35,9 +35,22 @@
 #define memmem(x, xz, y, yz) strstr(x, y)
 #endif
 
+typedef struct curie_prefix {
+    char  *prefix;
+    size_t prefix_len;
+    char  *url;
+    size_t url_len;
+} curie_prefix_t;
+
+/* html parser info */
+typedef struct info {
+    curie_prefix_t *curies;
+    int         num_curies;
+} info_t;
+
 static void parse_textarea(uehandle_t *ue_h, char *p, size_t sz);
 static void parse_script(uehandle_t *ue_h, char *p, size_t sz);
-static inline int parse_tag(uehandle_t *ue_h, char *p, size_t sz);
+static inline int parse_tag(uehandle_t *ue_h, info_t *info, char *p, size_t sz);
 static void* memcpy_tolower(void *dest, const void *source, size_t sz);
 
 /* Names one xml/html element, see lm_html_to_xml() */
@@ -97,6 +110,10 @@ lm_parser_html(struct worker *w, struct iobuf *buf,
          *te  = 0,
          q, *s;
     int type;
+    info_t info;
+
+    info.curies = 0;
+    info.num_curies = 0;
 
     for (;p<e;p++) {
         tb = e;
@@ -134,7 +151,7 @@ lm_parser_html(struct worker *w, struct iobuf *buf,
             p++;
             /* TODO: extract plain text links */
         } while (p<tb);
-        if ((type = parse_tag(ue_h, tb, te-tb)) != -1) {
+        if ((type = parse_tag(ue_h, &info, tb, te-tb)) != -1) {
             do {
                 if ((p = memchr(p, '<', e-p))) {
                     if (*(p+1) == '/') {
@@ -163,6 +180,9 @@ lm_parser_html(struct worker *w, struct iobuf *buf,
      * target filetype has it */
     lm_attribute_set(al, "html", buf->ptr, buf->sz);
 
+    if (info.num_curies)
+        free(info.curies);
+
     return ret;
 }
 
@@ -189,44 +209,134 @@ parse_script(uehandle_t *h, char *p, size_t sz)
     /* TODO: handle scripts */
 }
 
+/**
+ * get the next attribute and its value,
+ * pp should be a pointer to the current posiion in the buffer
+ * and ee should be a pointer to where the buffer ends
+ *
+ * this function will skip attributes without values
+ **/
+static inline M_CODE
+tag_next_attr(char **pp,   char **ee,
+              char **attr, size_t *attr_len,
+              char **val,  size_t *val_len)
+{
+    char *p = *pp;
+    char *e = *ee;
+    char *s;
+    char  c;
+
+    while (p<e) {
+        while (isspace(*p) && p<e)
+            p++;
+        *attr = p;
+        while (p<e) {
+            if (isspace(*p)) {
+                *attr_len = p-(*attr);
+                do p++;
+                while (isspace(*p) && p<e);
+                if (*p != '=')
+                    continue;
+                break;
+            }
+            if (*p == '=') {
+                *attr_len = p-(*attr);
+                break;
+            }
+
+            p++;
+        }
+        do p++;
+        while (isspace(*p) && p<e);
+        if (p>=e)
+            break;
+        s = p;
+        if ((c = (*p == '\''?'\'':(*p == '"'?'"':0)))) {
+            p++;
+            do s++;
+            while (s<e && *s != c)
+                ;
+            *val_len = s-p;
+            *pp = s+1;
+        } else {
+            do { s++; } while (s<e && !isspace(*s) && *s != '>');
+            *val_len = s-p;
+            *pp = s;
+        }
+        *val = p;
+        return M_OK;
+    }
+
+    return M_FAILED;
+}
+
 /** 
  * Parse the content and return the index of the type
  * of the given <html-tag attr=val>
  **/
 static inline int
-parse_tag(uehandle_t *h, char *p, size_t len)
+parse_tag(uehandle_t *h, info_t *i,
+          char *p, size_t len)
 {
     int x;
     char *e = p+len;
-    char c;
+    size_t val_len, attr_len;
+    char *attr, *val;
     p++;
     for (x=0; x<NUM_TAGS; x++) {
         if (tags[x].name_len < len)
             if (strncasecmp(p, tags[x].name, tags[x].name_len) == 0)
                 return x;
     }
-    while (p<e) {
-        if (strncasecmp(p, "href", (x=4)) == 0 || strncasecmp(p, "src", (x=3)) == 0) {
-            p+=x;
-            while (isspace(*p))
-                p++;
-            if (*p == '=') {
-                do p++; while (isspace(*p));
-                char *s = p;
-                if ((c = (*p == '\''?'\'':(*p == '"'?'"':0)))) {
-                    p++;
-                    do {
-                        s++;
-                    } while (s<e && *s != c);
-                } else {
-                    do { s++; } while (s<e && !isspace(*s) && *s != '>');
-                }
-                if (*p != '#') /* skip references to anchors */
-                    ue_add(h, p, s-p);
-                break;
+    if (strncasecmp(p, "html", 4) == 0) {
+        p+=4;
+        while (tag_next_attr(&p, &e, &attr,
+                    &attr_len, &val, &val_len) == M_OK) {
+            if (attr_len > 6 && strncasecmp(attr, "xmlns:", 6) == 0) {
+                /* curie-stuff, no one uses it yet but people think
+                 * i'm cool if i implement it early before it is 
+                 * being in use on the web */
+                if (!(i->curies = realloc(i->curies,
+                        (i->num_curies+1)*sizeof(curie_prefix_t))))
+                    return -1;
+                i->curies[i->num_curies].prefix = attr+6;
+                i->curies[i->num_curies].prefix_len = attr_len-6;
+                i->curies[i->num_curies].url = val;
+                i->curies[i->num_curies].url_len = val_len;
+                i->num_curies++;
             }
         }
-        p++;
+    } else {
+        do p++; while (p<e && !isspace(*p));
+        while (tag_next_attr(&p, &e, &attr,
+                    &attr_len, &val, &val_len) == M_OK) {
+            if ((attr_len == 4 && strncasecmp(attr, "href", 4) == 0)
+                    || (attr_len == 3 && strncasecmp(attr, "src", 3) == 0)) {
+                if (*val == '[' && i->num_curies) {
+                    for (x=0; x<i->num_curies; x++) {
+                        if (val_len > i->curies[x].prefix_len+3) {
+                            if (strncasecmp(val+1, i->curies[x].prefix,
+                                        i->curies[x].prefix_len) == 0
+                                  && *(val+i->curies[x].prefix_len+1) == ':') {
+                                char *tmp = malloc(i->curies[x].url_len+val_len-(3+i->curies[x].prefix_len));
+                                if (!tmp)
+                                    break;
+                                memcpy(tmp, i->curies[x].url, i->curies[x].url_len);
+                                memcpy(tmp+i->curies[x].url_len, val+2+i->curies[x].prefix_len,
+                                        val_len-3-i->curies[x].prefix_len);
+                                ue_add(h, tmp, i->curies[x].url_len+val_len-(3+i->curies[x].prefix_len));
+                                free(tmp);
+                                break;
+                            }
+                        }
+                    }
+                } else if (*val != '#') /* skip references to anchors */
+                    ue_add(h, val, val_len);
+                return -1; /* should we really return here? pretty sure
+                              no one would put more than one href attribute 
+                              in a tag */
+            }
+        }
     }
     return -1;
 }

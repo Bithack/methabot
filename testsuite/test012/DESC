@@ -1,0 +1,3 @@
+REQUIRE="httpd"
+RUN="mb --external-peek 1 http://127.0.0.1:9999/index.html"
+INFO="CURIE and external peek"

@@ -252,6 +252,8 @@ check_user_login(const char *user, const char *pwd)
                ret = atoi(row[0]);
             mysql_free_result(r);
         }
+    } else {
+        syslog(LOG_ERR, "user auth error: %s", mysql_error(srv.mysql));
     }
 
     return ret;

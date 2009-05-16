@@ -818,13 +818,14 @@ lm_worker_perform(worker_t *w)
              * to the URL */
             url_t tmp;
             lm_url_init(&tmp);
-            lm_url_set(&tmp,
+            if (lm_url_set(&tmp,
                     w->io_h->transfer.headers.location,
-                    strlen(w->io_h->transfer.headers.location));
-            if (lm_url_hostcmp(&tmp, w->ue_h->current) == 0)
-                ue_revert(w->ue_h, tmp.str, tmp.sz);
-            else
-                ue_move_to_secondary(w->ue_h, &tmp);
+                    strlen(w->io_h->transfer.headers.location)) == M_OK) {
+                if (lm_url_hostcmp(&tmp, w->ue_h->current) == 0)
+                    ue_revert(w->ue_h, tmp.str, tmp.sz);
+                else
+                    ue_move_to_secondary(w->ue_h, &tmp);
+            }
             lm_url_uninit(&tmp);
             return M_OK;
         }
@@ -880,10 +881,12 @@ lm_worker_perform(worker_t *w)
                     ret = STRING_TO_JSVAL(tmp);
                     JS_SetProperty(w->e4x_cx, w->e4x_this, "data", &ret);
 
-                    tmp = JS_NewStringCopyN(w->e4x_cx, w->io_h->transfer.headers.content_type,
-                                            strlen(w->io_h->transfer.headers.content_type));
-                    ret = STRING_TO_JSVAL(tmp);
-                    JS_SetProperty(w->e4x_cx, w->e4x_this, "content_type", &ret);
+                    if (w->io_h->transfer.headers.content_type) {
+                        tmp = JS_NewStringCopyN(w->e4x_cx, w->io_h->transfer.headers.content_type,
+                                                strlen(w->io_h->transfer.headers.content_type));
+                        ret = STRING_TO_JSVAL(tmp);
+                        JS_SetProperty(w->e4x_cx, w->e4x_this, "content_type", &ret);
+                    }
 
                     ret = INT_TO_JSVAL(w->io_h->transfer.status_code);
                     JS_SetProperty(w->e4x_cx, w->e4x_this, "status_code", &ret);

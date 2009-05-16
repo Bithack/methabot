@@ -1,6 +1,7 @@
 <h2>[master]/session-list</h2>
 <?php
-$info = simplexml_load_string($m->list_sessions());
+$info = str_replace("&", "&amp;", $m->list_sessions());
+$info = simplexml_load_string($info);
 if ($info) {
 ?>
 <div class="content-layer">

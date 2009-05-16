@@ -127,7 +127,7 @@ class Metha
 
     function list_sessions()
     {
-        return $this->get_sized_reply("LIST-SESSIONS 0 10");
+        return $this->get_sized_reply("LIST-SESSIONS 0 20");
     }
 
     function list_input()

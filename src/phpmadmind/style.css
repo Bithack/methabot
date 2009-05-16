@@ -148,7 +148,7 @@ a.button:hover {
 #container {
     background-color: #f2f2f2;
     padding: 0 0.6em;
-    max-width: 1024px;
+    min-width: 1000px;
     overflow: auto;
 }
 
@@ -160,12 +160,12 @@ a.button:hover {
     background-color: #fff;
     overflow: auto;
     float: left;
-    width: 100%;
+    width:100%;
     margin-top: 0.5em;
 }
 
 #content-inner {
-    width: 800px;
+    min-width: 800px;
     float:left;
     border-left: 1px solid #bbb;
     margin:0 0;
@@ -213,7 +213,13 @@ input.submit {
     margin-top: 6px;
 }
 #header-inner {
-    max-width: 1024px;
+    max-width: 1000px;
+}
+
+#extra-sep {
+    margin-top: 0.4em;
+    border-top: 1px solid #bbb;
+    padding-top: 0.4em;
 }
 
 #left {
@@ -289,6 +295,10 @@ span.input {
 div.content-layer {
     clear: both;
     margin-bottom: 1em;
+    overflow: auto;
+}
+div.content-layer table td {
+    white-space: nowrap;
 }
 
 div.msg {

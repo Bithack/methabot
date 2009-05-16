@@ -855,6 +855,7 @@ user_list_users_command(nolp_t *no, char *buf, int size)
             "SELECT "
                 "`id`, `user`, `fullname`, `extra`, `level` "
             "FROM `nol_user`"
+            "WHERE deleted=0 "
             "ORDER BY "
                 "`id` DESC "
             "LIMIT %d, %d;",

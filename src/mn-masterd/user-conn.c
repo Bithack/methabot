@@ -526,7 +526,7 @@ user_passwd_id_command(nolp_t *no, char *buf, int size)
         return -1;
     }
 
-    while (isspace(pwd)) pwd ++;
+    while (isspace(*pwd)) pwd ++;
     user_id = atoi(buf);
     sz = size-(pwd-buf);
     while (isspace(pwd[sz-1])) sz--;

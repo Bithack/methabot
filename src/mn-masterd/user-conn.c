@@ -526,8 +526,11 @@ user_passwd_id_command(nolp_t *no, char *buf, int size)
         return -1;
     }
 
+    while (isspace(pwd)) pwd ++;
     user_id = atoi(buf);
     sz = size-(pwd-buf);
+    while (isspace(pwd[sz-1])) sz--;
+    pwd[sz] = '\0';
 
     if (!(pwd_escaped = malloc(sz*2+1))) {
         syslog(LOG_ERR, "out of mem");

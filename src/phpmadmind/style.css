@@ -165,7 +165,7 @@ a.button:hover {
 }
 
 #content-inner {
-    min-width: 800px;
+    max-width: 80%;
     float:left;
     border-left: 1px solid #bbb;
     margin:0 0;
@@ -202,7 +202,9 @@ input.submit {
 
 #header {
     min-height: 48px;
-    background-color: #212121;
+    background-color: #000;
+    height: 64px;
+    background-repeat: no-repeat;
     padding: 0 0.6em;
 }
 

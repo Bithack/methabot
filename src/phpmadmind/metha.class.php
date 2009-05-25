@@ -43,7 +43,7 @@ class Metha
             return false;
         }
 
-        return $this->get_sized_reply("HELLO");
+        return $this->get_sized_reply("HELLO ");
     }
     function del_user($id)
     {
@@ -190,8 +190,11 @@ class Metha
      */
     private function get_sized_reply($command)
     {
-        $this->send($command);
-        $r = $this->getline();
+        if ($this->send($command) == false)
+            return false;
+        if (($r = $this->getline()) == false)
+            return false;
+
         $r = explode(' ', $r);
         $len = (int)@$r[1];
         $status = (int)@$r[0];
@@ -200,7 +203,8 @@ class Metha
         $count = 0;
         $x = "";
         do {
-            $b = @fread($this->fp, $len-$count);
+            if (!($b = @fread($this->fp, $len-$count)))
+                return false;
             $count += strlen($b);
             $x .= $b;
         } while ($count < $len);

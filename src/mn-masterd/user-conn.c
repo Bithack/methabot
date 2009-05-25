@@ -526,8 +526,11 @@ user_passwd_id_command(nolp_t *no, char *buf, int size)
         return -1;
     }
 
+    while (isspace(*pwd)) pwd ++;
     user_id = atoi(buf);
     sz = size-(pwd-buf);
+    while (isspace(pwd[sz-1])) sz--;
+    pwd[sz] = '\0';
 
     if (!(pwd_escaped = malloc(sz*2+1))) {
         syslog(LOG_ERR, "out of mem");
@@ -855,6 +858,7 @@ user_list_users_command(nolp_t *no, char *buf, int size)
             "SELECT "
                 "`id`, `user`, `fullname`, `extra`, `level` "
             "FROM `nol_user`"
+            "WHERE deleted=0 "
             "ORDER BY "
                 "`id` DESC "
             "LIMIT %d, %d;",
@@ -931,12 +935,12 @@ user_list_input_command(nolp_t *no, char *buf, int size)
 {
     MYSQL_RES *r;
     MYSQL_ROW row;
-    char b[128];
+    char b[256];
     struct conn *conn = (struct conn*)no->private;
     int   sz;
     long  count;
 
-    sz = sprintf(b, "SELECT id, crawler, input FROM nol_added WHERE user_id=%d ORDER BY `id` DESC LIMIT 0,1000", conn->user_id);
+    sz = sprintf(b, "SELECT nol_added.id, crawler, input, S.id, S.latest FROM nol_added LEFT JOIN `nol_session` as S ON S.added_id = nol_added.id WHERE user_id=%d ORDER BY `nol_added`.`id` DESC LIMIT 0,1000", conn->user_id);
 
     if (mysql_real_query(srv.mysql, b, sz) != 0) {
         syslog(LOG_ERR,
@@ -958,15 +962,19 @@ user_list_input_command(nolp_t *no, char *buf, int size)
         while (row = mysql_fetch_row(r)) {
             unsigned long *l;
             l = mysql_fetch_lengths(r);
-            char *curr = malloc(l[0]+l[1]+l[2]+
-                    sizeof("<input id=\"\"><crawler></crawler><value></value></input>"));
+            char *curr = malloc(l[0]+l[1]+l[2]+l[3]+l[4]+
+                    sizeof("<input id=\"\"><crawler></crawler><value></value><latest-session></latest-session><latest-session-date></latest-session-date></input>"));
             sz = sprintf(curr,
                     "<input id=\"%d\">"
                       "<crawler>%s</crawler>"
                       "<value>%s</value>"
+                      "<latest-session>%s</latest-session>"
+                      "<latest-session-date>%s</latest-session-date>"
                     "</input>",
                     atoi(row[0]), row[1]?row[1]:"",
-                    row[2]?row[2]:""
+                    row[2]?row[2]:"",
+                    row[3]?row[3]:"",
+                    row[4]?row[4]:""
                     );
             bufs[x] = curr;
             sizes[x] = sz;

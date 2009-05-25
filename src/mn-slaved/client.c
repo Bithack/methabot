@@ -585,19 +585,26 @@ on_target(nolp_t *no, char *buf,
         /* client shouldnt send any target info if 
          * a session hasnt been started, disconnect the
          * client */
+        syslog(LOG_ERR, "error: client has no session but TARGET received, forcing disconnect");
         return -1;
     }
 
-    if (!(p = memchr(p, ' ', e-p)))
+    if (!(p = memchr(p, ' ', e-p))) {
+        syslog(LOG_ERR, "error: invalid TARGET syntax");
         return -1;
+    }
     url = p+1;
     p++;
-    if (!(p = memchr(p, ' ', e-p)))
+    if (!(p = memchr(p, ' ', e-p))) {
+        syslog(LOG_ERR, "error: invalid TARGET syntax");
         return -1;
+    }
     filetype = p+1;
     p++;
-    if (!(p = memchr(p, ' ', e-p)))
+    if (!(p = memchr(p, ' ', e-p))) {
+        syslog(LOG_ERR, "error: invalid TARGET syntax");
         return -1;
+    }
 
     if (p-filetype > 63)
         len = 63;
@@ -622,7 +629,7 @@ on_target(nolp_t *no, char *buf,
             url);
 
     if (mysql_real_query(cl->mysql, q, len) != 0) {
-        syslog(LOG_ERR, "saving target failed: %s", mysql_error(cl->mysql));
+        syslog(LOG_ERR, "error: saving target failed: %s", mysql_error(cl->mysql));
         return -1;
     }
 
@@ -635,7 +642,7 @@ on_target(nolp_t *no, char *buf,
             cl->session_id, cl->filetype_name, cl->target_id);
 
     if (mysql_real_query(cl->mysql, q, len) != 0) {
-        syslog(LOG_ERR, "insert to session_rel failed: %s",
+        syslog(LOG_ERR, "error: insert to session_rel failed: %s",
                 mysql_error(cl->mysql));
         return -1;
     }
@@ -672,17 +679,23 @@ on_target_recv(nolp_t *no, char *buf,
 
     while (p<e) {
         attr = p;
-        if (!(p = memchr(p, ' ', e-p)))
+        if (!(p = memchr(p, ' ', e-p))) {
+            syslog(LOG_ERR, "error: invalid TARGET data syntax");
             return -1;
+        }
         attr_len = p-attr;
         p++;
         value_len = atoi(p);
-        if (!(p = memchr(p, ' ', e-p)))
+        if (!(p = memchr(p, ' ', e-p))) {
+            syslog(LOG_ERR, "error: invalid TARGET data syntax");
             return -1;
+        }
         p++;
         value = p;
-        if (p+value_len > e)
+        if (p+value_len > e) {
+            syslog(LOG_ERR, "error: invalid TARGET data syntax");
             return -1;
+        }
 
         if (update_ft_attr(cl,
                     attr, attr_len,
@@ -753,8 +766,10 @@ on_count(nolp_t *no, char *buf, int size)
     cl = ((struct client *)no->private);
     if (!cl->running || !cl->session_id)
         return -1;
-    if (!(s = memchr(buf, ' ', size)))
+    if (!(s = memchr(buf, ' ', size))) {
+        syslog(LOG_ERR, "error: invalid COUNT syntax");
         return -1;
+    }
 
     *s = '\0';
 
@@ -767,7 +782,7 @@ on_count(nolp_t *no, char *buf, int size)
                  cl->session_id);
 
     if (mysql_real_query(cl->mysql, q, sz) != 0) {
-        syslog(LOG_ERR, "updating session statistics failed: %s",
+        syslog(LOG_ERR, "error: updating session statistics failed: %s",
                 mysql_error(cl->mysql));
         return -1;
     }

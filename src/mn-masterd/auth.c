@@ -148,21 +148,21 @@ static void
 conn_read(EV_P_ ev_io *w, int revents)
 {
     int sock = w->fd;
-    char buf[256];
+    char buf[1024];
     int sz;
-    char user[16];
-    char pwd[16];
-    char type[16];
+    char *user;
+    char *pwd;
+    char *type;
+    char *e;
     int x;
 
     struct conn* conn = w->data;
     struct slave *sl;
 
-    if ((sz = nol_m_getline(sock, buf, 255)) <= 0)
+    if ((sz = nol_m_getline(sock, buf, 1023)) <= 0)
         goto close;
 
     buf[sz] = '\0';
-    char *p = buf;
 
     if (conn->authenticated) {
         /* user & slave connections will change event callback
@@ -171,7 +171,20 @@ conn_read(EV_P_ ev_io *w, int revents)
     } else {
         if (memcmp(buf, "AUTH", 4) != 0)
             goto denied;
-        sscanf(p+4, "%15s %15s %15s", type, user, pwd);
+        type=buf+5;
+        e=buf+sz;
+        if (!(user = memchr(type, ' ', e-type)))
+            goto close;
+        *user = '\0';
+        user ++;
+        if (!(pwd = memchr(user, ' ', e-user)))
+            goto close;
+        *pwd = '\0';
+        pwd++;
+        char *p;
+        for (p=e; isspace(*p) || !*p; p--)
+            *p = '\0';
+        
         /* verify the auth type */
         int auth_found = 0;
         for (x=0; x<NUM_AUTH_TYPES; x++) {
@@ -252,6 +265,8 @@ check_user_login(const char *user, const char *pwd)
                ret = atoi(row[0]);
             mysql_free_result(r);
         }
+    } else {
+        syslog(LOG_ERR, "user auth error: %s", mysql_error(srv.mysql));
     }
 
     return ret;

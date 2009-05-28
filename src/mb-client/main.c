@@ -1,6 +1,6 @@
 /*-
  * main.c
- * This file is part of mb-clientd 
+ * This file is part of mb-client
  *
  * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
  *
@@ -16,7 +16,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  * 
- * http://bithack.se/projects/methabot/
+ * http://metha-sys.org/
  */
 
 #include <ev.h>
@@ -95,7 +95,7 @@ main(int argc, char **argv)
     lmc_parser_t *lmc;
 
     signal(SIGPIPE, SIG_IGN);
-    openlog("mb-clientd", 0, 0);
+    openlog("mb-client", 0, 0);
     syslog(LOG_INFO, "started");
 
     lmetha_global_init();
@@ -119,7 +119,7 @@ main(int argc, char **argv)
 
     lmc = lmc_create(0);
     lmc_add_scope(lmc, &client_scope);
-    if (lmc_parse_file(lmc, "/etc/mb-clientd.conf") != M_OK) {
+    if (lmc_parse_file(lmc, "/etc/mb-client.conf") != M_OK) {
         fprintf(stderr, "%s\n", lmc->last_error);
         return 1;
     }

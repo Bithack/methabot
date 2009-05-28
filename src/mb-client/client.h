@@ -1,6 +1,6 @@
 /*-
  * client.h
- * This file is part of mb-clientd 
+ * This file is part of mb-client 
  *
  * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
  *

@@ -8,7 +8,7 @@ if SLAVE
 SUBDIRS += mn-slaved
 endif
 if CLIENT
-  SUBDIRS += libmetha mb-clientd metha-config
+  SUBDIRS += libmetha mb-client metha-config
 if CLI
   SUBDIRS += methabot
 endif

@@ -1,6 +1,6 @@
-bin_PROGRAMS=mb-clientd
+bin_PROGRAMS=mb-client
 
-mb_clientd_SOURCES = client.h \
+mb_client_SOURCES = client.h \
 					 ../mn-masterd/daemon.c \
 					 ../mn-masterd/daemon.h \
 					 slave.c \
@@ -8,4 +8,4 @@ mb_clientd_SOURCES = client.h \
 
 AM_CFLAGS = -I../libmethaconfig/ -I../libmetha/
 
-mb_clientd_LDADD = ../libmetha/libmetha.la ../libmethaconfig/libmethaconfig.la
+mb_client_LDADD = ../libmetha/libmetha.la ../libmethaconfig/libmethaconfig.la

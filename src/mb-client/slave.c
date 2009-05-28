@@ -1,6 +1,6 @@
 /*-
  * slave.c
- * This file is part of mb-clientd 
+ * This file is part of mb-client
  *
  * Copyright (c) 2009, Emil Romanus <emil.romanus@gmail.com>
  *
@@ -16,7 +16,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  * 
- * http://bithack.se/projects/methabot/
+ * http://metha-sys.org/
  */
 
 #include <string.h>

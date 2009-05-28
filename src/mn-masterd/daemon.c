@@ -35,7 +35,7 @@
 #define CHILD_FAILURE 1
 
 /** 
- * Function used by mn-masterd, mn-slaved and mb-clientd.
+ * Function used by mn-masterd, mn-slaved and mb-client.
  *
  * Fork and load the configuration file specified in
  * 'config'. 'user' and 'group' points to strings 

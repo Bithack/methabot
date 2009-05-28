@@ -234,7 +234,7 @@ such as how many workers (@pxref{Introduction, Worker}) to launch, proxy server
 settings or the user agent to use.
 
 @section @code{mb-client} -- The Web Crawler Client
-The Methabot Client Daemon (@code{mb-client}) is very similar to
+The Methabot System Client (@code{mb-client}) is very similar to
 @code{mb}, but instead of communication with the user, @code{mb-client} 
 communicates with a Methanol system.
 
@@ -246,11 +246,12 @@ In order to give @code{mb-client} the login credentials to the
 master server, it does however require a very minimal configuration file. 
 This file will usually be locate at @code{/etc/mb-client.conf} depending
 on where you have installed Methanol. You can also use a custom configuration
-file by providing it using the @code{--config} command line option.
+file by providing it from command line.
 
-If a default configuration file does not exist, @code{mb-cientd}
+If a default configuration file does not exist, @code{mb-client}
 will attempt to connect to a master server running on 127.0.0.1:5505,
 username @emph{default} and password @emph{default}.
+
 @section @code{mn-masterd} -- The Master Server
 @code{mn-masterd}, also known as the master server, is the heart of
 a Methanol system. The purpose of the master is to distribute all 

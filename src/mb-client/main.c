@@ -144,6 +144,8 @@ main(int argc, char **argv)
 
     master_host = "127.0.0.1";
     master_port = 5505;
+    master_username = "default";
+    master_password = "default";
     user = "nobody";
     group = "nobody";
 

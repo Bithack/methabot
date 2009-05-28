@@ -112,6 +112,7 @@ typedef struct io {
     CURLM     *multi_h;
     CURLSH    *share_h;
     pthread_t  thr;
+    int        started;
 
     struct metha *m;
 

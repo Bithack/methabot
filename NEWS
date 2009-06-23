@@ -8,6 +8,9 @@ crawling system, with all the features and goodies of libmetha integrated!
 
 From now on, Methabot will be released in the new Methanol package series.
 
+Please note that while this is a "stable" release, the server side programs 
+are still very experimental.
+
 You can read more about Methanol at the new website:
 http://metha-sys.org/
 
@@ -43,7 +46,7 @@ Changes and new features:
 * New filetype option 'ignore_host'
 * --external option set to false can no longer be circumvented using a HTTP-
   redirect
-* Support for CURIE in the built-in HTML parser added
+* Support for CURIE (why not?) in the built-in HTML parser added
 * Bugfix, a syntax error would  in  some  rare  cases occur when parsing integer
   values in configuration files
 * Bugfix in the configuration file parser when reading flag values

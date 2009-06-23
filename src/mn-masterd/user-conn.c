@@ -367,7 +367,8 @@ user_session_info_command(nolp_t *no, char *buf, int size)
     mysql_free_result(r);
 
     BUF_ADD(
-            "`cl`.`token` as token, `a`.`crawler` as crawler, `a`.`input` as input "
+            "`cl`.`token` as client, `a`.`crawler` as crawler, `a`.`input` as input, "
+            "`nol_session`.`date` as started, `nol_session`.`date` as updated "
             "FROM "
                 "`nol_session` "
             "LEFT JOIN "

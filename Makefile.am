@@ -27,7 +27,10 @@ scripts_DATA = \
 		scripts/validate.js \
 		scripts/wikipedia.js
 
-EXTRA_DIST = $(conf_DATA) $(scripts_DATA)
+EXTRA_DIST = $(conf_DATA) $(scripts_DATA) \
+		doc/methanol.texinfo \
+		conf/mn-masterd.example.conf \
+		conf/mn-slaved.example.conf
 
 SUBDIRS = \
 	src

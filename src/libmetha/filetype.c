@@ -46,7 +46,8 @@ lm_filetype_create(const char *name, uint32_t nlen)
     ret->switch_to.name = 0;
     ret->parser_chain.parsers = 0;
     ret->parser_chain.num_parsers = 0;
-    ret->handler.name  = 0;
+    ret->handler.name = 0;
+    ret->counter = 0;
 
 #if HAVE_BUILTIN_ATOMIC == 0
     pthread_mutex_init(&ret->counter_lk, 0);

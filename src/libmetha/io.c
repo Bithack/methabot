@@ -99,6 +99,8 @@ lm_init_io(io_t *io, metha_t *m)
     io->queue.allocsz = QUEUE_INIT_SIZE;
     io->queue.size = 0;
 
+    io->started = 0;
+
     pthread_mutex_init(&io->queue_mtx, 0);
     pthread_rwlock_init(&io->cookies_mtx, 0);
     pthread_rwlock_init(&io->dns_mtx, 0);
@@ -495,6 +497,8 @@ lm_io_perform_http(iohandle_t *h, url_t *url)
                             h->transfer.headers.location = (char*)new_url;
                     }
                     curl_easy_getinfo(h->primary, CURLINFO_CONTENT_TYPE, &h->transfer.headers.content_type);
+                    if (!h->transfer.headers.content_type)
+                        h->transfer.headers.content_type = "";
                 }
                 done = 1;
                 break;
@@ -623,7 +627,7 @@ M_CODE
 lm_iothr_stop(io_t *io)
 {
     int msg = LM_IOMSG_STOP;
-    if (!io->synchronous) {
+    if (!io->synchronous && io->started) {
         /* signal the event loop to exit */
         if (write(io->msg_fd[1], &msg, sizeof(int)) <= 0)
             return M_IO_ERROR;
@@ -882,6 +886,7 @@ lm_iothr_launch(io_t *io)
     if (!io->synchronous) {
         if (pthread_create(&io->thr, 0, (void *(*)(void*))&lm_iothr_main, io) != 0)
             return M_FAILED;
+        io->started = 1;
     }
 
 #ifdef DEBUG

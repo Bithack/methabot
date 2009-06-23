@@ -675,11 +675,8 @@ lm_worker_bind_url(worker_t *w, url_t *url,
     if (FT_FLAG_ISSET(ft, FT_FLAG_HAS_PARSER)
           || FT_FLAG_ISSET(ft, FT_FLAG_HAS_HANDLER)) {
         lm_url_bind(url, ft->id);
-        if (LM_URL_ISSET(url, LM_URL_EXTERNAL)) {
-            if (!epeek) {
-                if (lm_crawler_flag_isset(cr, LM_CRFLAG_EXTERNAL))
-                    ue_move_to_secondary(ue_h, url);
-            } else {
+        if (LM_URL_ISSET(url, LM_URL_EXTERNAL) && !FT_FLAG_ISSET(ft, FT_FLAG_IGNORE_HOST)) {
+            if (epeek) {
                 /* add this URL to the epeek list */
                 if (!*peek_list) {
                     /* the epeek list is not set up, so this is
@@ -704,6 +701,9 @@ lm_worker_bind_url(worker_t *w, url_t *url,
                 url_t *tmp = lm_ulist_inc(*peek_list);
                 /* swap this URL with an empty URL from the new list */
                 lm_url_swap(url, tmp);
+            } else {
+                if (lm_crawler_flag_isset(cr, LM_CRFLAG_EXTERNAL))
+                    ue_move_to_secondary(ue_h, url);
             }
         } else 
             return 0;
@@ -818,13 +818,14 @@ lm_worker_perform(worker_t *w)
              * to the URL */
             url_t tmp;
             lm_url_init(&tmp);
-            lm_url_set(&tmp,
+            if (lm_url_set(&tmp,
                     w->io_h->transfer.headers.location,
-                    strlen(w->io_h->transfer.headers.location));
-            if (lm_url_hostcmp(&tmp, w->ue_h->current) == 0)
-                ue_revert(w->ue_h, tmp.str, tmp.sz);
-            else
-                ue_move_to_secondary(w->ue_h, &tmp);
+                    strlen(w->io_h->transfer.headers.location)) == M_OK) {
+                if (lm_url_hostcmp(&tmp, w->ue_h->current) == 0)
+                    ue_revert(w->ue_h, tmp.str, tmp.sz);
+                else
+                    ue_move_to_secondary(w->ue_h, &tmp);
+            }
             lm_url_uninit(&tmp);
             return M_OK;
         }
@@ -880,10 +881,12 @@ lm_worker_perform(worker_t *w)
                     ret = STRING_TO_JSVAL(tmp);
                     JS_SetProperty(w->e4x_cx, w->e4x_this, "data", &ret);
 
-                    tmp = JS_NewStringCopyN(w->e4x_cx, w->io_h->transfer.headers.content_type,
-                                            strlen(w->io_h->transfer.headers.content_type));
-                    ret = STRING_TO_JSVAL(tmp);
-                    JS_SetProperty(w->e4x_cx, w->e4x_this, "content_type", &ret);
+                    if (w->io_h->transfer.headers.content_type) {
+                        tmp = JS_NewStringCopyN(w->e4x_cx, w->io_h->transfer.headers.content_type,
+                                                strlen(w->io_h->transfer.headers.content_type));
+                        ret = STRING_TO_JSVAL(tmp);
+                        JS_SetProperty(w->e4x_cx, w->e4x_this, "content_type", &ret);
+                    }
 
                     ret = INT_TO_JSVAL(w->io_h->transfer.status_code);
                     JS_SetProperty(w->e4x_cx, w->e4x_this, "status_code", &ret);

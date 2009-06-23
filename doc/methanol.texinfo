@@ -233,24 +233,25 @@ These options affect the runtime configuration in general,
 such as how many workers (@pxref{Introduction, Worker}) to launch, proxy server 
 settings or the user agent to use.
 
-@section @code{mb-clientd} -- The Web Crawler Client
-The Methabot Client Daemon (@code{mb-clientd}) is very similar to
-@code{mb}, but instead of communication with the user, @code{mb-clientd} 
+@section @code{mb-client} -- The Web Crawler Client
+The Methabot System Client (@code{mb-client}) is very similar to
+@code{mb}, but instead of communication with the user, @code{mb-client} 
 communicates with a Methanol system.
 
-@code{mb-clientd} can not be configured directly. It will always 
-receive its configuration from a master server. @code{mb-clientd} 
+@code{mb-client} can not be configured directly. It will always 
+receive its configuration from a master server. @code{mb-client} 
 only requires an IP-address to a master server when it is started.
 
-In order to give @code{mb-clientd} the login credentials to the 
+In order to give @code{mb-client} the login credentials to the 
 master server, it does however require a very minimal configuration file. 
-This file will usually be locate at @code{/etc/mb-clientd.conf} depending
+This file will usually be locate at @code{/etc/mb-client.conf} depending
 on where you have installed Methanol. You can also use a custom configuration
-file by providing it using the @code{--config} command line option.
+file by providing it from command line.
 
-If a default configuration file does not exist, @code{mb-cientd}
+If a default configuration file does not exist, @code{mb-client}
 will attempt to connect to a master server running on 127.0.0.1:5505,
 username @emph{default} and password @emph{default}.
+
 @section @code{mn-masterd} -- The Master Server
 @code{mn-masterd}, also known as the master server, is the heart of
 a Methanol system. The purpose of the master is to distribute all 
@@ -302,11 +303,11 @@ To compile Methanol successfully, you will need the following package dependenci
 installed on your system, depending on which parts you plan to install:
 
 @multitable @columnfractions .33 .33 .33
-@headitem Package                   @tab client-side@footnote{Those programs counted as client-side are @code{mb} and @code{mb-clientd}} @tab server-side@footnote{Those programs counted as server-side are @code{mn-masterd} and @code{mn-slaved}} 
+@headitem Package                   @tab client-side@footnote{Those programs counted as client-side are @code{mb} and @code{mb-client}} @tab server-side@footnote{Those programs counted as server-side are @code{mn-masterd} and @code{mn-slaved}} 
 @item MySQL (libmysqlclient) >= 5.0 @tab no                   @tab yes
 @item libcurl >= 7.16.0             @tab yes                  @tab no
 @item SpiderMonkey >= 1.7.0         @tab yes                  @tab no
-@item libev                         @tab @emph{only mb-clientd}@tab no
+@item libev                         @tab @emph{only mb-client}@tab yes
 @item pthread                       @tab yes                  @tab yes
 @end multitable
 
@@ -321,7 +322,7 @@ $ cd methabot-1.7.0
 
 Now its time to configure what parts of the system you would like to install.
 For example, if you are installing a server you should most likely want to install @code{mn-slaved} and/or
-@code{mn-masterd} only, and @code{mb-clientd} on several other client computers.
+@code{mn-masterd} only, and @code{mb-client} on several other client computers.
 Or if you are only interested in the command line utility @code{mb}, you don't
 want to compile the server daemons.
 
@@ -428,7 +429,7 @@ or from command line as shown below:
 @example
 $ mysql --user root --password
 @end example
-Now there are two MySQL statements that we need to execute. First, 
+Now there are three MySQL statements that we need to execute. First, 
 you must create the actual database that Methanol uses, and secondly
 a user which Methanol will log in to MySQL using.
 @example
@@ -447,11 +448,57 @@ running the Methanol system and where the MySQL server is located.
 Use the information you provided here to fill in the options in 
 @code{mn-masterd.conf} and @code{mn-slaved.conf}.
 
-@c @section Example 1: Setup Master and Slave on a Single Server
-@c In many cases it might be feasible to run all system nodes on 
-@c a single server. This section will give an example of how to set 
-@c up such an environment.j
+@section Example: Setup Master and Slave on a Single Server
+In many cases it might be feasible to run all system nodes on 
+a single server. This section will give an example of how to set 
+up such an environment.
 
+Please walk through the chapter on installing Methanol, and 
+configure Methanol with both the slave and the master daemon,
+and optionally the client daemon as well.
+
+This example system environment will also prepare the slave
+for executing hook scripts.
+
+@subsection Creating a System User
+Both @code{mn-slaved} and @code{mn-masterd} will change their
+user id to the id of the user "nobody". This prevents them from
+touching irrelevant parts of the system, if someone would
+find and exploit a bug in the system.
+
+A custom user still provides the same security as "nobody",
+but with support for executing hook scripts.
+
+This example will create one user account that will be shared
+by both the master and the slave, we'll call it "mn-example".
+
+@example
+$ useradd mn-example -m -s /sbin/nologin
+@end example
+
+The users home directory, @code{/home/mn-example}, will be used
+to structure the various parts of the system.
+
+@subsection Directory Structure
+Here is how we will layout this example system:
+@example
++ /home/mn-example/
++-- config/ : Configuration files should be put here
++-- run/    : Run-time files will be generated here
++-- hooks/  : All hook scripts should be put here
+@end example
+
+@example
+$ cd /home/mn-example
+$ mkdir config run hooks
+$ chown mn-example:mn-example *
+$ chmod 700 *
+@end example
+
+@subsection Configuration
+Set the @code{exec_dir} slave option to @code{/home/mn-example/run}.
+@code{user} and @code{group} should be set to @code{mn-example}, the
+user we created (and its corresponding group).
 
 @section Starting and Troubleshooting
 Start the master server by invoking:
@@ -489,12 +536,12 @@ This chapter will help you understand how configuration files
 are structured, how to create your own configuration files and
 modify existing.
 
-@section Configuring @code{mb} and @code{mb-clientd}
+@section Configuring @code{mb} and @code{mb-client}
 This section will help you understand how to configure Methabot
-and @code{mb-clientd}. Please note that if you are configuring
-@code{mb-clientd}, the configuration file should be put on the 
+and @code{mb-client}. Please note that if you are configuring
+@code{mb-client}, the configuration file should be put on the 
 same server as the active @code{mn-masterd}, and not on the local
-host running the instance of @code{mb-clientd}.
+host running the instance of @code{mb-client}.
 
 @subsection Tutorial
 Currently there are two kinds of classes you can create objects
@@ -803,7 +850,7 @@ master @{
 
 The above file will configure the listening address for the server.
 
-Since @code{mn-masterd} will require both @code{mn-slaved} and @code{mb-clientd}
+Since @code{mn-masterd} will require both @code{mn-slaved} and @code{mb-client}
 to authenticate once they have connected, you will of course need to 
 set authentication credentials.
 
@@ -892,13 +939,13 @@ MySQL user password.
 The database to select. Make sure the user has full privileges to the database.
 @end table
 
-@section @code{mb-clientd.conf}: Configuring the Client Daemon
-@code{mb-clientd.conf} is used to set up login credentials for
+@section @code{mb-client.conf}: Configuring the Client Daemon
+@code{mb-client.conf} is used to set up login credentials for
 the client daemon to use when logging in to the master server. 
 Configuration such as filetypes and crawlers can not be set in this 
 file, but they will be received from the master server once connected.
 
-If @code{mb-clientd.conf} can not be found by the daemon, it will
+If @code{mb-client.conf} can not be found by the daemon, it will
 assume the IP address of the master to be 127.0.0.1, the port 5505,
 username @emph{default} and password @emph{default}.
 @subsection Option Reference
@@ -1063,7 +1110,7 @@ with configuration files, as otherwise you may have a hard time getting your scr
 loaded into the client.
 
 This tutorial will use @code{mb} for testing, but the same code and configuration 
-files can be used for @code{mb-clientd} or any client linked with @code{libmetha}.
+files can be used for @code{mb-client} or any client linked with @code{libmetha}.
 
 @subsection Getting Started
 A loadable parser should be a normal javascript function expecting zero arguments.
@@ -1378,7 +1425,7 @@ See the @code{session_complete_hook} @code{mn-masterd} option.
 @node Robots Exclusion Standard
 @appendix Robots Exclusion Standard
 
-Web crawlers such as @code{mb} and @code{mb-clientd}
+Web crawlers such as @code{mb} and @code{mb-client}
 can download a file named @code{robots.txt} from the root directory of a web server. This file 
 will contain rules as to which pages or parts of the website the bot may access and not. This
 system is known as the robots exclusion standard.

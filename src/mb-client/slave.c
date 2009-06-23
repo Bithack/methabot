@@ -1,6 +1,6 @@
 /*-
  * slave.c
- * This file is part of mb-clientd 
+ * This file is part of mb-client
  *
  * Copyright (c) 2009, Emil Romanus <emil.romanus@gmail.com>
  *
@@ -16,11 +16,10 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  * 
- * http://bithack.se/projects/methabot/
+ * http://metha-sys.org/
  */
 
 #include <string.h>
-#include <syslog.h>
 
 #include "client.h"
 #include "nolp.h"
@@ -52,26 +51,36 @@ mbc_slave_on_start(nolp_t *no, char *buf, int size)
     char *p;
     buf[size] = '\0';
     if (!(p = strchr(buf, ' '))) {
-        syslog(LOG_ERR, "weird START format from slave");
+        print_error("%s", "weird START format from slave");
         return -1;
     }
     *p = '\0';
     p++;
-#ifdef DEBUG
-    syslog(LOG_DEBUG, "received url '%s' from slave", p);
-#endif
+
+    print_debug("received url '%s' from slave", p);
+
+    if (mbc.state == MBC_STATE_RUNNING) {
+        /* we received a new START signal even though the slave
+         * should have known we're already running */
+        print_debug("%s", "START override, why? User signal?");
+        lmetha_signal(mbc.m, LM_SIGNAL_EXIT);
+        mbc_end_session();
+    }
 
     lmetha_reset(mbc.m);
     if (lmetha_setopt(mbc.m, LMOPT_INITIAL_CRAWLER, buf) != M_OK) {
-        syslog(LOG_ERR, "unknown crawler '%s' from slave", buf);
+        print_error("unknown crawler '%s' from slave", buf);
         return -1;
     }
     if (arg)
         free(arg);
     if (!(arg = strdup(p)))
         return -1;
+
     send(mbc.sock, "STATUS 1\n", 9, 0);
     lmetha_exec_async(mbc.m, 1, &arg);
+
+    mbc.state = MBC_STATE_RUNNING;
     return 0;
 }
 
@@ -117,15 +126,15 @@ mbc_slave_on_config_recv(nolp_t *no, char *buf, int size)
 
     if (!config_read) {
         if ((r = lmetha_read_config(mbc.m, buf, size)) != M_OK) {
-            syslog(LOG_ERR, "reading libmetha config failed: %s", lm_strerror(r));
+            print_error("reading libmetha config failed: %s", lm_strerror(r));
             return -1;
         }
         if ((r = lmetha_prepare(mbc.m)) != M_OK) {
-            syslog(LOG_ERR, "preparing libmetha object failed: %s", lm_strerror(r));
+            print_error("preparing libmetha object failed: %s", lm_strerror(r));
             return -1;
         }
     } else {
-        syslog(LOG_WARNING, "can not reload configuration");
+        print_warning("%s", "can not reload configuration");
     }
 
     /* notify the slave that we're idle, this will hopefully

@@ -83,7 +83,7 @@ nol_s_client_create(const char *addr, const char *user)
     MYSQL_RES *res;
     MYSQL_ROW *row;
 
-    if ((cl = malloc(sizeof(struct client)))) {
+    if ((cl = calloc(1, sizeof(struct client)))) {
         if ((cl->addr.s_addr = inet_addr(addr)) == (in_addr_t)-1
                 || !(cl->user = strdup(user))) {
             syslog(LOG_ERR, "invalid address/user");
@@ -189,12 +189,12 @@ nol_s_client_init(void *in)
     /* remove this client from the client list, 
      * if it's been added to it earlier */
     if (this) {
-        /* if a session was started but not stopped, we'll mark it as done 
+        /* if a session was started but not stopped, we'll mark it as interrupted 
          * right now */
         if (this->session_id) {
             char *q = malloc(128);
             int   sz;
-            sz = sprintf(q, "UPDATE `nol_session` SET state='done', latest=NOW() WHERE id=%ld",
+            sz = sprintf(q, "UPDATE `nol_session` SET state='interrupted', latest=NOW() WHERE id=%ld",
                     this->session_id);
             mysql_real_query(this->mysql, q, sz);
             free(q);
@@ -318,6 +318,9 @@ thr_signal(EV_P_ ev_async *w, int revents)
     struct client *cl = (struct client*)w->data;
     switch (cl->msg) {
         case NOL_CLIENT_MSG_KILL:
+            /* stuff such as marking the session as INTERRUPTED will
+             * be taken care of in nol_s_client_main() after the 
+             * call to ev_loop */
             ev_unloop(EV_A_ EVUNLOOP_ONE);
             break;
     }
@@ -334,8 +337,10 @@ timer_reached(EV_P_ ev_timer *w, int revents)
         case -1:
             p = mysql_error(((struct client*)w->data)->mysql);
             syslog(LOG_ERR, "URL get and send failed: %s", p?(*p?p:"error"):"error");
+            ev_timer_stop(EV_A_ w);
             ev_unloop(EV_A_ EVUNLOOP_ONE);
         case 0:
+            ev_timer_stop(EV_A_ w);
             return;
         case 1:
             ev_timer_again(loop, w);
@@ -365,22 +370,42 @@ get_and_send_url(struct client *cl)
     int   id;
     int   ret;
     unsigned long *lengths;
+
+    if (mysql_query(cl->mysql, "LOCK TABLES nol_added WRITE") != 0) {
+        syslog(LOG_ERR, "could not lock url table!");
+        return -1;
+    }
+
     if (mysql_real_query(cl->mysql, Q_GET_NEW_URL, sizeof(Q_GET_NEW_URL)-1) != 0)
-        return -1;
+        goto fail_do_unlock;
     if (!(res = mysql_store_result(cl->mysql)))
-        return -1;
+        goto fail_do_unlock;
     if (mysql_num_rows(res)) {
         if (!(row = mysql_fetch_row(res))
                 || !(lengths = mysql_fetch_lengths(res))) {
             mysql_free_result(res);
-            return -1;
+            goto fail_do_unlock;
         }
-
+        id = atoi(row[0]);
         if ((sz = lengths[1]+lengths[2]+1) < 256)
             sz = 256;
-        id = atoi(row[0]);
-        if (!(buf = malloc(sz+10)))
+        if (!(buf = malloc(sz+10))) {
+            mysql_free_result(res);
+            goto fail_do_unlock;
+        }
+        sz = sprintf(buf, 
+                "UPDATE nol_added "
+                "SET date = DATE_ADD(NOW(), INTERVAL 28 DAY) "
+                "WHERE id=%d LIMIT 1;",
+                id);
+        if (mysql_real_query(cl->mysql, buf, sz) != 0) {
+            syslog(LOG_ERR, "mysql error when updating nol_added: %s",
+                             mysql_error(cl->mysql));
+            mysql_free_result(res);
+            mysql_query(cl->mysql, "UNLOCK TABLES");
             return -1;
+        }
+        mysql_query(cl->mysql, "UNLOCK TABLES");
         sz = sprintf(buf, "START %s %s\n", row[1], row[2]);
 #ifdef DEBUG
         syslog(LOG_DEBUG, "sending url '%.*s' to client '%.7s...'",
@@ -401,23 +426,23 @@ get_and_send_url(struct client *cl)
             syslog(LOG_DEBUG, "client '%.7s...' now running session %ld",
                     cl->token, cl->session_id);
 #endif
-            sz = sprintf(buf, 
-                    "UPDATE nol_added "
-                    "SET date = DATE_ADD(NOW(), INTERVAL 1 DAY) "
-                    "WHERE id=%d LIMIT 1;",
-                    id);
-            if (mysql_real_query(cl->mysql, buf, sz) != 0)
-                ret = -1;
+            ret = 0;
         } else
             ret = -1;
 
+        mysql_free_result(res);
         free(buf);
-        ret = 0;
-    } else
+    } else {
+        mysql_query(cl->mysql, "UNLOCK TABLES");
         ret = 1;
-    mysql_free_result(res);
+    }
 
     return ret;
+
+fail_do_unlock:
+    syslog(LOG_ERR, "url get and send failed: %s", mysql_error(cl->mysql));
+    mysql_query(cl->mysql, "UNLOCK TABLES");
+    return -1;
 }
 
 /** 
@@ -460,19 +485,21 @@ on_status(nolp_t *no, char *buf, int size)
             mysql_query(cl->mysql, q);
         }
 
-        switch (get_and_send_url(cl)) {
-            case -1:
-                p = mysql_error(cl->mysql);
-                syslog(LOG_ERR, "URL get and send failed: %s",
-                        p?(*p?p:"error"):"error");
-                ev_unloop(cl->loop, EVUNLOOP_ONE);
-            case 0:
-                return;
-            case 1:
-                ev_timer_init(&cl->timer, &timer_reached, 5.f, .0f);
-                cl->timer.data = cl;
-                cl->timer.repeat = 5.f;
-                ev_timer_start(cl->loop, &cl->timer);
+        if (!ev_is_active(&cl->timer)) {
+            switch (get_and_send_url(cl)) {
+                case -1:
+                    p = mysql_error(cl->mysql);
+                    syslog(LOG_ERR, "URL get and send failed: %s",
+                            p?(*p?p:"error"):"error");
+                    ev_unloop(cl->loop, EVUNLOOP_ONE);
+                case 0:
+                    return 0;
+                case 1:
+                    ev_timer_init(&cl->timer, &timer_reached, 5.f, .0f);
+                    cl->timer.data = cl;
+                    cl->timer.repeat = 5.f;
+                    ev_timer_start(cl->loop, &cl->timer);
+            }
         }
     }
 
@@ -558,19 +585,26 @@ on_target(nolp_t *no, char *buf,
         /* client shouldnt send any target info if 
          * a session hasnt been started, disconnect the
          * client */
+        syslog(LOG_ERR, "error: client has no session but TARGET received, forcing disconnect");
         return -1;
     }
 
-    if (!(p = memchr(p, ' ', e-p)))
+    if (!(p = memchr(p, ' ', e-p))) {
+        syslog(LOG_ERR, "error: invalid TARGET syntax");
         return -1;
+    }
     url = p+1;
     p++;
-    if (!(p = memchr(p, ' ', e-p)))
+    if (!(p = memchr(p, ' ', e-p))) {
+        syslog(LOG_ERR, "error: invalid TARGET syntax");
         return -1;
+    }
     filetype = p+1;
     p++;
-    if (!(p = memchr(p, ' ', e-p)))
+    if (!(p = memchr(p, ' ', e-p))) {
+        syslog(LOG_ERR, "error: invalid TARGET syntax");
         return -1;
+    }
 
     if (p-filetype > 63)
         len = 63;
@@ -595,7 +629,7 @@ on_target(nolp_t *no, char *buf,
             url);
 
     if (mysql_real_query(cl->mysql, q, len) != 0) {
-        syslog(LOG_ERR, "saving target failed: %s", mysql_error(cl->mysql));
+        syslog(LOG_ERR, "error: saving target failed: %s", mysql_error(cl->mysql));
         return -1;
     }
 
@@ -608,7 +642,7 @@ on_target(nolp_t *no, char *buf,
             cl->session_id, cl->filetype_name, cl->target_id);
 
     if (mysql_real_query(cl->mysql, q, len) != 0) {
-        syslog(LOG_ERR, "insert to session_rel failed: %s",
+        syslog(LOG_ERR, "error: insert to session_rel failed: %s",
                 mysql_error(cl->mysql));
         return -1;
     }
@@ -645,17 +679,23 @@ on_target_recv(nolp_t *no, char *buf,
 
     while (p<e) {
         attr = p;
-        if (!(p = memchr(p, ' ', e-p)))
+        if (!(p = memchr(p, ' ', e-p))) {
+            syslog(LOG_ERR, "error: invalid TARGET data syntax");
             return -1;
+        }
         attr_len = p-attr;
         p++;
         value_len = atoi(p);
-        if (!(p = memchr(p, ' ', e-p)))
+        if (!(p = memchr(p, ' ', e-p))) {
+            syslog(LOG_ERR, "error: invalid TARGET data syntax");
             return -1;
+        }
         p++;
         value = p;
-        if (p+value_len > e)
+        if (p+value_len > e) {
+            syslog(LOG_ERR, "error: invalid TARGET data syntax");
             return -1;
+        }
 
         if (update_ft_attr(cl,
                     attr, attr_len,
@@ -726,20 +766,23 @@ on_count(nolp_t *no, char *buf, int size)
     cl = ((struct client *)no->private);
     if (!cl->running || !cl->session_id)
         return -1;
-
-    if (!(s = memchr(buf, ' ', size)))
+    if (!(s = memchr(buf, ' ', size))) {
+        syslog(LOG_ERR, "error: invalid COUNT syntax");
         return -1;
+    }
+
+    *s = '\0';
 
     s++;
     count = (uint32_t)atoi(s);
 
-    sz = sprintf(q, "UPDATE `nol_session` WHERE id=%d SET count_%s = %d",
-                 cl->session_id,
+    sz = sprintf(q, "UPDATE `nol_session` SET count_%s = %d WHERE id=%d",
                  nol_s_str_filter_name(buf, (s-1)-buf),
-                 count);
+                 count,
+                 cl->session_id);
 
     if (mysql_real_query(cl->mysql, q, sz) != 0) {
-        syslog(LOG_ERR, "updating session statistics failed: %s",
+        syslog(LOG_ERR, "error: updating session statistics failed: %s",
                 mysql_error(cl->mysql));
         return -1;
     }

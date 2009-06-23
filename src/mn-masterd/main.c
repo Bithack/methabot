@@ -316,7 +316,14 @@ nol_m_mysql_connect()
 
 #define SQL_USER_TBL "\
             CREATE TABLE IF NOT EXISTS \
-            nol_user (id INT NOT NULL AUTO_INCREMENT, user VARCHAR(32), pass VARCHAR(32), PRIMARY KEY (id))"
+            nol_user ( \
+                    id INT NOT NULL AUTO_INCREMENT, \
+                    user VARCHAR(32) UNIQUE, pass VARCHAR(32), \
+                    `fullname` VARCHAR(128),\
+                    level INT NOT NULL,\
+                    extra VARCHAR(128), \
+                    deleted INT(1) NOT NULL DEFAULT 0, \
+                    PRIMARY KEY (id))"
 #define SQL_CLIENT_TBL "\
             CREATE TABLE IF NOT EXISTS \
             nol_client ( \
@@ -370,7 +377,7 @@ nol_m_mysql_connect()
                     `client_id` INT, \
                     `date` DATETIME, \
                     `latest` DATETIME, \
-                    `state` ENUM('running','wait-hook','hook','done') DEFAULT 'running', \
+                    `state` ENUM('running','interrupted','hook','done') DEFAULT 'running', \
                     `report` TEXT, \
                     PRIMARY KEY (id)\
                     )"
@@ -405,7 +412,7 @@ nol_m_mysql_connect()
                     */
 #define SQL_USER_CHECK "SELECT null FROM nol_user LIMIT 0,1;"
 #define SQL_ADD_DEFAULT_USER \
-    "INSERT INTO nol_user (user, pass) VALUES ('admin', 'admin')"
+    "INSERT INTO nol_user (user, pass, fullname, level) VALUES ('admin@localhost', MD5('admin'), 'Administrator', 8192)"
 /** 
  * Set up all default tables
  **/
@@ -415,13 +422,34 @@ nol_m_mysql_setup()
     MYSQL_RES *r;
     long       id;
     char msg[512];
-    mysql_real_query(srv.mysql, SQL_USER_TBL, sizeof(SQL_USER_TBL)-1);
-    mysql_real_query(srv.mysql, SQL_CLIENT_TBL, sizeof(SQL_CLIENT_TBL)-1);
-    mysql_real_query(srv.mysql, SQL_SLAVE_TBL, sizeof(SQL_SLAVE_TBL)-1);
-    mysql_real_query(srv.mysql, SQL_URL_TBL, sizeof(SQL_URL_TBL)-1);
-    mysql_real_query(srv.mysql, SQL_ADDED_TBL, sizeof(SQL_ADDED_TBL)-1);
-    mysql_real_query(srv.mysql, SQL_MSG_TBL, sizeof(SQL_MSG_TBL)-1);
-    mysql_real_query(srv.mysql, SQL_SESS_TBL, sizeof(SQL_SESS_TBL)-1);
+    if (mysql_real_query(srv.mysql, SQL_USER_TBL, sizeof(SQL_USER_TBL)-1) != 0) {
+        syslog(LOG_ERR, "error creating user table: %s", mysql_error(srv.mysql));
+        return -1;
+    }
+    if (mysql_real_query(srv.mysql, SQL_CLIENT_TBL, sizeof(SQL_CLIENT_TBL)-1) != 0) {
+        syslog(LOG_ERR, "error creating client table: %s", mysql_error(srv.mysql));
+        return -1;
+    }
+    if (mysql_real_query(srv.mysql, SQL_SLAVE_TBL, sizeof(SQL_SLAVE_TBL)-1) != 0) {
+        syslog(LOG_ERR, "error creating slave table: %s", mysql_error(srv.mysql));
+        return -1;
+    }
+    if (mysql_real_query(srv.mysql, SQL_URL_TBL, sizeof(SQL_URL_TBL)-1) != 0) {
+        syslog(LOG_ERR, "error creating url table: %s", mysql_error(srv.mysql));
+        return -1;
+    }
+    if (mysql_real_query(srv.mysql, SQL_ADDED_TBL, sizeof(SQL_ADDED_TBL)-1) != 0) {
+        syslog(LOG_ERR, "error creating input/added table: %s", mysql_error(srv.mysql));
+        return -1;
+    }
+    if (mysql_real_query(srv.mysql, SQL_MSG_TBL, sizeof(SQL_MSG_TBL)-1) != 0) {
+        syslog(LOG_ERR, "error creating session table: %s", mysql_error(srv.mysql));
+        return -1;
+    }
+    if (mysql_real_query(srv.mysql, SQL_SESS_TBL, sizeof(SQL_SESS_TBL)-1) != 0) {
+        syslog(LOG_ERR, "error creating session table: %s", mysql_error(srv.mysql));
+        return -1;
+    }
     if (mysql_real_query(srv.mysql, SQL_SESS_REL_TBL,
             sizeof(SQL_SESS_REL_TBL)-1) == 0) {
         mysql_real_query(srv.mysql, SQL_SESS_REL_UNIQ,
@@ -543,10 +571,7 @@ nol_m_reconfigure()
                 "ALTER TABLE `nol_session` "
                 "ADD COLUMN count_%.60s INT UNSIGNED",
                 name);
-        if (mysql_real_query(srv.mysql, tq, len) != 0) {
-            syslog(LOG_ERR, "%s", mysql_error(srv.mysql));
-        }
-
+        mysql_real_query(srv.mysql, tq, len);
 
         /** 
          * Now add all the columns. Many of these queries will probably

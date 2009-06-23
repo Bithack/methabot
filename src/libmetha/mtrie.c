@@ -45,6 +45,7 @@
 
 #include "mtrie.h"
 #include <string.h>
+#include <assert.h>
 
 /*#define MTRIE_DEBUG*/
 
@@ -220,6 +221,7 @@ mtrie_tryadd(mtrie_t *p, url_t *url)
     uint_fast16_t x, y;
     const char *s;
     const char *e;
+    uint16_t   sz;
 
     /*
     s = url->str;
@@ -242,7 +244,6 @@ cont:for (;;) {
             /* this is a multi-char connection between one 
              * leaf or many nodes */
             char     *s2;
-            uint16_t  sz;
             void     *next = (void*)n->next;
             int       leaf; /* leaf or conn */
 
@@ -369,15 +370,15 @@ cont:for (;;) {
         } else if (!v) {
             /* node branch is empty, add this new as a leaf */
             n->magic |= 0x81;
-            v = e-s; /* size */
-            LEAF *leaf = (LEAF*)(n->next = malloc(sizeof(LEAF)+v));
+            sz = e-s; /* size */
+            LEAF *leaf = (LEAF*)(n->next = malloc(sizeof(LEAF)+sz));
 
             _DEBUG("leaf:(%p) new with '%s'", leaf, s);
 
-            leaf->sz = v;
-            while ((int8_t)v > 0) {
-                v--;
-                leaf->s[v] = MTRIE_OFFS(*(s+v));
+            leaf->sz = sz;
+            while (sz > 0) {
+                sz--;
+                leaf->s[sz] = MTRIE_OFFS(*(s+sz));
             }
             return 1;
         }

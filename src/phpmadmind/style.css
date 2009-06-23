@@ -8,20 +8,22 @@ body {
 h1 {
     font-family: sans-serif;
     font-size: 1.8em;
-    color: #222;
+    color: #eee;
     margin: 0px;
+    padding-top: 12px;
+    display:inline-block;
 }
 
 h2 {
     font-family: sans-serif;
     margin: 0 0 0.4em 0;
-    font-size: .9em;
+    font-size: 1.3em;
     font-weight: bold;
-    padding: 0.2em;
+    padding: 0.0em;
     background-color: #eee;
     border-bottom: 1px solid #aaa;
     border-right: 1px solid #aaa;
-    color: #666;
+    color: #222288;
 }
 
 h2.error {
@@ -34,11 +36,13 @@ h2.error {
 h3 {
     font-family: sans-serif;
     margin: 0 0 0.4em 0;
-    font-size: 1.00em;
+    font-size: 12px;
     font-weight: bold;
-    padding: 0.1em;
-    background-color: #eee;
     color: #222;
+    padding: 4px 0 4px 2px;
+    background-color: #eee;
+    /*background-image: url(img/h3bg.png);*/
+    background-repeat: repeat-x;
 }
 
 h4 {
@@ -70,11 +74,20 @@ div.box {
     margin: 0.5em;
 }
 
+div.tablebox {
+    padding: 0.5em;
+    margin: 0.5em;
+}
+
+div.tablebox th {
+    background: transparent;
+}
+
 div.box th {
     background: transparent;
     width: 200px;
 }
-div.box td {
+div.box td, div.tablebox td {
     background: transparent;
     border-left: 1px solid #999;
     padding-left: .6em;
@@ -134,26 +147,31 @@ a.button:hover {
 
 #container {
     background-color: #f2f2f2;
-    padding: 0.6em;
-    max-width: 1024px;
+    padding: 0 0.6em;
+    min-width: 1000px;
     overflow: auto;
 }
 
 #content {
+    clear: both;
     font-family: serif;
     font-size: 0.88em;
     color: #202032;
     background-color: #fff;
     overflow: auto;
+    float: left;
+    width:100%;
+    margin-top: 0.5em;
 }
 
 #content-inner {
+    max-width: 80%;
+    float:left;
     border-left: 1px solid #bbb;
     margin:0 0;
-    margin-top: 1.5em;
-    margin-bottom: 1.5em;
-    padding: 0em 1.5em 1.5em 1.5em;
-    float:left;
+    margin-top: 0.8em;
+    margin-bottom: 0.5em;
+    padding: 0em 0.2em 0.2em 1.5em;
     min-height: 60px;
 }
 
@@ -169,6 +187,14 @@ label {
     float:left;
 }
 
+.hidden-form {
+    display: none;
+    position: absolute;
+    background-color: #fff;
+    border: 2px solid #eef;
+    padding: 1em;
+}
+
 input.submit {
     margin-top: 4px;
     margin-left: 100px;
@@ -176,23 +202,33 @@ input.submit {
 
 #header {
     min-height: 48px;
+    background-color: #000;
+    height: 64px;
+    background-repeat: no-repeat;
+    padding: 0 0.6em;
 }
 
-#header h1 {
-    display:inline;
-}
-
-#header-info {
-    font-style: italic;
-    float:right;
+#login-info {
     background-color: #ffd;
+    float:right;
+    padding:0.5em;
+    margin-top: 6px;
+}
+#header-inner {
+    max-width: 1000px;
+}
+
+#extra-sep {
+    margin-top: 0.4em;
+    border-top: 1px solid #bbb;
+    padding-top: 0.4em;
 }
 
 #left {
     padding-top: 0.2em;
     font-family: sans-serif;
     background-color: #fff;
-    float:left;
+    float: left;
     margin:0.5em;
     line-height: 16px;
 }
@@ -209,6 +245,7 @@ a img {
 
 #left ul li {
     border-bottom: 1px dotted #aaa;
+    min-height: 22px;
 }
 
 #left ul li a {
@@ -247,7 +284,7 @@ td.url {
     font-weight:bold;
 }
 
-td.session {
+td.sep {
     border-right: 2px solid #bbb;
 }
 
@@ -260,6 +297,10 @@ span.input {
 div.content-layer {
     clear: both;
     margin-bottom: 1em;
+    overflow: auto;
+}
+div.content-layer table td {
+    white-space: nowrap;
 }
 
 div.msg {
@@ -279,6 +320,7 @@ div.error {
 }
 
 div#footer {
+    clear: both;
     text-align: right;
     font-size: .8em;
     font-style: italic;

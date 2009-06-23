@@ -214,7 +214,7 @@ src/methabot/Makefile
 src/metha-config/Makefile
 src/mn-masterd/Makefile
 src/mn-slaved/Makefile
-src/mb-clientd/Makefile
+src/mb-client/Makefile
 Makefile
 ])
 
@@ -227,7 +227,7 @@ echo "  Host:                       $host"
 echo "  Installation prefix:        $prefix"
 echo "  Building mn-masterd:        $build_master"
 echo "  Building mn-slaved:         $build_slave"
-echo "  Building mb-clientd:        $build_client"
+echo "  Building mb-client:         $build_client"
 echo "  Building mb:                $build_cli"
 echo "  Debugging enabled:          $debug"
 echo "  I/O-debugging enabled:      $io_debug"

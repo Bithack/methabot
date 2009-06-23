@@ -1,6 +1,6 @@
 /*-
  * main.c
- * This file is part of mb-clientd 
+ * This file is part of mb-client
  *
  * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
  *
@@ -16,11 +16,10 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  * 
- * http://bithack.se/projects/methabot/
+ * http://metha-sys.org/
  */
 
 #include <ev.h>
-#include <syslog.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -66,8 +65,10 @@ char *master_host     = 0;
 unsigned master_port     = 0;
 char *master_username = 0;
 char *master_password = 0;
-char *user = 0;
-char *group = 0;
+char *user   = 0;
+char *group  = 0;
+int verbose  = 0;
+char *config_file = 0;
 
 extern char *arg;
 
@@ -88,16 +89,37 @@ struct lmc_scope client_scope =
 int
 main(int argc, char **argv)
 {
-    M_CODE          r;
     ev_signal sigint_listen;
     ev_signal sigterm_listen;
     ev_signal sighup_listen;
     lmc_parser_t *lmc;
+    M_CODE r;
+
+    int x;
+    for (x=1; x<argc; x++) {
+        if (*argv[x] == '-') {
+            switch (*(argv[x]+1)) {
+                case '-':
+                    if (strcmp(argv[x]+2, "verbose")) {
+                        verbose = 1;
+                        continue;
+                    }
+
+                    print_error("unknown option '%s'", argv[x]+2);
+                    exit(1);
+                case 'v':
+                    verbose = 1;
+                    continue;
+                default:
+                    print_error("unknown short option '%c'", *(argv[x]+1));
+                    exit(1);
+            }
+        }
+
+        config_file = argv[x];
+    }
 
     signal(SIGPIPE, SIG_IGN);
-    openlog("mb-clientd", 0, 0);
-    syslog(LOG_INFO, "started");
-
     lmetha_global_init();
 
     if (!(mbc.m = lmetha_create()))
@@ -119,9 +141,23 @@ main(int argc, char **argv)
 
     lmc = lmc_create(0);
     lmc_add_scope(lmc, &client_scope);
-    if (lmc_parse_file(lmc, "/etc/mb-clientd.conf") != M_OK) {
-        fprintf(stderr, "%s\n", lmc->last_error);
-        return 1;
+
+    master_host = "127.0.0.1";
+    master_port = 5505;
+    master_username = "default";
+    master_password = "default";
+    user = "nobody";
+    group = "nobody";
+
+    if (!config_file)
+        config_file = "/etc/mb-client.conf";
+    if ((r = lmc_parse_file(lmc, config_file)) != M_OK) {
+        if (r == M_COULD_NOT_OPEN) {
+            print_warning("could not open '%s', falling back to default values", config_file);
+        } else {
+            print_error("%s", lmc->last_error);
+            return 1;
+        }
     }
 
     /* catch signals */
@@ -140,7 +176,7 @@ main(int argc, char **argv)
         mbc_set_active(mbc.loop, MBC_MASTER);
     } else {
         ev_timer_start(mbc.loop, &mbc.timer_ev);
-        syslog(LOG_INFO, "master is away, retrying in 5 secs");
+        print_warning("%s", "master is away, retrying in 5 secs");
     }
 
     ev_async_start(mbc.loop, &mbc.idle_ev);
@@ -161,7 +197,7 @@ main(int argc, char **argv)
 static void
 mbc_lm_status_cb(metha_t *m, worker_t *w, url_t *url)
 {
-    char buf[512];
+    char buf[512]; 
     char *p;
     int  len;
 
@@ -171,7 +207,7 @@ mbc_lm_status_cb(metha_t *m, worker_t *w, url_t *url)
      * than 512 chars */
     if (url->sz >= 507) {
         if (!(p = malloc(url->sz+6)))
-            syslog(LOG_ERR, "out of mem");
+            fprintf(stderr, "out of mem");
     } else
         p = buf;
     len = sprintf(p, "URL %s\n", url->str);
@@ -219,13 +255,13 @@ mbc_lm_target_cb(metha_t *m, worker_t *w,
 static void
 mbc_lm_error_cb(metha_t *m, const char *s, ...)
 {
-    syslog(LOG_ERR, "error: %s", s);
+    print_error("%s", s);
 }
 
 static void
 mbc_lm_warning_cb(metha_t *m, const char *s, ...)
 {
-    syslog(LOG_WARNING, "warning: %s", s);
+    print_warning("%s", s);
 }
 
 static void
@@ -286,7 +322,6 @@ mbc_ev_timer(EV_P_ ev_timer *w, int revents)
 {
     switch (mbc.state) {
         case MBC_STATE_DISCONNECTED:
-            syslog(LOG_INFO, "reconnecting to master");
             if (mbc_master_connect() == 0) {
                 mbc_master_send_login();
                 mbc.state = MBC_STATE_WAIT_LOGIN;
@@ -294,10 +329,13 @@ mbc_ev_timer(EV_P_ ev_timer *w, int revents)
 
                 break;
             } else
-                syslog(LOG_WARNING, "could not connect to master");
+                print_warning("%s", "could not connect to master");
+
+            ev_timer_again(EV_A_ &mbc.timer_ev);
+            break;
 
         default:
-            ev_timer_again(EV_A_ &mbc.timer_ev);
+            print_error("%s", "timer error");
             break;
     }
 }
@@ -310,6 +348,21 @@ mbc_ev_timer(EV_P_ ev_timer *w, int revents)
 void
 mbc_ev_idle(EV_P_ ev_async *w, int revents)
 {
+    if (mbc_end_session() != 0) {
+        print_error("%s", "ending the session failed");
+        ev_unloop(EV_A_ EVUNLOOP_ALL);
+    }
+    free(arg);
+    arg = 0;
+    mbc.state = MBC_STATE_STOPPED;
+}
+
+/* end the current crawling session, and report the
+ * results to the slave 
+ * return 0 on success */
+int
+mbc_end_session(void)
+{
     char buf[128];
     int x;
     int sz;
@@ -321,16 +374,16 @@ mbc_ev_idle(EV_P_ ev_async *w, int revents)
                 mbc.m->filetypes[x]->name,
                 mbc.m->filetypes[x]->counter);
         lm_filetype_counter_reset(mbc.m->filetypes[x]);
-        send(mbc.sock, buf, sz, 0);
+        if (send(mbc.sock, buf, sz, 0) <= 0)
+            return -1;
     }
 
-    send(mbc.sock, "STATUS 0\n", 9, 0);
+    if (send(mbc.sock, "STATUS 0\n", 9, 0) <= 0)
+        return -1;
     /* wait for our libmetha thread to exit before
      * continuing with the event loop */
     lmetha_wait(mbc.m);
-    free(arg);
-    arg = 0;
-    mbc.state = MBC_STATE_STOPPED;
+    return 0;
 }
 
 void
@@ -343,7 +396,7 @@ mbc_ev_master(EV_P_ ev_io *w, int revents)
 
     if ((sz = sock_getline(w->fd, buf, 256)) <= 0) {
         /* disconnected from master before reply? */
-        syslog(LOG_ERR, "master has gone away");
+        print_error("%s", "master has gone away");
         fail = 1;
     } else {
         switch (mbc.state) {
@@ -352,12 +405,10 @@ mbc_ev_master(EV_P_ ev_io *w, int revents)
                  * Reply from master after login.
                  **/
                 if ((msg = atoi(buf)) == 100) {
-                    syslog(LOG_INFO, "logged on to master, waiting for token");
+                    print_info("%s", "logged on to master, waiting for token");
                     mbc.state = MBC_STATE_WAIT_TOKEN;
                 } else {
-                    syslog(LOG_INFO,
-                            "logging in to master failed, code %d",
-                            atoi(buf));
+                    print_warning("logging in to mater failed with code %d", atoi(buf));
                     fail = 1;
                 }
                 break;
@@ -365,7 +416,7 @@ mbc_ev_master(EV_P_ ev_io *w, int revents)
             case MBC_STATE_WAIT_TOKEN:
                 if (sz>6 && memcmp(buf, "TOKEN", 5) == 0) {
                     close(mbc.sock);
-                    syslog(LOG_INFO, "got token, logging on to slave");
+                    print_info("%s", "got token, logging on to slave");
 
                     if (mbc_slave_connect(buf+6, sz-6) == 0) {
                         mbc_set_active(EV_A_ MBC_SLAVE);
@@ -374,7 +425,7 @@ mbc_ev_master(EV_P_ ev_io *w, int revents)
                 }
 
                 /* reach here if anything failed */
-                syslog(LOG_WARNING, "could not connect to slave");
+                print_warning("%s", "could not connect to slave");
                 fail = 1;
                 break;
         }
@@ -394,10 +445,10 @@ static int
 mbc_ev_slave_login(nolp_t *no, char *buf, int size)
 {
     if (atoi(buf) == 100) {
-        syslog(LOG_INFO, "slave connection established");
+        print_info("%s", "slave connection established");
         mbc.state = MBC_STATE_STOPPED;
     } else {
-        syslog(LOG_WARNING, "slave login failed");
+        print_warning("%s", "slave login failed");
         return -1;
     }
 
@@ -412,8 +463,16 @@ mbc_ev_slave(EV_P_ ev_io *w, int revents)
 {
     mbc.no->fd = w->fd;
     if (nolp_recv(mbc.no) != 0) {
-        syslog(LOG_INFO, "connection to slave lost");
+        print_error("%s", "connection to slave lost");
         close(w->fd);
+
+        if (mbc.state == MBC_STATE_RUNNING) {
+            print_debug("%s", "forcing running session to exit because slave connection was lost");
+            lmetha_signal(mbc.m, LM_SIGNAL_EXIT);
+            lmetha_wait(mbc.m);
+            lmetha_reset(mbc.m);
+        }
+
         mbc.state = MBC_STATE_DISCONNECTED;
         mbc_set_active(EV_A_ MBC_NONE);
     }
@@ -458,7 +517,7 @@ mbc_slave_connect(const char *token, int len)
     *t = '-';
 
     if (connect(mbc.sock, (struct sockaddr*)&mbc.slave, sizeof(struct sockaddr_in)) != 0) {
-        syslog(LOG_ERR, "connect() failed: %s", strerror(errno));
+        print_error("connect() failed: %s", strerror(errno));
         return -1;
     }
 
@@ -473,8 +532,9 @@ mbc_slave_connect(const char *token, int len)
 int
 mbc_master_connect()
 {
+    print_infov("connecting to master at %s:%d", master_host, master_port);
     if ((mbc.sock = socket(AF_INET, SOCK_STREAM, 0)) <= 0)
-        syslog(LOG_ERR, "socket() failed: %s\n", strerror(errno));
+        print_error("socket() failed: %s", strerror(errno));
     else {
         mbc.master.sin_family      = AF_INET;
         mbc.master.sin_port        = htons(master_port);
@@ -524,7 +584,7 @@ mbc_master_send_login()
 static void
 mbc_ev_sig(EV_P_ ev_signal *w, int revents)
 {
-    syslog(LOG_INFO, "interrupted, exiting");
+    print_info("%s", "interrupted by signal, exiting");
     lmetha_signal(mbc.m, LM_SIGNAL_EXIT);
     lmetha_wait(mbc.m);
     ev_unloop(EV_A_ EVUNLOOP_ONE);

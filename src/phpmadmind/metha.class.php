@@ -3,7 +3,7 @@ class Metha
 {
     private $fp;
     private $connected;
-    private $status_code;
+    public  $status_code;
 
     function __construct()
     {
@@ -43,6 +43,36 @@ class Metha
             return false;
         }
 
+        return $this->get_sized_reply("HELLO ");
+    }
+    function del_user($id)
+    {
+        if (false == $this->send("USERDEL $id"))
+            return false;
+        if (false == $r = $this->getline())
+            return false;
+        if ((int)$r < 100 || (int)$r >= 200) {
+            $this->status_code = $r;
+            return false;
+        }
+
+        return true;
+    }
+    function passwd($password, $id=false)
+    {
+        if (!$id)
+            $cmd = "PASSWD $password";
+        else
+            $cmd = "PASSWD-ID $id $password";
+        if (false == $this->send($cmd))
+            return false;
+        if (false == $r = $this->getline())
+            return false;
+        if ((int)$r < 100 || (int)$r >= 200) {
+            $this->status_code = $r;
+            return false;
+        }
+
         return true;
     }
 
@@ -50,6 +80,21 @@ class Metha
     {
         if (false == $this->send("ADD $crawler $url"))
             return false;
+        if (false == $r = $this->getline())
+            return false;
+        if ((int)$r < 100 || (int)$r >= 200) {
+            $this->status_code = $r;
+            return false;
+        }
+
+        return true;
+    }
+    function add_user($email, $pass, $fullname, $level, $extra)
+    {
+        $o = "$email\n$pass\n$fullname\n$level\n$extra";
+        if (false == $this->send("USERADD ".strlen($o)))
+            return false;
+        $this->raw_send($o);
         if (false == $r = $this->getline())
             return false;
         if ((int)$r < 100 || (int)$r >= 200) {
@@ -75,9 +120,14 @@ class Metha
         return $this->get_sized_reply("LIST-SLAVES 0");
     }
 
+    function list_users($start=0, $limit=10)
+    {
+        return $this->get_sized_reply("LIST-USERS $start $limit");
+    }
+
     function list_sessions()
     {
-        return $this->get_sized_reply("LIST-SESSIONS 0 10");
+        return $this->get_sized_reply("LIST-SESSIONS 0 20");
     }
 
     function list_input()
@@ -115,6 +165,11 @@ class Metha
         return $this->get_sized_reply("SYSTEM-INFO");
     }
 
+    private function raw_send($msg)
+    {
+        return @fwrite($this->fp, "$msg");
+    }
+
     private function send($msg)
     {
         return @fwrite($this->fp, "$msg\n");
@@ -135,14 +190,25 @@ class Metha
      */
     private function get_sized_reply($command)
     {
-        $this->send($command);
-        $r = $this->getline();
+        if ($this->send($command) == false)
+            return false;
+        if (($r = $this->getline()) == false)
+            return false;
+
         $r = explode(' ', $r);
         $len = (int)@$r[1];
         $status = (int)@$r[0];
         if ($status != 100)
             return false;
-        return @fread($this->fp, $len);
+        $count = 0;
+        $x = "";
+        do {
+            if (!($b = @fread($this->fp, $len-$count)))
+                return false;
+            $count += strlen($b);
+            $x .= $b;
+        } while ($count < $len);
+        return $x;
     }
 }
 ?>

@@ -81,7 +81,9 @@ nol_m_ev_conn_accept(EV_P_ ev_io *w, int revents)
         abort();
     }
 
-    syslog(LOG_INFO, "accepted connection from %s", inet_ntoa(c->addr.sin_addr));
+    syslog(LOG_INFO, "#%d accepted connection from %s",
+            sock,
+            inet_ntoa(c->addr.sin_addr));
 
     c->sock = sock;
     c->auth = 0;
@@ -146,21 +148,21 @@ static void
 conn_read(EV_P_ ev_io *w, int revents)
 {
     int sock = w->fd;
-    char buf[256];
+    char buf[1024];
     int sz;
-    char user[16];
-    char pwd[16];
-    char type[16];
+    char *user;
+    char *pwd;
+    char *type;
+    char *e;
     int x;
 
     struct conn* conn = w->data;
     struct slave *sl;
 
-    if ((sz = nol_m_getline(sock, buf, 255)) <= 0)
+    if ((sz = nol_m_getline(sock, buf, 1023)) <= 0)
         goto close;
 
     buf[sz] = '\0';
-    char *p = buf;
 
     if (conn->authenticated) {
         /* user & slave connections will change event callback
@@ -169,7 +171,20 @@ conn_read(EV_P_ ev_io *w, int revents)
     } else {
         if (memcmp(buf, "AUTH", 4) != 0)
             goto denied;
-        sscanf(p+4, "%15s %15s %15s", type, user, pwd);
+        type=buf+5;
+        e=buf+sz;
+        if (!(user = memchr(type, ' ', e-type)))
+            goto close;
+        *user = '\0';
+        user ++;
+        if (!(pwd = memchr(user, ' ', e-user)))
+            goto close;
+        *pwd = '\0';
+        pwd++;
+        char *p;
+        for (p=e; isspace(*p) || !*p; p--)
+            *p = '\0';
+        
         /* verify the auth type */
         int auth_found = 0;
         for (x=0; x<NUM_AUTH_TYPES; x++) {
@@ -237,17 +252,24 @@ check_user_login(const char *user, const char *pwd)
     int len;
     MYSQL_RES *r;
     MYSQL_ROW row;
+    int ret = -1;
 
     strrmsq(user);
     strrmsq(pwd);
 
-    len = sprintf(buf, "SELECT id FROM nol_user WHERE user = '%s' AND pass = '%s';",
+    len = sprintf(buf, "SELECT id FROM nol_user WHERE user = '%s' AND pass = MD5('%s');",
             user, pwd);
-    if (mysql_real_query(srv.mysql, buf, len) == 0)
-        if ((r = mysql_store_result(srv.mysql)))
+    if (mysql_real_query(srv.mysql, buf, len) == 0) {
+        if ((r = mysql_store_result(srv.mysql))) {
             if ((row = mysql_fetch_row(r)))
-                return atoi(row[0]);
-    return -1;
+               ret = atoi(row[0]);
+            mysql_free_result(r);
+        }
+    } else {
+        syslog(LOG_ERR, "user auth error: %s", mysql_error(srv.mysql));
+    }
+
+    return ret;
 }
 
 /**
@@ -379,6 +401,8 @@ upgrade_conn(struct conn *conn, const char *user)
     char          buf[96];
     slave_conn_t *sl;
     int  sock = conn->sock;
+    MYSQL_RES *r;
+    MYSQL_ROW row;
 
     switch (conn->auth) {
         case NOL_AUTH_TYPE_CLIENT:
@@ -438,6 +462,20 @@ upgrade_conn(struct conn *conn, const char *user)
             break;
 
         case NOL_AUTH_TYPE_USER:
+            /* find out and store the permissions for this user */
+            sz = sprintf(buf, "SELECT level FROM `nol_user` WHERE id = %d", conn->user_id);
+            if (mysql_real_query(srv.mysql, buf, sz) != 0)
+                return -1;
+            if (!(r = mysql_store_result(srv.mysql)))
+                return -1;
+            if (!(row = mysql_fetch_row(r))) {
+                mysql_free_result(r);
+                return -1;
+            }
+            conn->level = atoi(row[0]);
+            syslog(LOG_DEBUG, "#%d set permission level to %d", sock, conn->level);
+            mysql_free_result(r);
+
             if (!(no = nolp_create(user_commands, sock)))
                 return -1;
 

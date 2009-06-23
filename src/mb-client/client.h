@@ -1,6 +1,6 @@
 /*-
  * client.h
- * This file is part of mb-clientd 
+ * This file is part of mb-client 
  *
  * Copyright (c) 2008, Emil Romanus <emil.romanus@gmail.com>
  *
@@ -28,6 +28,16 @@
 #include "../libmetha/metha.h"
 #include "nolp.h"
 
+extern int verbose;
+
+#define print_info(X, ...) fprintf(stdout, "[I] " X "\n", __VA_ARGS__)
+#define print_infov(X, ...) {if(verbose)fprintf(stdout, "[I] " X "\n", __VA_ARGS__);}
+#define print_error(X, ...) fprintf(stderr, "[E] " X "\n", __VA_ARGS__)
+#define print_warning(X, ...) fprintf(stderr, "[W] " X "\n", __VA_ARGS__)
+#ifdef DEBUG
+#define print_debug(X, ...) fprintf(stderr, "* " X "\n", __VA_ARGS__)
+#endif
+
 enum {
     MBC_STATE_DISCONNECTED,
     MBC_STATE_WAIT_LOGIN,
@@ -54,5 +64,7 @@ struct mbc {
 }; 
 
 extern struct mbc mbc;
+
+int mbc_end_session(void);
 
 #endif

@@ -677,7 +677,7 @@ lmc_parse(lmc_parser_t *lmc,
                             goto error;
                         }
                         if (atoi(p) && curr->flags_offs)
-                            *(uint8_t*)((char *)o+curr->flags_offs) |= (1 << curr_opt->value.flag);
+                            *(uint8_t*)((char *)o+curr->flags_offs) |= curr_opt->value.flag;
                     } else {
                         set_error(lmc, "<%s:%d>: option '%s' expects a value of type %s",
                                 name, sgetline(buf, p),
@@ -697,10 +697,10 @@ lmc_parse(lmc_parser_t *lmc,
                         }
                         if (strncasecmp(p, "true", 4) == 0) {
                             if (curr->flags_offs)
-                                *(uint8_t*)((char *)o+curr->flags_offs) |= (1 << curr_opt->value.flag);
-                            p+=4;
+                                *(uint8_t*)((char *)o+curr->flags_offs) |= curr_opt->value.flag;
+                            p+=3;
                         } else if (strncasecmp(p, "false", 5) == 0)
-                            p+=5; /* TODO: set flag to 0 */
+                            p+=4; /* TODO: set flag to 0 */
                         else {
                             set_error(lmc, "<%s:%d>: expected %s, found '%c'",
                                     name, sgetline(buf, p),

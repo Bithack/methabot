@@ -68,6 +68,7 @@ static int          spread_workers      = 0;
 static char        *config              = 0;
 static char        *handler             = 0;
 static char        *def_handler         = 0;
+static char        *set_cookie          = 0;
 
 /* methabot-specific data */
 char        *home_conf           = 0; /* user-specific configuration directory */
@@ -92,6 +93,7 @@ static struct option opts[] =
     {"expr",            required_argument,  0,      'x'},
     {"external",        no_argument,        0,      'e'},
     {"depth-limit",     required_argument,  0,      'D'},
+    {"cookie",          required_argument,  0,      'k'},
     {"io-verbose",      no_argument,        0,      0},
     {"download",        no_argument,        0,      'd'},
     {"no-duplicates",   no_argument,        0,      0},
@@ -184,7 +186,7 @@ main(int argc, char **argv)
 
     do {
         opts_index = 0;
-        c = getopt_long(argc, argv, "da:vsb:n:N:%:D:p:em:t:x:C:M:cT:jr", opts, &opts_index);
+        c = getopt_long(argc, argv, "k:da:vsb:n:N:%:D:p:em:t:x:C:M:cT:jr", opts, &opts_index);
 
         if (c == -1)
             break;
@@ -217,6 +219,7 @@ main(int argc, char **argv)
             case 'C': download_dir   = optarg; break;
             case 'M': mode           = optarg; break;
             case 'T': type           = optarg; break; 
+            case 'k': set_cookie     = optarg; break; 
             case 'N': num_pipelines  = (unsigned int)atoi(optarg); break; 
             case 'n': num_threads    = (unsigned int)atoi(optarg); break; 
             case '%': dump           = (unsigned int)atoi(optarg); break; 
@@ -513,6 +516,8 @@ mb_configure_crawler(void)
         lm_crawler_flag_set(cr, LM_CRFLAG_JAIL);
     if (robotstxt)
         lm_crawler_flag_set(cr, LM_CRFLAG_ROBOTSTXT);
+    if (set_cookie)
+        cr->initial_cookie = set_cookie;
     if  (def_handler) {
         cr->default_handler.name = strdup(def_handler);
     }

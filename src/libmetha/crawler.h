@@ -62,6 +62,7 @@ typedef struct crawler {
     unsigned int  depth_limit;
     unsigned int  peek_limit;   /* when external peek is used */
     char         *init;         /* init function for this crawler */
+    char         *initial_cookie;
     union {
         char       *name;
         filetype_t *ptr;

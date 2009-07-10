@@ -104,6 +104,11 @@ static struct opt_help {
         "If this option is set, Methabot will  automatically receive and send\n"
         "cookie information for each  website.  Cookies  are set when an HTTP\n"
         "server send the header Set-Cookie.\n"
+    }, {
+        1, 'k', "set-cookie",
+        "This crawler option sets the  initial cookie used by the crawler. If\n"
+        "-c (--enable-cookies) is also set, this cookie might get replaced by\n"
+        "a Set-Cookie header from the server.\n"
     }
 };
 
@@ -218,6 +223,7 @@ mb_help(void)
        "usage: mb [:config] [options...] url\n"
        "Crawler options: \n"
        " -M, --mode             <mode> Crawling mode (aggressive, friendly, coward)\n"
+       " -k, --set-cookie        <str> Set initial cookie data (also see '-c')\n"
        " -D, --depth-limit       <int> Depth limit (default is 1, 0 is infinite)\n"
        " -e, --external                If set, external URLs will not be discarded\n"
        " -j, --jail                    Restrict the crawling to only subfolders\n"

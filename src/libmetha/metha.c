@@ -180,6 +180,7 @@ crawler_class =
         LMC_OPT_FLAG("jail", LM_CRFLAG_JAIL),
         LMC_OPT_FLAG("robotstxt", LM_CRFLAG_ROBOTSTXT),
         LMC_OPT_STRING("default_handler", offsetof(crawler_t, default_handler.name)),
+        LMC_OPT_STRING("cookie", offsetof(crawler_t, initial_cookie)),
         LMC_OPT_END,
     }
 };

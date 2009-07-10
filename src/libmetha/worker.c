@@ -490,6 +490,7 @@ lm_worker_set_crawler(worker_t *w, crawler_t *c)
     w->crawler = c;
     /*w->ue_h->depth_counter = 0;*/
     w->ue_h->depth_limit = c->depth_limit;
+    curl_easy_setopt(w->io_h->primary, CURLOPT_COOKIE, c->initial_cookie);
 
     return M_OK;
 }

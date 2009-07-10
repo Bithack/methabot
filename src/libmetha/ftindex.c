@@ -155,6 +155,13 @@ lm_ftindex_match_by_url(ftindex_t *i, url_t *url)
     }
 
     if (!url->ext_o) { /* URL does not have a file extension */
+        for (x=0; x<i->ft_count; x++) {
+            if (i->ft_list[x]->expr) {
+                if (umex_match(url, i->ft_list[x]->expr))
+                    return i->ft_list[x];
+            }
+        }
+
         if (LM_URL_ISSET(url, LM_URL_DYNAMIC)) {
             if (i->flags & LM_FTIFLAG_BIND_DYNAMIC_URL) {
                 return (filetype_t*)i->dynamic_url;
@@ -169,13 +176,6 @@ lm_ftindex_match_by_url(ftindex_t *i, url_t *url)
             }
 
             return 0;
-        }
-
-        for (x=0; x<i->ft_count; x++) {
-            if (i->ft_list[x]->expr) {
-                if (umex_match(url, i->ft_list[x]->expr))
-                    return i->ft_list[x];
-            }
         }
 
         if (url->file_o == url->sz-1) {
@@ -193,6 +193,13 @@ lm_ftindex_match_by_url(ftindex_t *i, url_t *url)
         } else if (!i->extless_url)
             return LM_FTINDEX_POSSIBLE_MATCH;
     } else {
+        for (x=0; x<i->ft_count; x++) {
+            if (!i->ft_list[x]->e_count && i->ft_list[x]->expr) {
+                if (umex_match(url, i->ft_list[x]->expr))
+                    return i->ft_list[x];
+            }
+        }
+
         if (LM_URL_ISSET(url, LM_URL_DYNAMIC)) {
             if (i->flags & LM_FTIFLAG_BIND_DYNAMIC_URL) {
                 return (filetype_t*)i->dynamic_url;
@@ -214,16 +221,6 @@ lm_ftindex_match_by_url(ftindex_t *i, url_t *url)
 
         if ((ft = lm_ftindex_match_by_ext(i, url)))
             return ft;
-
-        /* no matching filetype, try finding a filetype by looking comparing the 
-         * url to all defined UMEXs */
-
-        for (x=0; x<i->ft_count; x++) {
-            if (!i->ft_list[x]->e_count && i->ft_list[x]->expr) {
-                if (umex_match(url, i->ft_list[x]->expr))
-                    return i->ft_list[x];
-            }
-        }
 
         /* this URL has a file extension we have no filetype for */
         if (i->flags & LM_FTIFLAG_BIND_UNKNOWN_URL) {

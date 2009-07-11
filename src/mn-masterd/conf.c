@@ -99,6 +99,7 @@ nol_m_crawler_class =
         LMC_OPT_FLAG("jail", 0),
         LMC_OPT_FLAG("robotstxt", 0),
         LMC_OPT_STRING("default_handler", 0),
+        LMC_OPT_STRING("cookie", 0),
         LMC_OPT_END,
     }
 };

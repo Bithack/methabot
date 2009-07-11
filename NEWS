@@ -1,3 +1,9 @@
+1.7.1
+=====
+
+Changes:
+* New option '-k'/'--cookie' for setting a hard-coded initial cookie
+
 1.7.0
 =====
 We are proud to release  the  first  version  of Methabot featuring Methanol web

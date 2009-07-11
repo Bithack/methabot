@@ -103,6 +103,7 @@ lm_crawler_dup(crawler_t *dest, crawler_t *source)
     }
 
     dest->peek_limit = source->peek_limit;
+    dest->depth_limit = source->depth_limit;
 
     return M_OK;
 }

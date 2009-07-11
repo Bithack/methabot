@@ -1,8 +1,9 @@
 1.7.1
 =====
 
-Changes:
+Changes and new features:
 * New option '-k'/'--cookie' for setting a hard-coded initial cookie
+* Bugfix, 'depth_limit' was not copied by the 'copy' keyword
 
 1.7.0
 =====

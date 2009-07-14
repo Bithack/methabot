@@ -451,7 +451,7 @@ lm_parser_xmlconv(struct worker *w, struct iobuf *buf,
         } else {
             /* XXX: This is a temporary solution for discarding the DOCTYPE */
             if (*(p+1) == '!' && strncasecmp(p+2, "DOCTYPE", 7) == 0) {
-                if (!(p = memchr(p, '>', p-e)))
+                if (!(p = memchr(p, '>', e-p)))
                     return M_ERROR;
                 p++;
                 continue;

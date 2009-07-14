@@ -6,6 +6,7 @@ Changes and new features:
 * New filetype option 'table' to save multiple filetype attributes
   in the same MySQL table
 * Bugfix, 'depth_limit' was not copied by the 'copy' keyword
+* Minor bugfix in the xmlconv parser
 
 1.7.0
 =====

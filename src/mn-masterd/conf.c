@@ -64,6 +64,7 @@ nol_m_filetype_class = {
         LMC_OPT_STRING("crawler_switch", 0),
         LMC_OPT_ARRAY("attributes", &filetype_set_attributes),
         LMC_OPT_FLAG("ignore_host", 1),
+        LMC_OPT_STRING("table", 0),
         LMC_OPT_END,
     }
 };

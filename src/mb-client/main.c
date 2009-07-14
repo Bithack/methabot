@@ -239,7 +239,7 @@ mbc_lm_target_cb(metha_t *m, worker_t *w,
         total += y+attributes->list[x].size+2+sz;
     }
     sz = sprintf(pre, "TARGET 0 %s %.64s %d\n",
-            url->str, ft->name,
+            url->str, (ft->table ? ft->table : ft->name),
             total);
     send(mbc.sock, pre, sz, 0);
     for (x=0; x<attributes->num_attributes; x++) {

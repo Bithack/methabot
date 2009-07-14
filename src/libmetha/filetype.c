@@ -43,6 +43,7 @@ lm_filetype_create(const char *name, uint32_t nlen)
     ret->parser_str   = 0;
     ret->expr         = 0;
     ret->flags        = 0;
+    ret->table        = 0;
     ret->switch_to.name = 0;
     ret->parser_chain.parsers = 0;
     ret->parser_chain.num_parsers = 0;
@@ -109,6 +110,11 @@ lm_filetype_clear(filetype_t *ft)
         ft->parser_str = 0;
     }
 
+    if (ft->table) {
+        free(ft->table);
+        ft->table = 0;
+    }
+
     ft->switch_to.name = 0;
     ft->flags = 0;
 }
@@ -149,6 +155,8 @@ lm_filetype_dup(filetype_t *dest, filetype_t *source)
         dest->expr = umex_dup(source->expr);
     if (source->switch_to.name)
         dest->switch_to.name = strdup(source->switch_to.name);
+    if (source->table)
+        dest->table = strdup(source->table);
     if (source->parser_chain.num_parsers) {
         parser_chain_t *ch_d = &dest->parser_chain,
                        *ch_s = &source->parser_chain;

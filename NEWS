@@ -3,6 +3,8 @@
 
 Changes and new features:
 * New option '-k'/'--cookie' for setting a hard-coded initial cookie
+* New filetype option 'table' to save multiple filetype attributes
+  in the same MySQL table
 * Bugfix, 'depth_limit' was not copied by the 'copy' keyword
 
 1.7.0

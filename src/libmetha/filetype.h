@@ -83,6 +83,7 @@ typedef struct filetype {
      * filetype option in configuration files. */
     char                *parser_str;
     parser_chain_t       parser_chain;
+    char                *table;
 
     union {
         char           *name;

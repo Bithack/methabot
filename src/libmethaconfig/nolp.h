@@ -22,7 +22,7 @@
 #ifndef _NOLP__H_
 #define _NOLP__H_
 
-#define NOLP_DEFAULT_BUFSZ 256
+#define NOLP_DEFAULT_BUFSZ 512
 
 enum {
     NOLP_CMD,

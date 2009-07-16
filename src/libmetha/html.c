@@ -397,6 +397,7 @@ static const struct xml_el enc_content[] =
  * - Add missing slashes to end elements, <br> for example is not 
  *   accepted by XML, so it must be converted to <br />.
  * - Tags inside <script>, <style> and <textarea> must be converted.
+ * - Convert < and > to &gt; and &lt; if not part of an element tag
  **/
 M_CODE
 lm_parser_xmlconv(struct worker *w, struct iobuf *buf,
@@ -471,6 +472,13 @@ restart:
                     if (!(p = strchr(p+1, '>')))
                         p = e;
                     else p++;
+                    continue;
+                }
+                if (!isalnum(*p)) {
+                    NBUF_CHECKSZ(4);
+                    *(np++) = '&'; *(np++) = 'l';
+                    *(np++) = 't'; *(np++) = ';';
+                    p++;
                     continue;
                 }
 
@@ -594,7 +602,8 @@ restart:
                         continue;
                     } else if (*s == '<') {
                         /* try to be fault-tolerant */
-                        /* TODO: convert the '<' */
+                        /* XXX: we found a '<' among the attributes 
+                         * for this element, what should we do? */
                         est_sz --;
                         p = s+1;
                         goto restart;

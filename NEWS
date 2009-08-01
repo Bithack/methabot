@@ -10,6 +10,9 @@ Changes and new features:
 * The 'xmlconv' parser will now properly convert incorrectly placed html
   tags that don't belong to an element
 * Bugfix when receiving fast large buffers using nolp
+* Very important javascript-related memory usage fixes, no more huge unused
+  buffers in memory, garbage collection is forced after a call to a 
+  javascript parser.
 
 1.7.0
 =====

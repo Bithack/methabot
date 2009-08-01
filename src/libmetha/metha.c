@@ -392,7 +392,7 @@ lmetha_create(void)
     if (ue_init(&m->ue) != M_OK)
         return 0;
 
-    if (!(m->e4x_rt = JS_NewRuntime(8L*1024L*1024L))) {
+    if (!(m->e4x_rt = JS_NewRuntime(32L*1024L*1024L))) {
         lmetha_destroy(m);
         return 0;
     }

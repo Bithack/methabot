@@ -841,6 +841,7 @@ lm_worker_perform(worker_t *w)
      * next parser between each. 
      **/
     int last = LM_WFUNCTION_TYPE_NATIVE;
+    int n_js = 0; /* if we called a js-parser, do GC after */
     for (x=0; x<ft->parser_chain.num_parsers; x++) {
         wfunction_t *p = ft->parser_chain.parsers[x];
 #ifdef DEBUG
@@ -870,6 +871,7 @@ lm_worker_perform(worker_t *w)
                 break;
 
             case LM_WFUNCTION_TYPE_JAVASCRIPT:
+                n_js ++;
                 JS_BeginRequest(w->e4x_cx);
                 if (last == LM_WFUNCTION_TYPE_NATIVE) {
                     JSString *tmp;
@@ -910,6 +912,8 @@ lm_worker_perform(worker_t *w)
 
         last = p->type;
     }
+    if (n_js)
+        JS_GC(w->e4x_cx);
 
     /* parsing is done. if a parser set any of the filetype attributes
      * using lm_attribute_set, then this file is considered a match, 

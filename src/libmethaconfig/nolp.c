@@ -112,6 +112,7 @@ nolp_recv(nolp_t *no)
                     } else {
                         x = (no->buf+no->sz)-(no->buf+no->expect);
                         no->sz = x;
+                        last = 0;
                         memmove(no->buf, (no->buf+no->expect), x);
                         rerun = 1;
                     }

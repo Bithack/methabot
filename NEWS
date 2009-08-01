@@ -9,6 +9,7 @@ Changes and new features:
 * Minor bugfix in the xmlconv parser
 * The 'xmlconv' parser will now properly convert incorrectly placed html
   tags that don't belong to an element
+* Bugfix when receiving fast large buffers using nolp
 
 1.7.0
 =====

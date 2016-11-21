@@ -1,5 +1,7 @@
 AC_INIT(methanol, 1.7.0, http://metha-sys.org/)
 
+AM_INIT_AUTOMAKE([subdir-objects])
+
 AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
 
 AM_CONFIG_HEADER(src/config.h)

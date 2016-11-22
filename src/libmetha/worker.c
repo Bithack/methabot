@@ -22,12 +22,10 @@
 #include <string.h>
 #include <pthread.h>
 #include <ctype.h>
-#include <jsapi.h>
 
 #include "str.h"
 #include "utable.h"
 #include "worker.h"
-#include "js.h"
 
 /** 
  * TODO:
@@ -38,7 +36,6 @@
 #define inl_ static inline
 
 static M_CODE lm_worker_init(worker_t *w);
-static M_CODE lm_worker_init_e4x(worker_t *w);
 static M_CODE lm_worker_sort(worker_t *w);
 static M_CODE lm_worker_perform(worker_t *w);
 static M_CODE lm_worker_call_crawler_init(worker_t *w);
@@ -52,16 +49,6 @@ static const char *worker_state_str[] = {
     "WAITING", "RUNNING", "STOPPED",
 };
 #endif
-
-/** 
- * This is the object class for the 'this' variable in e4x parser callbacks.
- **/
-static JSClass worker_jsclass = {
-    "worker_t", JSCLASS_HAS_PRIVATE,
-    JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_PropertyStub,
-    JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, JS_FinalizeStub,
-    JSCLASS_NO_OPTIONAL_MEMBERS
-};
 
 /** 
  * Run once without launching a new thread.
@@ -96,8 +83,7 @@ lm_worker_run_once(worker_t *w)
 static M_CODE
 lm_worker_init(worker_t *w)
 {
-    if (lm_worker_init_e4x(w) == M_OK
-        && lm_worker_call_crawler_init(w) == M_OK) {
+    if (lm_worker_call_crawler_init(w) == M_OK) {
 
         lm_notify(w->m, LM_EV_THREAD_READY);
 
@@ -114,8 +100,6 @@ static M_CODE
 lm_worker_call_crawler_init(worker_t *w)
 {
     int x;
-    jsval func;
-    jsval ret;
 
     if (w->crawler->init) {
         const char *init_name = w->crawler->init;
@@ -126,36 +110,8 @@ lm_worker_call_crawler_init(worker_t *w)
 #endif
 
         if ((init_name = strchr(init_name, '/'))) {
+            /* TODO: here we used to call javascript init functions, call module init functions? */
             init_name++;
-
-            JS_BeginRequest(w->e4x_cx);
-
-            if (JS_GetProperty(w->e4x_cx, w->m->e4x_global, init_name, &func) == JS_TRUE 
-                && JS_TypeOfValue(w->e4x_cx, func) == JSTYPE_FUNCTION) {
-                
-                /* create an array to send to the function */
-                JSObject *args = JS_NewArrayObject(w->e4x_cx, 0, 0);
-                
-                for (x=0; x<w->argc; x++) {
-                    JSString *tmp = JS_NewStringCopyN(w->e4x_cx, w->argv[x], strlen(w->argv[x]));
-                    jsval tmp_v = STRING_TO_JSVAL(tmp);
-                    JS_SetElement(w->e4x_cx, args, (jsint)x, &tmp_v);
-                }
-                jsval a = OBJECT_TO_JSVAL(args);
-                JS_CallFunctionValue(w->e4x_cx, w->e4x_this, func, 1, &a, &ret);
-
-                lm_jsval_foreach(w->e4x_cx, ret,
-                        (M_CODE (*)(void *, const char *, uint16_t))&ue_add_initial,
-                        w->ue_h);
-
-                JS_EndRequest(w->e4x_cx);
-
-                return M_OK;
-            } else
-                LM_ERROR(w->m, "could not call init function \"%s\"\n",
-                                w->crawler->init);
-
-            JS_EndRequest(w->e4x_cx);
         } else {
             LM_ERROR(w->m, "init function for crawler \"%s\" is not a javascript function\n",
                             w->crawler->name);
@@ -463,13 +419,6 @@ lm_worker_wait(worker_t *w)
 void
 lm_worker_free(worker_t *w)
 {
-    JS_RemoveRoot(w->e4x_cx, &w->e4x_this);
-
-    JS_BeginRequest(w->e4x_cx);
-    JS_GC(w->e4x_cx);
-    JS_EndRequest(w->e4x_cx);
-
-    JS_DestroyContext(w->e4x_cx);
     lm_iohandle_destroy(w->io_h);
     lm_attrlist_cleanup(&w->attributes);
 }
@@ -722,7 +671,6 @@ lm_worker_perform(worker_t *w)
 {
     M_CODE r;
     int x;
-    jsval ret;
     filetype_t *ft = w->m->filetypes[w->ue_h->current->bind-1];
 
     if (lm_crawler_flag_isset(w->crawler, LM_CRFLAG_JAIL)) {
@@ -773,17 +721,6 @@ lm_worker_perform(worker_t *w)
             case LM_WFUNCTION_TYPE_NATIVE:
                 r = wf->fn.native_handler(w, w->io_h, w->ue_h->current);
                 break;
-            case LM_WFUNCTION_TYPE_JAVASCRIPT:
-                JS_BeginRequest(w->e4x_cx);
-                jsval url = STRING_TO_JSVAL(
-                        JS_NewStringCopyN(w->e4x_cx, w->ue_h->current->str,
-                            w->ue_h->current->sz)
-                        );
-                r = ((JS_CallFunctionValue(w->e4x_cx, w->e4x_this,
-                                           wf->fn.javascript, 1,
-                                           &url, &ret)
-                        == JS_TRUE) ? M_OK : M_FAILED);
-                JS_EndRequest(w->e4x_cx);
             default:
                 return M_ERROR;
         }
@@ -841,7 +778,6 @@ lm_worker_perform(worker_t *w)
      * next parser between each. 
      **/
     int last = LM_WFUNCTION_TYPE_NATIVE;
-    int n_js = 0; /* if we called a js-parser, do GC after */
     for (x=0; x<ft->parser_chain.num_parsers; x++) {
         wfunction_t *p = ft->parser_chain.parsers[x];
 #ifdef DEBUG
@@ -852,136 +788,20 @@ lm_worker_perform(worker_t *w)
         /*TODO: error handling */
         switch (p->type) {
             case LM_WFUNCTION_TYPE_NATIVE:
-                if (last == LM_WFUNCTION_TYPE_JAVASCRIPT) {
-                    /* convert the data */
-                    jsval d;
-                    JS_BeginRequest(w->e4x_cx);
-                    JS_GetProperty(w->e4x_cx, w->e4x_this, "data", &d);
-                    char *from = JS_GetStringBytes(JSVAL_TO_STRING(d));
-                    long len  = JS_GetStringLength(JSVAL_TO_STRING(d));
-                    if (w->io_h->buf.cap < len) {
-                        w->io_h->buf.ptr = realloc(w->io_h->buf.ptr, len);
-                        w->io_h->buf.cap = len;
-                    }
-                    memcpy(w->io_h->buf.ptr, from, len);
-                    w->io_h->buf.sz = len;
-                    JS_EndRequest(w->e4x_cx);
-                }
                 p->fn.native_parser(w, &w->io_h->buf, w->ue_h, w->ue_h->current, &w->attributes);
                 break;
-
-            case LM_WFUNCTION_TYPE_JAVASCRIPT:
-                n_js ++;
-                JS_BeginRequest(w->e4x_cx);
-                if (last == LM_WFUNCTION_TYPE_NATIVE) {
-                    JSString *tmp;
-
-                    tmp = JS_NewStringCopyN(w->e4x_cx, w->ue_h->current->str, w->ue_h->current->sz);
-                    ret = STRING_TO_JSVAL(tmp);
-                    JS_SetProperty(w->e4x_cx, w->e4x_this, "url", &ret);
-
-                    tmp = JS_NewStringCopyN(w->e4x_cx, w->io_h->buf.ptr, w->io_h->buf.sz);
-                    ret = STRING_TO_JSVAL(tmp);
-                    JS_SetProperty(w->e4x_cx, w->e4x_this, "data", &ret);
-
-                    if (w->io_h->transfer.headers.content_type) {
-                        tmp = JS_NewStringCopyN(w->e4x_cx, w->io_h->transfer.headers.content_type,
-                                                strlen(w->io_h->transfer.headers.content_type));
-                        ret = STRING_TO_JSVAL(tmp);
-                        JS_SetProperty(w->e4x_cx, w->e4x_this, "content_type", &ret);
-                    }
-
-                    ret = INT_TO_JSVAL(w->io_h->transfer.status_code);
-                    JS_SetProperty(w->e4x_cx, w->e4x_this, "status_code", &ret);
-                }
-
-                if (JS_CallFunctionValue(w->e4x_cx, w->e4x_this,
-                                         p->fn.javascript, 0, 0, &ret) != JS_TRUE) {
-                    w->m->error_cb(w->m, "calling javascript parser failed");
-                } else
-                    lm_jsval_foreach(w->e4x_cx, ret,
-                            (M_CODE (*)(void *, const char *, uint16_t))&ue_add,
-                            w->ue_h);
-
-                JS_EndRequest(w->e4x_cx);
-                break;
-
             default:
                 return M_FAILED;
         }
 
         last = p->type;
     }
-    if (n_js)
-        JS_GC(w->e4x_cx);
 
     /* parsing is done. if a parser set any of the filetype attributes
      * using lm_attribute_set, then this file is considered a match, 
      * so we send it to the LMOPT_TARGET_FUNCTION callback */
     if (w->attributes.changed)
         w->m->target_cb(w->m, w, w->ue_h->current, &w->attributes, ft);
-
-    return M_OK;
-}
-/** 
- * This function will set up a SpiderMonkey context derived from the
- * global JSRuntime. It will also initialize the 'this' variable which 
- * can be reached by e4x parser callbacks.
- **/
-static M_CODE
-lm_worker_init_e4x(worker_t *w)
-{
-    /** 
-     * Set up the spidermonkey context for this worker thread.
-     **/
-    if (!(w->e4x_cx = JS_NewContext(w->m->e4x_rt, 8192))) {
-        LM_ERROR(w->m, "could not create a new JS context");
-        return M_FAILED;
-    }
-#ifdef DEBUG
-    fprintf(stderr, "* worker:(%p) created new JS context %p\n", w, w->e4x_cx);
-#endif
-    JS_BeginRequest(w->e4x_cx);
-
-    JS_SetOptions(w->e4x_cx, JSOPTION_VAROBJFIX | JSOPTION_XML);
-    JS_SetVersion(w->e4x_cx, 0);
-    JS_SetErrorReporter(w->e4x_cx, &lm_jserror);
-
-    JS_SetGlobalObject(w->e4x_cx, w->m->e4x_global);
-
-    w->e4x_this = JS_NewObject(w->e4x_cx, &worker_jsclass, 0, 0);
-    JS_DefineProperty(w->e4x_cx, w->e4x_this, "url", JSVAL_NULL, 0, 0, 0);
-    JS_DefineProperty(w->e4x_cx, w->e4x_this, "data", JSVAL_NULL, 0, 0, 0);
-    JS_DefineProperty(w->e4x_cx, w->e4x_this, "content_type", JSVAL_NULL, 0, 0, 0);
-    JS_DefineProperty(w->e4x_cx, w->e4x_this, "status_code", JSVAL_NULL, 0, 0, 0);
-    JS_DefineProperty(w->e4x_cx, w->e4x_this, "protocol", JSVAL_NULL, 0, 0, 0);
-    JS_SetPrivate(w->e4x_cx, w->e4x_this, w);
-
-    /** 
-     * Construct all the worker objects, this can be custom classes
-     * added by a module.
-     **/
-    int x;
-    for (x=0; x<w->m->num_worker_objs; x++) {
-        jsval     v;
-        JSObject *o;
-        if ((o = JS_ConstructObject(w->e4x_cx, w->m->worker_objs[x].class, 0, 0))) {
-            v = OBJECT_TO_JSVAL(o);
-            JS_DefineProperty(w->e4x_cx, w->e4x_this, w->m->worker_objs[x].name,
-                              v, 0, 0, 0);
-        }
-    }
-
-    JS_SetPrivate(w->e4x_cx, w->e4x_this, w);
-
-    /* set up worker functions */
-    if (JS_DefineFunctions(w->e4x_cx, w->e4x_this, lm_js_workerfunctions) == JS_FALSE) {
-        LM_ERROR(w->m, "fatal: defining native javascript worker functions failed");
-        return M_FAILED;
-    }
-
-    JS_AddRoot(w->e4x_cx, &w->e4x_this);
-    JS_EndRequest(w->e4x_cx);
 
     return M_OK;
 }

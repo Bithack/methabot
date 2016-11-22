@@ -19,7 +19,6 @@
  * http://bithack.se/projects/methabot/
  */
 
-#include <jsapi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -115,10 +114,9 @@ static struct opt_help {
 void
 mb_version(void)
 {
-    printf("methabot libmetha-%s/%s [%s, pthreads, epoll, libcurl-%s]\n",
+    printf("methabot libmetha-%s/%s [pthreads, epoll, libcurl-%s]\n",
             (sizeof(void*)==8?"x86_64":(sizeof(void*)==32?"x86":"")),
             PACKAGE_VERSION,
-            JS_GetImplementationVersion(),
             LIBCURL_VERSION);
 }
 

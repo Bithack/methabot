@@ -36,7 +36,6 @@
  **/
 
 #include <stdint.h>
-#include <jsapi.h>
 
 #include "errors.h"
 
@@ -45,7 +44,6 @@
 /* function types for wfunction_t */
 enum {
     LM_WFUNCTION_TYPE_NATIVE = 0,
-    LM_WFUNCTION_TYPE_JAVASCRIPT,
 };
 
 /* function purposes (parser, handler) */
@@ -75,12 +73,6 @@ typedef struct wfunction {
     union {
         M_CODE    (*native_parser)(struct worker *, struct iobuf *, struct uehandle *, struct url *, struct attr_list *);
         M_CODE    (*native_handler)(struct worker *, struct iohandle *, struct url *);
-        /*JSFunction *javascript;*/
-        /* ok so the people at mozilla changed the PURPOSE of the JSFunction
-         * type in js-1.8.0, so we can't use it... JS_CallFunction segfaults
-         * in 1.8.0 segfaults. However, calling the function its jsval 
-         * seems to work in both 1.7.0 and 1.8.0 */
-        jsval javascript;
     } fn;
 } wfunction_t;
 

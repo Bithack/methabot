@@ -24,7 +24,6 @@
 
 #include <stdarg.h>
 #include <pthread.h>
-#include <jsapi.h>
 
 #include "filetype.h"
 #include "attr.h" 
@@ -62,13 +61,11 @@ struct observer {
 
 struct worker_object {
     const char *name;
-    JSClass    *class;
 };
 
 struct script_desc {
     char *full;
     char *name;
-    JSScript   *script;
 };
 
 typedef struct metha {
@@ -120,10 +117,6 @@ typedef struct metha {
     struct script_desc *scripts;
     int                 num_scripts;
 
-    JSRuntime        *e4x_rt;
-    JSContext        *e4x_cx;
-    JSObject         *e4x_global;
-
     struct lm_scope  *scopes;
     int               num_scopes;
 
@@ -169,9 +162,6 @@ M_CODE   lmetha_exec_async(metha_t *m, int argc, const char **argv);
 M_CODE   lmetha_add_wfunction(metha_t *m, const char *name, uint8_t type, uint8_t purpose, ...);
 M_CODE   lmetha_add_filetype(metha_t *m, filetype_t *ft);
 M_CODE   lmetha_add_crawler(metha_t *m, crawler_t *cr);
-M_CODE   lmetha_register_worker_object(metha_t *m, const char *name, JSClass *class);
-M_CODE   lmetha_register_jsfunction(metha_t *m, const char *name, JSNative fun, unsigned argc);
-M_CODE   lmetha_init_jsclass(metha_t *m, JSClass *class, JSNative constructor, uintN nargs, JSPropertySpec *ps, JSFunctionSpec *fs, JSPropertySpec *static_ps, JSFunctionSpec *static_fs);
 M_CODE   lmetha_signal(metha_t *m, int sig);
 M_CODE   lmetha_start(metha_t *m);
 M_CODE   lmetha_load_config(metha_t *m, const char *file);

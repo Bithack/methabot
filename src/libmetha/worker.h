@@ -28,7 +28,6 @@
 #include "filetype.h"
 #include "urlengine.h"
 #include "io.h"
-#include <jsapi.h>
 
 #ifdef inl_
 #undef inl_
@@ -61,9 +60,6 @@ typedef struct worker {
     crawler_t    *crawler;
     uehandle_t   *ue_h;
     iohandle_t   *io_h;
-
-    JSContext    *e4x_cx;
-    JSObject     *e4x_this;
 
     int          argc;
     const char **argv;

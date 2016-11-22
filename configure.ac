@@ -102,67 +102,13 @@ else
     AC_MSG_WARN([curl-config not found, guessing build settings])
 fi
 
-case "$host" in
-    *-*-mingw*) MINGW32=yes; JS_DEF="XP_WIN";;
-    *) MINGW32=no; JS_DEF="XP_UNIX";;
-esac
-
 if test "x${MINGW32}" = "xyes"; then
     AC_CHECK_LIB([nspr4],[main],,AC_MSG_ERROR([unable to link with nspr4]))
     AC_CHECK_LIB([wsock32],[main],,AC_MSG_ERROR([unable to link with wsock32]))
     LIBS="${LIBS} -lnspr4 -lwsock32 "
 fi
 
-CFLAGS="${CFLAGS} -D${JS_DEF} -DJS_THREADSAFE -D_GNU_SOURCE"
-CFLAGS_BKP="${CFLAGS}"
-CFLAGS="${CFLAGS_BKP} -I/usr/include/js"
-AC_CHECK_HEADER([js/jsapi.h],JS_INCLUDE_PATH="-I/usr/include/js",
-    CFLAGS="${CFLAGS_BKP} -I/usr/include/mozjs"
-    AC_CHECK_HEADER([mozjs/jsapi.h],JS_INCLUDE_PATH="-I/usr/include/mozjs",
-        AC_MSG_ERROR([unable to find SpiderMonkey headers])
-        , [#define ${JS_DEF} 1])
-    , [#define ${JS_DEF} 1])
-AC_CHECK_LIB([js],[JS_Now],,AC_CHECK_LIB([mozjs],[JS_Now],,AC_MSG_ERROR([unable to link with SpiderMonkey])))
-CFLAGS="${CFLAGS_BKP} ${JS_INCLUDE_PATH}"
-
-AC_MSG_CHECKING([whether to define MOZILLA_1_8_BRANCH])
-AC_RUN_IFELSE([[
-    /* determine whether the installed spidermonkey library
-     * was built with MOZILLA_1_8_BRANCH defined */
-    #include <jsapi.h>
-    static JSBool f(JSContext *c, JSObject *t, uintN argc, jsval *args, jsval *r) {
-        return JS_TRUE;
-    }
-    JSFunctionSpec fun[] = {
-        {"test1", f, 10, JSFUN_HEAVYWEIGHT, 0},
-        {"test2", f, 10, JSFUN_HEAVYWEIGHT, 0},
-        {0},
-    };
-    int main() {
-        JSRuntime *rt; JSContext *cx; JSObject *o; jsval v;
-        rt = JS_NewRuntime(1024L*1024L*8L);
-        cx = JS_NewContext(rt, 8192);
-        o  = JS_NewObject(cx, 0, 0, 0);
-        JS_SetGlobalObject(cx, o);
-        JS_DefineFunctions(cx, o, fun); 
-        if (JS_GetProperty(cx, o, "test2", &v) == JS_FALSE
-            || !JSVAL_IS_OBJECT(v)
-            || JS_ObjectIsFunction(cx, JSVAL_TO_OBJECT(v)) == JS_FALSE
-            || JS_GetFunctionFlags(JS_ValueToFunction(cx, v)) != JSFUN_HEAVYWEIGHT)
-            return 1;
-
-        JS_DestroyContext(cx);
-        JS_DestroyRuntime(rt);
-        JS_ShutDown();
-        return 0;
-    }
-    ]],AC_MSG_RESULT([no]),
-[
-    AC_MSG_RESULT([yes])
-    CFLAGS="${CFLAGS} -DMOZILLA_1_8_BRANCH"
-    BUILD_FLAGS_EXTRA="-DMOZILLA_1_8_BRANCH"
-],
-    ,AC_MSG_RESULT([unknown]))
+CFLAGS="${CFLAGS} -D_GNU_SOURCE"
 
 AC_CHECK_HEADER([curl/curl.h],,AC_MSG_ERROR([unable to find libcurl headers]))
 AC_CHECK_LIB([curl],[curl_global_init],,AC_MSG_ERROR([unable to link with libcurl]))
@@ -187,7 +133,7 @@ AC_CHECK_HEADERS([pthread.h stdint.h sys/epoll.h])
 AC_CHECK_FUNCS([strdup realloc strncasecmp memmem epoll_ctl])
 
 AC_DEFINE_UNQUOTED(BUILD_LIBS, "${LIBS}", [used by modules to link the same libraries as libmetha])
-AC_DEFINE_UNQUOTED(BUILD_CFLAGS, "${JS_INCLUDE_PATH} -D_GNU_SOURCE -DJS_THREADSAFE -DXP_UNIX ${BUILD_FLAGS_EXTRA}", [used by modules to build with the same flags at libmetha])
+AC_DEFINE_UNQUOTED(BUILD_CFLAGS, " -D_GNU_SOURCE -DXP_UNIX ${BUILD_FLAGS_EXTRA}", [used by modules to build with the same flags at libmetha])
 
 AC_MSG_CHECKING([if your compiler supports __sync_add_and_fetch])
 

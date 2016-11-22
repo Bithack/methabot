@@ -19,10 +19,10 @@
  * http://bithack.se/projects/methabot/
  */
 
-#include <jsapi.h>
 #include <ctype.h>
 #include <string.h>
 #include "urlengine.h"
+#include <stdio.h>
 
 /*#define UE_DEBUG*/
 #ifdef _DEBUG

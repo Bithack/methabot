@@ -22,12 +22,10 @@
 #include "default.h"
 #include "metha.h"
 #include "worker.h"
-#include "js.h"
 #include "events.h"
 #include "mod.h"
 #include "builtin.h"
 
-#include <jsapi.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -59,13 +57,6 @@ struct async_data {
     pthread_cond_t   cond;
     pthread_mutex_t  mtx;
     M_CODE           status;
-};
-
-static JSClass global_jsclass = {
-    "global", JSCLASS_GLOBAL_FLAGS,
-    JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_PropertyStub,
-    JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, JS_FinalizeStub,
-    JSCLASS_NO_OPTIONAL_MEMBERS
 };
 
 static struct {
@@ -392,40 +383,6 @@ lmetha_create(void)
     if (ue_init(&m->ue) != M_OK)
         return 0;
 
-    if (!(m->e4x_rt = JS_NewRuntime(32L*1024L*1024L))) {
-        lmetha_destroy(m);
-        return 0;
-    }
-
-#ifdef DEBUG
-    fprintf(stderr, "* metha:(%p) Initializing JS engine (%s)\n",
-            m,
-            JS_GetImplementationVersion());
-#endif
-
-    /** 
-     * Set up the "main" context. This context will only be used for 
-     * garbage collection and loading scripts.
-     **/
-    if (!(m->e4x_cx = JS_NewContext(m->e4x_rt, 8192))) {
-        lmetha_destroy(m);
-        return 0;
-    }
-
-    JS_SetErrorReporter(m->e4x_cx, &lm_jserror);
-
-    if (!(m->e4x_global = JS_NewObject(m->e4x_cx, &global_jsclass, 0, 0))) {
-        lmetha_destroy(m);
-        return 0;
-    }
-
-    /* set up functions */
-    if (JS_DefineFunctions(m->e4x_cx, m->e4x_global, lm_js_allfunctions) == JS_FALSE) {
-        lmetha_destroy(m);
-        return 0;
-    }
-
-    JS_InitStandardClasses(m->e4x_cx, m->e4x_global);
     m->w_num_waiting = 0;
 
     /** 
@@ -485,19 +442,8 @@ lmetha_destroy(metha_t *m)
         free(m->crawlers);
     }
 
-    if (m->num_scripts) {
-        for (x=0; x<m->num_scripts; x++) {
-            free(m->scripts[x].full);
-            JS_DestroyScript(m->e4x_cx, m->scripts[x].script);
-        }
-        free(m->scripts);
-    }
-
     if (m->worker_objs)
         free(m->worker_objs);
-
-    if (m->e4x_cx)
-        JS_DestroyContext(m->e4x_cx);
 
     if (m->num_modules) {
         for (x=0; x<m->num_modules; x++)
@@ -534,11 +480,6 @@ lmetha_destroy(metha_t *m)
 
     if (m->module_dir)
         free(m->module_dir);
-
-    if (m->e4x_rt) 
-        JS_DestroyRuntime(m->e4x_rt);
-
-    JS_ShutDown();
 
     /** 
      * Destroy all pthread mutexes and conditions
@@ -861,58 +802,6 @@ start_worker_threads(metha_t *m, int argc,
         if (lm_fork_worker(m, m->crawlers[m->crawler], h, 0, 0) != M_OK)
             return M_FAILED;
     }
-
-    return M_OK;
-}
-
-/** 
- * Initialize a JSClass in the current runtime
- **/
-M_CODE
-lmetha_init_jsclass(metha_t *m, JSClass *class, JSNative constructor,
-                    uintN nargs, JSPropertySpec *ps, JSFunctionSpec *fs,
-                    JSPropertySpec *static_ps, JSFunctionSpec *static_fs)
-{
-    if (!(JS_InitClass(m->e4x_cx, m->e4x_global, 0, class, constructor,
-                       nargs, ps, fs, static_ps, static_fs)))
-        return M_FAILED;
-
-    return M_OK;
-}
-
-/** 
- * Let modules register global javascript functions
- **/
-M_CODE
-lmetha_register_jsfunction(metha_t *m, const char *name,
-                           JSNative fun, unsigned argc)
-{
-    M_CODE r;
-    JS_BeginRequest(m->e4x_cx);
-    r = JS_DefineFunction(m->e4x_cx, m->e4x_global,
-            name, fun, argc, 0) ? M_OK : M_ERROR;
-    JS_EndRequest(m->e4x_cx);
-    return r;
-}
-
-/** 
- * Register a data field to the 'this' object of ALL workers. This 
- * is useful to modules such as lmm_mysql which puts a mysql object
- * available to all the workers.
- *
- * This function will create a new object of the given class, and thus
- * call the class' constructor. The resulting object will be sent to the 
- * workers when they are created, and put in this.<name>.
- **/
-M_CODE
-lmetha_register_worker_object(metha_t *m, const char *name, JSClass *class)
-{
-    if (!(m->worker_objs = realloc(m->worker_objs, (m->num_worker_objs+1)*sizeof(struct worker_object))))
-        return M_OUT_OF_MEM;
-
-    m->worker_objs[m->num_worker_objs].name = name;
-    m->worker_objs[m->num_worker_objs].class = class;
-    m->num_worker_objs ++;
 
     return M_OK;
 }
@@ -1288,22 +1177,7 @@ lm_str_to_wfunction(metha_t *m, const char *name, uint8_t purpose)
                 /* this is a javascript parser */
                 *s = '\0';
                 if (lm_load_script(m, p)) {
-                    /* TODO: get the function from the JSScript object instead,
-                     * lm_load_script() actually returns a pointer to a JSScript */
-                    jsval func;
-                    JS_GetProperty(m->e4x_cx, m->e4x_global, s+1, &func);
-                    if (JS_TypeOfValue(m->e4x_cx, func) == JSTYPE_FUNCTION) {
-                        *s = '/';
-                        if (lmetha_add_wfunction(m, p,
-                                    LM_WFUNCTION_TYPE_JAVASCRIPT,
-                                    purpose, func) != M_OK)
-                            return 0;
-
-                        return m->functions[m->num_functions-1];
-                    } else {
-                        *s = '/';
-                        LM_ERROR(m, "type mismatch, parser '%s' is not a function", p);
-                    }
+                    /* lmetha_add_wfunction() ... */
                 } else
                     LM_ERROR(m, "could not load javascript file '%s'", p);
             } else
@@ -1403,9 +1277,6 @@ lmetha_add_wfunction(metha_t *m, const char *name, uint8_t type,
     switch (type) {
         case LM_WFUNCTION_TYPE_NATIVE:
             wf->fn.native_parser = va_arg(ap, void*);
-            break;
-        case LM_WFUNCTION_TYPE_JAVASCRIPT:
-            wf->fn.javascript = va_arg(ap, jsval);
             break;
     }
     va_end(ap);
@@ -1511,8 +1382,6 @@ lmetha_read_config(metha_t *m, const char *buf, int size)
 static struct script_desc*
 lm_load_script(metha_t *m, const char *file)
 {
-    JSScript *js;
-    jsval ret;
     char *name;
     char *full = 0;
     char *p;
@@ -1575,9 +1444,8 @@ lm_load_script(metha_t *m, const char *file)
         if (strcmp(m->scripts[x].name, name) == 0)
             return &m->scripts[x];
 
-    if (!(js = JS_CompileFile(m->e4x_cx, m->e4x_global, full))
-        || JS_ExecuteScript(m->e4x_cx, m->e4x_global, js, &ret) != JS_TRUE)
-        goto error;
+    /* TODO: actually compile the script, here we used to 
+     * compile javascript using spidermonkey. */
 
     /* now that the script loaded successfully, add it to the script list */
     if (!(m->scripts = realloc(m->scripts, (x+1)*sizeof(struct script_desc))))
@@ -1585,7 +1453,6 @@ lm_load_script(metha_t *m, const char *file)
 
     m->scripts[x].full = full;
     m->scripts[x].name = name;
-    m->scripts[x].script = js;
     m->num_scripts++;
 
 #ifdef DEBUG

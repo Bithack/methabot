@@ -18,7 +18,6 @@ libmetha_la_SOURCES = \
 	crawler.c   \
 	urlengine.c \
 	worker.c    \
-	js.c        \
 	utable.c    \
 	mtrie.c     \
 	umex.c      \
@@ -41,7 +40,6 @@ libmetha_la_SOURCES = \
 	ftindex.h   \
 	urlengine.h \
 	worker.h    \
-	js.h        \
 	mtrie.h     \
 	builtin.h   \
 	ftpparse.h  \

@@ -727,8 +727,12 @@ lm_worker_perform(worker_t *w)
     } else
         r = lm_io_get(w->io_h, w->ue_h->current);
 
-    if (r != M_OK)
+    if (r != M_OK) {
+#ifdef DEBUG
+        fprintf(stderr, "* worker:(%p) handler or lm_io_get failed: %s (%d)\n", w, lm_strerror(r), r);
+#endif
         return r;
+    }
 
     /** 
      * Handler is done, time to do our own logic. If the transfer was over HTTP and we got a 

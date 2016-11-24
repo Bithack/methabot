@@ -59,7 +59,7 @@ static M_CODE (*__perform[])(iohandle_t *, url_t *) = {
     &lm_io_perform_http,
     &lm_io_perform_ftp,
     &lm_io_no_perform,
-    &lm_io_no_perform,
+    &lm_io_perform_http,
     &lm_io_no_perform,
     &lm_io_no_perform,
 };
@@ -419,6 +419,9 @@ lm_io_get(iohandle_t *h, url_t *url)
 static M_CODE
 lm_io_no_perform(iohandle_t *h, url_t *url)
 {
+#ifdef DEBUG
+    fprintf(stderr, "* iohandle:(%p) no perform, unknown protocol?\n", h);
+#endif
     return M_FAILED;
 }
 
@@ -472,6 +475,10 @@ lm_io_perform_http(iohandle_t *h, url_t *url)
     int retries = 0;
     int done = 0;
     long status;
+
+#ifdef DEBUG
+    fprintf(stderr, "* iohandle:(%p) perform http\n", h);
+#endif
 
 #if LIBCURL_VERSION_NUM < 0x71202
     curl_easy_setopt(h->primary, CURLOPT_FOLLOWLOCATION, 1);

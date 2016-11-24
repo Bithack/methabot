@@ -175,6 +175,10 @@ ue_add(uehandle_t *h, const char *url, uint16_t len)
     int x;
     M_CODE ret;
 
+#ifdef DEBUG
+    fprintf(stderr, "* uehandle:(%p) add url '%.*s'\n", h, len, url);
+#endif
+
     if (!(list = lm_utable_top(&h->primary)))
         return M_FAILED;
     if (!(t = lm_ulist_inc(list)))

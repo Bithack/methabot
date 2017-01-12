@@ -1,9 +1,15 @@
 #!/bin/bash
 
+if [ "$(which libtoolize)x" = "x" ]; then
+    LIBTOOLIZE=glibtoolize
+else
+    LIBTOOLIZE=libtoolize
+fi
+
 touch config.rpath
 aclocal &&
 autoconf &&
-libtoolize &&
+$LIBTOOLIZE &&
 automake --add-missing;
 
 echo -n "generating metha.h installation header... "

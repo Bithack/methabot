@@ -729,12 +729,14 @@ mb_target_cb(metha_t *m, struct worker *w, url_t *url,
              attr_list_t *attributes, filetype_t *ft)
 {
     printf("[-] %s\n", url->str);
+    fflush(stdout);
 }
 
 static void
 mb_status_cb(metha_t *m, struct worker *w, url_t *url)
 {
     printf("[I] URL: %s\n", url->str);
+    fflush(stdout);
 }
 
 static void

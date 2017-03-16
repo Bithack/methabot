@@ -2,6 +2,17 @@
 
 We're reviving the classic super-fast web crawler Methabot. We'll clean stuff up and make available a simple and functional web crawler.
 
+## Building
+
+```
+$ ./autogen.sh
+$ ./configure --prefix=/usr
+$ make
+$ sudo make install
+$ mb --help
+```
+
+
 ## Custom modules
 
 See src/modules/example.c, build to a shared library:

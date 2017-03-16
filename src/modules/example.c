@@ -1,71 +1,54 @@
-/** 
- * Example module
- **/
+#include <stdio.h>
+#include <stdint.h>
+#include <metha/module.h>
 
-#include "../libmetha/module.h"
+#undef PACKAGE_NAME
+#undef PACKAGE_VERSION
 
-static M_CODE example_init();
-static M_CODE example_uninit();
-static M_CODE example_parser(iohandle_t *io_h, uehandle_t *ue_h, url_t *url);
+#define PACKAGE_NAME "example"
+#define PACKAGE_VERSION "0.0.0"
 
-PROPERTIES = {
-    .name      = "Example Module",
-    .version   = "1.0.0",
-    .on_load   = &example_init,
-    .on_unload = &example_uninit,
+#define LOGI(X, ...) fprintf(stdout, PACKAGE_NAME "-" PACKAGE_VERSION ": " X, ## __VA_ARGS__)
+
+static M_CODE init();
+static M_CODE uninit();
+static M_CODE example_parser(struct worker *w, struct iobuf *buf,
+                             struct uehandle *ue_h, struct url *url,
+                             struct attr_list *al);
+
+lm_mod_properties = {
+    .name      = PACKAGE_NAME,
+    .version   = PACKAGE_VERSION,
+    .init      = &init,
+    .uninit    = &uninit,
 
     .num_parsers = 1,
     .parsers = {
-        LM_DEFINE_PARSER("example", &example_parser),
+        {
+            .name = "example",
+            .type = LM_WFUNCTION_TYPE_NATIVE,
+            .purpose = LM_WFUNCTION_PURPOSE_PARSER,
+            .fn.native_parser = &example_parser,
+        },
     },
 };
 
-static M_CODE
-example_init()
+static M_CODE init()
 {
-    lm_message("Example Module 1.0.0 Initialized");
+    LOGI("initialized");
     return M_OK;
 }
 
-static M_CODE
-example_uninit()
+static M_CODE uninit()
 {
-    lm_message("Example Module 1.0.0 ");
+    LOGI("uninit");
     return M_OK;
 }
 
-/** 
- * This example parser will look for http-URLs in plain text.
- * It will separate urls from other text by whitespaces, so it 
- * is not very fault-tolerant, just an example of how one should 
- * build a module with a parser.
- **/
-static M_CODE
-example_parser(iohandle_t *io_h, uehandle_t *ue_h, url_t *url)
+static M_CODE example_parser(struct worker *w, struct iobuf *buf,
+                             struct uehandle *ue_h, struct url *url,
+                             struct attr_list *al)
 {
-    /** 
-     * Download the given URL
-     **/
-    if (lm_io_get(io_h, url) == M_OK) {
-        char *p = io_h->buf.ptr;
-        char *e = p+io_h->buf.sz;
-        char *s;
-
-        for (;p<e;p++) {
-            if (strncasecmp(p, "http://", 7) == 0) {
-                /* find the end of the url */
-                for (s=p;s<e;s++) {
-                    if (isspace(*s)) {
-                        /* we found the end, add it to the urlengine */
-                        ue_add(ue_h, p, s-p);
-                        p=s;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
     return M_OK;
 }
 

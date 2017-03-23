@@ -189,11 +189,32 @@ ue_add(uehandle_t *h, const char *url, uint16_t len)
 
     /* fix the given url depending on its syntax */
     if (*url == '/') {
-        /* the URL starts with a '/' and should thus presumably be appended
-         * to the current host */
-        if ((ret = lm_url_combine(t, h->current, url, len)) != M_OK)
-            goto failed;
-        goto cache_check;
+        if (*(url+1) == '/') {
+            /* XXX remove this allocation sometime */
+            size_t new_len = len-2+h->current->host_o;
+            const char *fixed = malloc(new_len);
+            memcpy(fixed, h->current->str, h->current->host_o);
+            memcpy(fixed+h->current->host_o, url+2, len-2);
+
+            if (lm_url_set(t, fixed, new_len) != M_OK) {
+                free(fixed);
+                goto failed;
+            }
+
+            free(fixed);
+            fixed = 0;
+
+            if (lm_url_hostcmp(t, h->current) != 0) {
+                t->flags |= LM_URL_EXTERNAL;
+            }
+            goto cache_check;
+        } else {
+            /* the URL starts with a '/' and should thus presumably be appended
+             * to the current host */
+            if ((ret = lm_url_combine(t, h->current, url, len)) != M_OK)
+                goto failed;
+            goto cache_check;
+        }
     }
     for (x=0; x<len; x++) {
         if (!isalnum(url[x])) {

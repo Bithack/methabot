@@ -407,12 +407,16 @@ ue_next(uehandle_t *h)
     ulist_t *top;
     url_t   *url;
 
+    /* The responsibility of respecting depth_counter
+     * is now on the worker */
+    /*
     if (h->depth_limit) {
         while (h->depth_counter >= h->depth_limit) {
             lm_utable_dec(&h->primary);
             h->depth_counter --;
         }
     }
+    */
 
     if (!(top = lm_utable_top(&h->primary)))
         return 0;

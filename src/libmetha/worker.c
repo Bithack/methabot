@@ -482,6 +482,9 @@ lm_fork_worker(metha_t *m, crawler_t *c,
  * on the current crawler's list of filetypes 
  * and rules.
  *
+ * If we have reached the maximum depth we must also discard
+ * URLs here to prevent them from being crawled.
+ *
  * Returns M_OK unless an error occured.
  **/
 static M_CODE
@@ -508,7 +511,7 @@ lm_worker_sort(worker_t *w)
     syn    = w->io_h->io->synchronous;
     lookup = 0;
 
-    for (x=0; x<list->sz; ) {
+    for (x=0; x<list->sz; x++) {
         url   = lm_ulist_row(list, x);
         match = 0;
 
@@ -537,18 +540,13 @@ lm_worker_sort(worker_t *w)
         }
 
         if (!match) {
-            /* if match is set to 0, we will discard this URL
-             * and move the top-most URL to replace its position
-             * in the list */
             lm_url_nullify(url);
-            lm_url_swap(url, lm_ulist_top(list));
-            lm_ulist_dec(list);
-        } else
-            x++;
+        }
     }
 
-    if (!lookup)
-        return M_OK;
+    if (!lookup) {
+        goto cleanup;
+    }
 
     ioprivate_t *info;
     CURL        *h;
@@ -578,6 +576,23 @@ lm_worker_sort(worker_t *w)
 
         if (!match)
             lm_url_nullify(url);
+    }
+
+cleanup:
+    /* finally, remove everything that is honoring depth_limit */
+    if (w->ue_h->depth_limit) {
+        if (w->ue_h->depth_counter >= w->ue_h->depth_limit) {
+            for (x=0; x<list->sz; x++) {
+                url   = lm_ulist_row(list, x);
+                if (!url->sz) {
+                    continue;
+                }
+                ft = w->m->filetypes[url->bind-1];
+                if (!FT_FLAG_ISSET(ft, FT_FLAG_IGNORE_DEPTH)) {
+                    lm_url_nullify(url);
+                }
+            }
+        }
     }
 
     /* remove nullified urls from the list */

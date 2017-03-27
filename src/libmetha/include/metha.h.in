@@ -4,14 +4,24 @@
 #include "lmopt.h"
 
 struct metha;
+struct worker;
 struct filetype;
 struct crawler;
 struct io;
 
 typedef struct metha metha_t;
 typedef struct crawler crawler_t;
+typedef struct worker worker_t;
 typedef struct filetype filetype_t;
 typedef struct io io_t;
+
+typedef struct iostat {
+    short status_code;
+    struct {
+        char *location;
+        char *content_type;
+    } headers;
+} iostat_t;
 
 typedef struct iobuf {
     char  *ptr;

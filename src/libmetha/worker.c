@@ -691,7 +691,6 @@ lm_worker_perform(worker_t *w)
 #ifdef DEBUG
     fprintf(stderr, "* worker:(%p) URL: %s\n", w, w->ue_h->current->str);
 #endif
-    w->m->status_cb(w->m, w, w->ue_h->current);
 
     if (ft->switch_to.ptr)
         lm_worker_set_crawler(w, ft->switch_to.ptr);
@@ -733,6 +732,8 @@ lm_worker_perform(worker_t *w)
 #endif
         return r;
     }
+
+    w->m->status_cb(w->m, w, w->ue_h->current, &w->io_h->transfer);
 
     /** 
      * Handler is done, time to do our own logic. If the transfer was over HTTP and we got a 

@@ -1,3 +1,0 @@
-REQUIRE="httpd"
-RUN="mb -D 0 -r http://127.0.0.1:9999/1/index.html"
-INFO="robots.txt"

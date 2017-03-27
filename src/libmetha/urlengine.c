@@ -175,7 +175,7 @@ ue_add(uehandle_t *h, const char *url, uint16_t len)
     int x;
     M_CODE ret;
 
-#ifdef DEBUG
+#ifdef UE_DEBUG
     fprintf(stderr, "* uehandle:(%p) add url '%.*s'\n", h, len, url);
 #endif
 
@@ -431,17 +431,16 @@ ue_next(uehandle_t *h)
         if (h->depth_counter)
             h->depth_counter --;
 
-        if (!h->depth_counter && h->is_peeking) {
+        if (h->depth_counter <= 0 && h->is_peeking) {
             /* reset counter if we are in an external peek */
+            fprintf(stderr, "OK !!!!!!!!!!!!!!!!!!!!! RESET DEPTH COUNTER TO : %d", h->depth_counter_bk);
             h->depth_counter = h->depth_counter_bk;
             h->depth_limit   = h->depth_limit_bk;
             h->is_peeking    = 0;
             ue_set_host(h, h->host_ent_bk->str, h->host_ent_bk->len);
 
-            if (h->depth_counter >= h->depth_limit) {
-                if (lm_utable_dec(&h->primary) != M_OK || !(top = lm_utable_top(&h->primary))) {
-                    return 0;
-                }
+            if (lm_utable_dec(&h->primary) != M_OK || !(top = lm_utable_top(&h->primary))) {
+                return 0;
             }
         }
     }
@@ -561,7 +560,7 @@ ue_hostent_create(uehandle_t *h, const char *str,
     p->len = len;
     p->secondary_n = secondary_n;
 
-#ifdef DEBUG
+#ifdef UE_DEBUG
     fprintf(stderr, "* uehandle:(%p) created new host entry for '%s'\n", h, p->str);
 #endif
 

@@ -1,3 +1,0 @@
-REQUIRED="httpd"
-RUN="mb - --base-url=http://127.0.0.1:9999/ -D 0"
-INFO="Piping"

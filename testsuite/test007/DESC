@@ -1,4 +1,0 @@
-REQUIRE="httpd"
-RUN="mb :parser-chaining-test http://127.0.0.1:9999/ -t png"
-INFO="parser chaining"
-ORDERED=1

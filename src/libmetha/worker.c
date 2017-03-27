@@ -83,6 +83,8 @@ lm_worker_run_once(worker_t *w)
 static M_CODE
 lm_worker_init(worker_t *w)
 {
+    w->num_discarded_urls = 0;
+
     if (lm_worker_call_crawler_init(w) == M_OK) {
 
         lm_notify(w->m, LM_EV_THREAD_READY);
@@ -354,6 +356,10 @@ lm_worker_main(void *in)
     } while (1);
 
 done:
+#ifdef DEBUG
+    fprintf(stderr, "* worker:(%p) num discarded URLs: %d\n", w, w->num_discarded_urls);
+#endif
+
     lm_notify(w->m, LM_EV_THREAD_DESTROY);
     ue_handle_free(w->ue_h);
     pthread_mutex_destroy(&w->lock);
@@ -500,6 +506,7 @@ lm_worker_sort(worker_t *w)
     url_t      *url;
     const char *mime;
     char       *c;
+    int num_urls;
 
     /* get the current list of URLs */
     if (!(list = lm_utable_top(&ue_h->primary)))
@@ -510,6 +517,8 @@ lm_worker_sort(worker_t *w)
               ? 1 : 0;
     syn    = w->io_h->io->synchronous;
     lookup = 0;
+
+    num_urls = list->sz;
 
     for (x=0; x<list->sz; x++) {
         url   = lm_ulist_row(list, x);
@@ -609,6 +618,8 @@ cleanup:
         } else
             x++;
     }
+
+    w->num_discarded_urls += num_urls - list->sz;
 
     return M_OK;
 }

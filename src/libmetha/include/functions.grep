@@ -1,4 +1,5 @@
 lmetha_setopt
+lmetha_getstat
 lmetha_create
 lmetha_destroy
 lmetha_load_module

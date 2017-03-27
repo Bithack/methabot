@@ -43,4 +43,8 @@ typedef enum {
     LMOPT_EV_FUNCTION,
 } LMOPT;
 
+typedef enum {
+    LMSTAT_NUM_DISCARDED_URLS = 0,
+} LMSTAT;
+
 #endif

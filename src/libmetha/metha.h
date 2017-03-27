@@ -144,6 +144,8 @@ typedef struct metha {
 
     int robotstxt; /* is robots.txt support enabled in ANY crawler? */
     int state;
+
+    int num_discarded_urls;
 } metha_t;
 
 /* metha.c */
@@ -154,6 +156,8 @@ metha_t *lmetha_create(void);
 M_CODE   lmetha_setopt(metha_t *m, LMOPT opt, ...);
 M_CODE   lmetha_prepare(metha_t *m);
 void     lmetha_destroy(metha_t *m);
+
+void     lmetha_getstat(metha_t *m, LMSTAT stat, ...);
 
 M_CODE   lmetha_exec(metha_t *m, int argc, const char **argv); 
 M_CODE   lmetha_exec_provided(metha_t *m, const char *base_url, const char *buf, size_t len);

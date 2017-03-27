@@ -68,6 +68,9 @@ typedef struct worker {
     int          message;
     int          redirects;
 
+    /* statistics */
+    int          num_discarded_urls;
+
     /* attribute list used for all urls matching a filetype */
     attr_list_t attributes;
 

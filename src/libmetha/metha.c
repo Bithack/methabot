@@ -25,6 +25,7 @@
 #include "events.h"
 #include "mod.h"
 #include "builtin.h"
+#include "lmopt.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -178,6 +179,34 @@ crawler_class =
     }
 };
 
+/** 
+ * LMOPTs are defined in metha.h
+ **/
+void
+lmetha_getstat(metha_t *m, LMSTAT opt, ...)
+{
+    va_list ap;
+    int x, n;
+    int *iarg;
+    va_start(ap, opt);
+
+    switch (opt) {
+        case LMSTAT_NUM_DISCARDED_URLS:
+            n = m->num_discarded_urls;
+            iarg = va_arg(ap, int*);
+
+            for (x = 0; x<m->nworkers; x++) {
+                n += m->workers[x]->num_discarded_urls;
+            }
+            fprintf(stdout, "num: %d\n", n);
+
+            (*iarg) = n;
+            break;
+    }
+
+    va_end(ap);
+    return;
+}
 
 /** 
  * LMOPTs are defined in metha.h
@@ -366,6 +395,8 @@ lmetha_create(void)
     if (!(m = calloc(1, sizeof(metha_t))))
         return 0;
 
+    m->num_discarded_urls = 0;
+
     m->error_cb = lm_default_error_reporter;
     m->warning_cb = lm_default_error_reporter;
     m->status_cb = lm_default_status_reporter;
@@ -422,6 +453,12 @@ lmetha_destroy(metha_t *m)
     /* stop the IO-thread */
     lm_iothr_stop(&m->io);
 
+    if (m->num_modules) {
+        for (x=0; x<m->num_modules; x++)
+            lm_mod_unload(m, m->modules[x]);
+        free(m->modules);
+    }
+
     for (x=0; x<LM_EV_COUNT; x++) {
         struct observer_pool *pool = &m->observer_pool[x];
         if (pool->o)
@@ -445,12 +482,6 @@ lmetha_destroy(metha_t *m)
 
     if (m->worker_objs)
         free(m->worker_objs);
-
-    if (m->num_modules) {
-        for (x=0; x<m->num_modules; x++)
-            lm_mod_unload(m, m->modules[x]);
-        free(m->modules);
-    }
 
     if (m->num_configs) {
         for (x=0; x<m->num_configs; x++)
@@ -746,7 +777,10 @@ stop_worker_threads(metha_t *m)
     /* Wait for all threads to exit and clean up */
     for (x=0; x<m->nworkers; x++) {
         pthread_join(m->workers[x]->thr, 0);
-        free(w);
+
+        /* remember how many discarded urls we had */
+        m->num_discarded_urls += m->workers[x]->num_discarded_urls;
+        free(m->workers[x]);
     }
 
     if (m->nworkers) {

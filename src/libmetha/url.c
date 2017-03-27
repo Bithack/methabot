@@ -178,7 +178,7 @@ lm_url_set(url_t *url, const char *str, uint16_t size)
     uint8_t  proto = 0xff;
     url->flags = 0;
 
-    while (isalnum(*s))
+    while (isalnum(*s) || *s == '-')
         s++; /* loop past protocol */
     if (*s == ':') {
         y = s - str;

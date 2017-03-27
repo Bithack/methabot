@@ -217,7 +217,7 @@ ue_add(uehandle_t *h, const char *url, uint16_t len)
         }
     }
     for (x=0; x<len; x++) {
-        if (!isalnum(url[x])) {
+        if (!isalnum(url[x]) && url[x] != '-') {
             if (url[x] == ':') {
                 if (lm_url_set(t, url, len) == M_OK) {
                     /* now we need to check whether the URL is external or not,

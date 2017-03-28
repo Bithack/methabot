@@ -39,6 +39,7 @@ struct {
     const char *name;
     int         len;
 } protocols[] = {
+    {"https", 5},
     {"http", 4},
     {"ftp", 3},
 };
@@ -179,21 +180,35 @@ lm_extract_text_urls(uehandle_t *ue_h, char *p, size_t sz)
 {
     int x;
     char *s, *e = p+sz;
+    char *m = p;
+    char *p_start;
 
-    for (p = strstr(p, "://"); p && p<e; p = strstr(p+1, "://")) {
-        for (x=0;x<2;x++) {
-            if (p-e >= protocols[x].len 
-                && strncmp(p-protocols[x].len, protocols[x].name, protocols[x].len) == 0) {
-                for (s=p+3; s < e; s++) {
-                    if (!isalnum(*s) && *s != '%' && *s != '?'
-                        && *s != '=' && *s != '&' && *s != '/'
-                        && *s != '.') {
-                        ue_add(ue_h, p-protocols[x].len, (s-p)+protocols[x].len);
-                        break;
-                    }
+    for (p = strstr(p, "//"); p && p<e; p = strstr(p+1, "//")) {
+        p_start = 0;
+
+        if (p-1 > m && *(p-1) == ':') {
+            for (x=0;x<3;x++) {
+                p_start = p-1-protocols[x].len;
+                if (p_start >= m
+                    && strncmp(p_start, protocols[x].name, protocols[x].len) == 0) {
+                    break;
                 }
-                p = s;
+                p_start = 0;
             }
+        } else {
+            p_start = p;
+        }
+
+        if (p_start) {
+            for (s=p+2; s < e; s++) {
+                if (!isalnum(*s) && *s != '%' && *s != '?'
+                    && *s != '=' && *s != '&' && *s != '/'
+                    && *s != '.' && *s != ':' && *s != '_') {
+                    ue_add(ue_h, p_start, (s-p_start));
+                    break;
+                }
+            }
+            p = s;
         }
     }
 

@@ -194,6 +194,7 @@ lm_parser_html(struct worker *w, struct iobuf *buf,
 static void
 parse_textarea(uehandle_t *h, char *p, size_t sz)
 {
+    lm_extract_text_urls(h, p, sz);
     /* TODO: handle textarea, there's probably nothing interesting here though */
 }
 
@@ -206,6 +207,7 @@ parse_textarea(uehandle_t *h, char *p, size_t sz)
 static void
 parse_script(uehandle_t *h, char *p, size_t sz)
 {
+    lm_extract_text_urls(h, p, sz);
     /* TODO: handle scripts */
 }
 

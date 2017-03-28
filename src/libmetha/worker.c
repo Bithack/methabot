@@ -507,6 +507,7 @@ lm_worker_sort(worker_t *w)
     const char *mime;
     char       *c;
     int num_urls;
+    int depth_limit, depth_counter;
 
     /* get the current list of URLs */
     if (!(list = lm_utable_top(&ue_h->primary)))
@@ -517,6 +518,10 @@ lm_worker_sort(worker_t *w)
               ? 1 : 0;
     syn    = w->io_h->io->synchronous;
     lookup = 0;
+
+    /* need to cache these here since invocation of epeek might change them during */
+    depth_limit = ue_h->depth_limit;
+    depth_counter = ue_h->depth_counter;
 
     num_urls = list->sz;
 
@@ -589,8 +594,8 @@ lm_worker_sort(worker_t *w)
 
 cleanup:
     /* finally, remove everything that is honoring depth_limit */
-    if (w->ue_h->depth_limit) {
-        if (w->ue_h->depth_counter >= w->ue_h->depth_limit) {
+    if (depth_limit) {
+        if (depth_counter >= depth_limit) {
             for (x=0; x<list->sz; x++) {
                 url   = lm_ulist_row(list, x);
                 if (!url->sz) {
@@ -646,11 +651,6 @@ lm_worker_bind_url(worker_t *w, url_t *url,
     uehandle_t *ue_h = w->ue_h;
     crawler_t  *cr = w->crawler;
 
-    if (!epeek) {
-        //fprintf(stderr, "HEELLO %s %s\n", w->ue_h->current ? w->ue_h->current->str : "(null)", url->str);
-        //return 1;
-    }
-
     lm_filetype_counter_inc(ft);
 
     if (FT_FLAG_ISSET(ft, FT_FLAG_HAS_PARSER)
@@ -671,7 +671,7 @@ lm_worker_bind_url(worker_t *w, url_t *url,
                     /* now back up our depth counter/limit values
                      * so that we may continue after the epeek
                      * is done */
-                    ue_h->depth_counter_bk = ue_h->depth_counter-1;
+                    ue_h->depth_counter_bk = ue_h->depth_counter;
                     ue_h->depth_limit_bk = ue_h->depth_limit;
                     ue_h->host_ent_bk = ue_h->host_ent;
 
@@ -763,19 +763,6 @@ lm_worker_perform(worker_t *w)
 #endif
         return r;
     }
-
-#ifdef DEBUG
-    x=0;
-    char tree[21];
-    int lim = w->ue_h->depth_counter;
-    if (lim > 20) lim = 20;
-    for (;x<lim; x++) {
-        tree[x] = '-';
-    }
-    tree[x] = '\0';
-
-    fprintf(stderr, "* worker:(%p) %s peek: %d\n", w, tree, w->ue_h->is_peeking);
-#endif
 
     w->m->status_cb(w->m, w, w->ue_h->current, &w->io_h->transfer);
 

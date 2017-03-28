@@ -433,7 +433,6 @@ ue_next(uehandle_t *h)
 
         if (h->depth_counter <= 0 && h->is_peeking) {
             /* reset counter if we are in an external peek */
-            fprintf(stderr, "OK !!!!!!!!!!!!!!!!!!!!! RESET DEPTH COUNTER TO : %d", h->depth_counter_bk);
             h->depth_counter = h->depth_counter_bk;
             h->depth_limit   = h->depth_limit_bk;
             h->is_peeking    = 0;

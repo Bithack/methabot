@@ -68,6 +68,8 @@ typedef struct crawler {
         filetype_t *ptr;
     } initial_filetype; /* type of the initial URLs */
     uint8_t       flags;
+
+    float wait;
 } crawler_t;
 
 crawler_t *lm_crawler_create(const char *name, uint32_t nlen);

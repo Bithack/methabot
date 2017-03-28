@@ -35,9 +35,11 @@
 #ifdef WIN32
  #include <windows.h>
  #define sec_sleep(x) Sleep(x*1000)
+ #error nanosecond sleep on windows?
 #else
  #include <unistd.h>
  #define sec_sleep(x) sleep(x)
+ #define usec_sleep(x) usleep(x)
 #endif
 
 static void *lm_iothr_main(io_t *io);
@@ -46,7 +48,7 @@ static int   lm_iothr_set_timer_cb(CURLM *m, long timeout, io_t *io);
 static void  lm_iothr_check_completed(io_t *io);
 static size_t lm_iothr_data_cb(void *ptr, size_t size, size_t nmemb, void *s);
 static M_CODE lm_iothr_check_pending(io_t *io);
-static void  lm_iothr_wait(io_t *io, int mp);
+static void  lm_iothr_wait(iohandle_t *io, int mp);
 static M_CODE lm_io_perform_http(iohandle_t *h, url_t *url);
 static M_CODE lm_io_perform_ftp(iohandle_t *h, url_t *url);
 static M_CODE lm_io_no_perform(iohandle_t *h, url_t *url);
@@ -195,6 +197,8 @@ lm_iohandle_obtain(io_t *io)
             return 0;
         ioh->buf.cap = BUF_INIT_SIZE;
 
+        ioh->timer_last = 0;
+
         ioh->transfer.headers.content_type = "";
     }
     return ioh;
@@ -314,14 +318,13 @@ lm_io_data_save_cb(char *ptr, size_t size,
 M_CODE
 lm_io_head(iohandle_t *h, url_t *url)
 {
-    if (h->io->synchronous)
-        lm_iothr_wait(h->io, 1);
+    /*if (h->io->synchronous)
+        lm_iothr_wait(h, 1);*/
 
     memset(&h->transfer, 0, sizeof(iostat_t));
 
-    /* head is supported for HTTP and HTTPS only
-     * XXX: https is disabled for now */
-    if (url->protocol != LM_PROTOCOL_HTTP)
+    /* head is supported for HTTP and HTTPS only */
+    if (url->protocol != LM_PROTOCOL_HTTP && url->protocol != LM_PROTOCOL_HTTPS)
         return M_OK;
 
     curl_easy_setopt(h->primary, CURLOPT_URL, url->str);
@@ -363,7 +366,7 @@ lm_io_save(iohandle_t *h, url_t *url,
     /* TODO: support provided data by writing
      *       it to the file */
     if (h->io->synchronous)
-        lm_iothr_wait(h->io, 0);
+        lm_iothr_wait(h, 0);
 
     h->buf.sz = 0;
     h->buf.ptr[0] = '\0';
@@ -396,8 +399,9 @@ lm_io_get(iohandle_t *h, url_t *url)
         return M_OK;
     }
 
-    if (h->io->synchronous)
-        lm_iothr_wait(h->io, 0);
+    //if (h->io->synchronous) {
+        lm_iothr_wait(h, 0);
+    //}
 
     h->buf.sz = 0;
     h->buf.ptr[0] = '\0';
@@ -571,17 +575,22 @@ lm_multipeek_wait(iohandle_t *ioh)
  * time between transfers.
  **/
 static void
-lm_iothr_wait(io_t *io, int mp)
+lm_iothr_wait(iohandle_t *h, int mp)
 {
     clock_t now = clock();
     clock_t done;
-    if (mp)
-        done = io->timer_last+io->timer_wait_mp;
-    else 
-        done = io->timer_last+io->timer_wait;
-
-    if (now < done && done-now > CLOCKS_PER_SEC)
-        sec_sleep((done-now)/CLOCKS_PER_SEC);
+    if (h->timer_last != 0) {
+        if (mp) {
+            done = h->timer_last+h->timer_wait_mp;
+        } else  {
+            done = h->timer_last+h->timer_wait;
+        }
+        if (now < done
+            && (done-now) > (((float)CLOCKS_PER_SEC)/100)) {
+            usec_sleep((useconds_t)(1000000.f * ((float)(done-now) / (float)CLOCKS_PER_SEC)));
+        }
+    }
+    h->timer_last = clock();
 }
 
 /** 

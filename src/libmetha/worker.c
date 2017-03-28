@@ -725,6 +725,9 @@ lm_worker_perform(worker_t *w)
 
     if (ft->switch_to.ptr)
         lm_worker_set_crawler(w, ft->switch_to.ptr);
+
+    w->io_h->timer_wait = (clock_t)(w->crawler->wait * (float)CLOCKS_PER_SEC);
+    w->io_h->timer_wait_mp = 0;
     
     /* prepare the attributes list for this filetype, so
      * that our parsers can fill in values specifically for this

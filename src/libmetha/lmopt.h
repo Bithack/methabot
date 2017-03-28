@@ -23,9 +23,9 @@
 #define _LMOPT__H_
 
 typedef enum {
-    LMOPT_MODE,
-    LMOPT_NUM_THREADS,
-    LMOPT_INITIAL_CRAWLER,
+    /* LMOPT_MODE                 = 0, */
+    LMOPT_NUM_THREADS             = 1,
+    LMOPT_INITIAL_CRAWLER         = 2,
     LMOPT_ENABLE_BUILTIN_PARSERS,
     LMOPT_IO_VERBOSE,
     LMOPT_USERAGENT,

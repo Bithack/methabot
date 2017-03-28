@@ -60,6 +60,7 @@ static const char *val_str[] =
     "LMC_VAL_T_STRING",
     "LMC_VAL_T_EXTRA",
     "LMC_VAL_T_FLAG",
+    "LMC_VAL_T_FLOAT",
 };
 
 /**
@@ -666,7 +667,10 @@ lmc_parse(lmc_parser_t *lmc,
                         goto error;
                     }
                 } else if (isdigit(*p)) {
-                    if (curr_opt->type == LMC_VAL_T_UINT) {
+                    if (curr_opt->type == LMC_VAL_T_FLOAT) {
+                        if (curr_opt->value.offs)
+                            *(float*)((char *)o+curr_opt->value.offs) = (float)atof(p);
+                    } else if (curr_opt->type == LMC_VAL_T_UINT) {
                         if (curr_opt->value.offs)
                             *(unsigned int*)((char *)o+curr_opt->value.offs) = atoi(p);
                     } else if (curr_opt->type == LMC_VAL_T_FLAG) {

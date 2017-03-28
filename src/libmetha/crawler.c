@@ -44,6 +44,7 @@ lm_crawler_create(const char *name, uint32_t nlen)
     cr->init = 0;
     cr->peek_limit = 0;
     */
+    cr->wait = 0.0f;
     cr->depth_limit = 1;
 
     return cr;
@@ -138,6 +139,7 @@ lm_crawler_clear(crawler_t *c)
     c->flags = 0;
     c->peek_limit = 0;
     c->depth_limit = 1;
+    c->wait = 0;
 }
 
 /** 

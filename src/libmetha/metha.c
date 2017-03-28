@@ -60,16 +60,6 @@ struct async_data {
     M_CODE           status;
 };
 
-static struct {
-    const char *ident;
-    unsigned int timer_wait;
-    unsigned int timer_wait_mp;
-} timer_vals[] = {
-    {"aggressive", 0, 0},
-    {"friendly",  10, 2},
-    {"coward",    30, 5},
-};
-
 static wfunction_t
 m_builtin_parsers[] = {
     {
@@ -175,6 +165,7 @@ crawler_class =
         LMC_OPT_FLAG("robotstxt", LM_CRFLAG_ROBOTSTXT),
         LMC_OPT_STRING("default_handler", offsetof(crawler_t, default_handler.name)),
         LMC_OPT_STRING("cookie", offsetof(crawler_t, initial_cookie)),
+        LMC_OPT_FLOAT("wait", offsetof(crawler_t, wait)),
         LMC_OPT_END,
     }
 };
@@ -221,24 +212,6 @@ lmetha_setopt(metha_t *m, LMOPT opt, ...)
     va_start(ap, opt);
 
     switch (opt) {
-        case LMOPT_MODE:
-            arg = va_arg(ap, char *);
-            for (x=0; x<3; x++) {
-                if (strcasecmp(arg, timer_vals[x].ident) == 0) {
-                    if (timer_vals[x].timer_wait) {
-                        m->io.synchronous = 1;
-                        m->io.timer_wait = timer_vals[x].timer_wait*CLOCKS_PER_SEC;
-                        m->io.timer_wait_mp = timer_vals[x].timer_wait_mp*CLOCKS_PER_SEC;
-                        m->io.timer_last = (clock_t)-1;
-                    } else
-                        m->io.synchronous = 0;
-                    break;
-                }
-            }
-            if (x == 3)
-                goto badarg;
-            break;
-
         case LMOPT_IO_VERBOSE:
             m->io.verbose = va_arg(ap, int);
             break;

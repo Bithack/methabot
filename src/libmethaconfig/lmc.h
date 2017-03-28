@@ -49,6 +49,12 @@
         .value.offs = (offset) \
     }
 
+#define LMC_OPT_FLOAT(name, offset) \
+    { \
+        (name), LMC_VAL_T_FLOAT, \
+        .value.offs = (offset) \
+    }
+
 #define LMC_OPT_FLAG(name, f) \
     { \
         (name), LMC_VAL_T_FLAG, \
@@ -75,6 +81,7 @@ enum {
     LMC_VAL_T_STRING,
     LMC_VAL_T_EXTRA,
     LMC_VAL_T_FLAG,
+    LMC_VAL_T_FLOAT,
 };
 
 /** 

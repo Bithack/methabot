@@ -98,6 +98,10 @@ typedef struct iohandle {
     int provided;
     pthread_mutex_t dcond_mtx;
     pthread_cond_t  dcond;
+
+    clock_t      timer_last;
+    unsigned int timer_wait;
+    unsigned int timer_wait_mp;
 } iohandle_t;
 
 /* pos descriptor for the pending transfer queue */
@@ -122,11 +126,7 @@ typedef struct io {
     int e_fd;
     int e_timeout;
 
-    /* timer */
     int          synchronous;
-    clock_t      timer_last;
-    unsigned int timer_wait;
-    unsigned int timer_wait_mp;
 
     /* running transfers */
     int        prev_running;

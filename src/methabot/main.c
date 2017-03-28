@@ -48,7 +48,7 @@ static unsigned int depth_limit         = (unsigned int)1;
 static char        *user_agent          = "Methabot/" VERSION;
 static int          no_duplicates       = 0;
 static char        *proxy               = 0;
-static char        *mode                = 0;
+static float        wait                = 0;
 static int          cookies             = 0;
 static int          jail                = 0;
 static int          robotstxt           = 0;
@@ -98,7 +98,7 @@ static struct option opts[] =
     {"download",        no_argument,        0,      'd'},
     {"no-duplicates",   no_argument,        0,      0},
     {"proxy",           required_argument,  0,      0},
-    {"mode",            required_argument,  0,      'M'},
+    {"wait",            required_argument,  0,      'w'},
     {"enable-cookies",  no_argument,        0,      'c'},
     {"version",         no_argument,        0,      'v'},
     {"robotstxt",       no_argument,        0,      'r'},
@@ -186,7 +186,7 @@ main(int argc, char **argv)
 
     do {
         opts_index = 0;
-        c = getopt_long(argc, argv, "k:da:vsb:n:N:%:D:p:em:t:x:C:M:cT:jr", opts, &opts_index);
+        c = getopt_long(argc, argv, "k:da:vsb:n:N:%:D:p:em:t:x:C:w:cT:jr", opts, &opts_index);
 
         if (c == -1)
             break;
@@ -217,7 +217,7 @@ main(int argc, char **argv)
             case 't': extensions     = optarg; break;
             case 'x': expr           = optarg; break;
             case 'C': download_dir   = optarg; break;
-            case 'M': mode           = optarg; break;
+            case 'w': wait           = (float)atof(optarg); break;
             case 'T': type           = optarg; break; 
             case 'k': set_cookie     = optarg; break; 
             case 'N': num_pipelines  = (unsigned int)atoi(optarg); break; 
@@ -340,11 +340,6 @@ main(int argc, char **argv)
             goto error;
     }
     */
-
-    if (mode) {
-        if ((status = lmetha_setopt(m, LMOPT_MODE, mode)) != M_OK)
-            goto error;
-    }
 
     if ((status = lmetha_setopt(m, LMOPT_ENABLE_COOKIES, cookies)) != M_OK)
         goto error;
@@ -521,6 +516,11 @@ mb_configure_crawler(void)
     if  (def_handler) {
         cr->default_handler.name = strdup(def_handler);
     }
+
+    if (wait < 0.f) {
+        wait = 0.f;
+    }
+    cr->wait = wait;
 
     cr->peek_limit = external_peek;
     cr->depth_limit = depth_limit;

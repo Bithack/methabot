@@ -220,7 +220,7 @@ mb_help(void)
     printf("%s",
        "usage: mb [:config] [options...] url\n"
        "Crawler options: \n"
-       " -M, --mode             <mode> Crawling mode (aggressive, friendly, coward)\n"
+       " -w, --wait            <float> Wait time between http GETs (in seconds)\n"
        " -k, --set-cookie        <str> Set initial cookie data (also see '-c')\n"
        " -D, --depth-limit       <int> Depth limit (default is 1, 0 is infinite)\n"
        " -e, --external                If set, external URLs will not be discarded\n"

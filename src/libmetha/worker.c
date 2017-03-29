@@ -789,6 +789,11 @@ lm_worker_perform(worker_t *w)
 #ifdef DEBUG
         fprintf(stderr, "* worker:(%p) filetype binding changed from %d to %d\n", w, ft_binding, w->ue_h->current->bind);
 #endif
+        if (FT_FLAG_ISSET(ft, FT_FLAG_IGNORE_DEPTH)
+            != FT_FLAG_ISSET(w->m->filetypes[w->ue_h->current->bind-1], FT_FLAG_IGNORE_DEPTH)) {
+            LM_ERROR(w->m, "switching between filetypes with mismatch ignore_depth setting not allowed, not parsing");
+            return M_ERROR;
+        }
         ft = w->m->filetypes[w->ue_h->current->bind-1];
         ft_binding = w->ue_h->current->bind;
     }

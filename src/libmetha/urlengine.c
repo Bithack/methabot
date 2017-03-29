@@ -167,8 +167,10 @@ ue_revert(uehandle_t *h, const char *url, uint16_t len)
     int uid = h->primary.sz-1;
     int lid = h->primary.row[uid].sz-1;
 
-    /* reuse the filetype */
-    h->primary.row[uid].row[lid].bind = binding;
+    if (uid > 0 && lid > 0) {
+        /* reuse the filetype */
+        h->primary.row[uid].row[lid].bind = binding;
+    }
 
     lm_utable_inc(&h->primary); /* lm_worker_sort() will receive an empty set */
 

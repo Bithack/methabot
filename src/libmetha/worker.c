@@ -591,6 +591,8 @@ lm_worker_sort(worker_t *w)
             if ((ft = lm_ftindex_match_by_mime(&cr->ftindex, mime))
                     && lm_worker_bind_url(w, url, ft, epeek, &peek_list) == 0)
                 match = 1;
+
+            list = &w->ue_h->primary.row[list_index];
         }
 
         curl_easy_cleanup(h);
@@ -805,10 +807,11 @@ lm_worker_perform(worker_t *w)
             if (lm_url_set(&tmp,
                     w->io_h->transfer.headers.location,
                     strlen(w->io_h->transfer.headers.location)) == M_OK) {
-                if (lm_url_hostcmp(&tmp, w->ue_h->current) == 0)
+                if (lm_url_hostcmp(&tmp, w->ue_h->current) == 0) {
                     ue_revert(w->ue_h, tmp.str, tmp.sz);
-                else
+                } else {
                     ue_move_to_secondary(w->ue_h, &tmp);
+                }
             }
             lm_url_uninit(&tmp);
             return M_OK;

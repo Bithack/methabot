@@ -158,10 +158,21 @@ ue_add_initial(uehandle_t *h, const char *url, uint16_t len)
 M_CODE
 ue_revert(uehandle_t *h, const char *url, uint16_t len)
 {
-    h->depth_counter --;
+    uint8_t binding = h->current->bind;
+
     lm_utable_dec(&h->primary);
 
-    return ue_add(h, url, len);
+    M_CODE status = ue_add(h, url, len);
+
+    int uid = h->primary.sz-1;
+    int lid = h->primary.row[uid].sz-1;
+
+    /* reuse the filetype */
+    h->primary.row[uid].row[lid].bind = binding;
+
+    lm_utable_inc(&h->primary); /* lm_worker_sort() will receive an empty set */
+
+    return status;
 }
 
 /** 
@@ -418,29 +429,25 @@ ue_next(uehandle_t *h)
     }
     */
 
-    if (!(top = lm_utable_top(&h->primary)))
+    if (!(top = lm_utable_top(&h->primary))) {
         return 0;
+    }
+
     while (!(url = lm_ulist_pop(top))) {
-        /* popping a URL from the current list failed...
-         * we'll try to decrease the utable size to 
-         * get the next (or actually the previous) list */
-        if (lm_utable_dec(&h->primary) != M_OK || !(top = lm_utable_top(&h->primary))) {
-            return 0;
-        }
 
-        if (h->depth_counter)
-            h->depth_counter --;
-
+        /* reach here if the top list is out of URL:s */ 
         if (h->depth_counter <= 0 && h->is_peeking) {
             /* reset counter if we are in an external peek */
             h->depth_counter = h->depth_counter_bk;
             h->depth_limit   = h->depth_limit_bk;
             h->is_peeking    = 0;
             ue_set_host(h, h->host_ent_bk->str, h->host_ent_bk->len);
+        } else {
+            h->depth_counter --;
+        }
 
-            if (lm_utable_dec(&h->primary) != M_OK || !(top = lm_utable_top(&h->primary))) {
-                return 0;
-            }
+        if (lm_utable_dec(&h->primary) != M_OK || !(top = lm_utable_top(&h->primary))) {
+            return 0;
         }
     }
 

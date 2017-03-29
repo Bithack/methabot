@@ -150,8 +150,9 @@ lm_extract_css_urls(uehandle_t *ue_h, char *p, size_t sz)
             do p++; while (isspace(*p));
             t = (*p == '"' ? "\")"
                 : (*p == '\'' ? "')" : ")"));
-            if (*t != ')')
-                p++;
+            if (*t != ')') {
+                do p++; while (isspace(*p));
+            }
         } else 
             t = (*p == '"' ? "\""
                 : (*p == '\'' ? "'" : ";"));
@@ -204,7 +205,8 @@ lm_extract_text_urls(uehandle_t *ue_h, char *p, size_t sz)
             for (s=p+2; s < e; s++) {
                 if (!isalnum(*s) && *s != '%' && *s != '?'
                     && *s != '=' && *s != '&' && *s != '/'
-                    && *s != '.' && *s != ':' && *s != '_') {
+                    && *s != '.' && *s != ':' && *s != '_'
+                    && *s != '-') {
                     ue_add(ue_h, p_start, (s-p_start));
                     break;
                 }

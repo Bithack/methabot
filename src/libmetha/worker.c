@@ -711,6 +711,12 @@ lm_worker_perform(worker_t *w)
 {
     M_CODE r;
     int x;
+
+    if (w->ue_h->current->bind == 0) {
+        LM_WARNING(w->m, "lm_worker_perform called on unbound URL");
+        w->ue_h->current->bind = 1;//w->crawler->initial_filetype.ptr->id;
+    }
+
     filetype_t *ft = w->m->filetypes[w->ue_h->current->bind-1];
 
     uint8_t ft_binding = w->ue_h->current->bind;

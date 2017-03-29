@@ -48,7 +48,7 @@ struct {
  * Default CSS parser
  **/
 M_CODE
-lm_parser_css(worker_t *w, iobuf_t *buf, uehandle_t *ue_h,
+lm_parser_css(metha_t *m, worker_t *w, iobuf_t *buf, uehandle_t *ue_h,
               url_t *url, attr_list_t *al)
 {
     return lm_extract_css_urls(ue_h, buf->ptr, buf->sz);
@@ -62,7 +62,8 @@ lm_parser_css(worker_t *w, iobuf_t *buf, uehandle_t *ue_h,
  * this.data instead of the real buffer.
  **/
 M_CODE
-lm_handler_writefile(worker_t *w, iohandle_t *h,
+lm_handler_writefile(metha_t *m, worker_t *w, iohandle_t *h,
+                     iobuf_t *buf, iostat_t *iostat, 
                      url_t *url)
 {
     int r;
@@ -168,7 +169,7 @@ lm_extract_css_urls(uehandle_t *ue_h, char *p, size_t sz)
  * Default plaintext parser
  **/
 M_CODE
-lm_parser_text(worker_t *w, iobuf_t *buf,
+lm_parser_text(metha_t *m, worker_t *w, iobuf_t *buf,
                uehandle_t *ue_h, url_t *url,
                attr_list_t *al)
 {
@@ -220,7 +221,7 @@ lm_extract_text_urls(uehandle_t *ue_h, char *p, size_t sz)
  * FTP handler.
  **/
 M_CODE
-lm_parser_ftp(worker_t *w, iobuf_t *buf,
+lm_parser_ftp(metha_t *m, worker_t *w, iobuf_t *buf,
               uehandle_t *ue_h, url_t *url,
               attr_list_t *al)
 {

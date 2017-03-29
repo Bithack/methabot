@@ -99,7 +99,7 @@ memcpy_tolower(void *dest, const void *source, size_t sz)
  * Default HTML parser.
  **/
 M_CODE
-lm_parser_html(struct worker *w, struct iobuf *buf,
+lm_parser_html(metha_t *m, struct worker *w, struct iobuf *buf,
                struct uehandle *ue_h, struct url *url,
                struct attr_list *al)
 {
@@ -402,7 +402,7 @@ static const struct xml_el enc_content[] =
  * - Convert < and > to &gt; and &lt; if not part of an element tag
  **/
 M_CODE
-lm_parser_xmlconv(struct worker *w, struct iobuf *buf,
+lm_parser_xmlconv(metha_t *m, struct worker *w, struct iobuf *buf,
                   struct uehandle *ue_h, struct url *url,
                   struct attr_list *al)
 {

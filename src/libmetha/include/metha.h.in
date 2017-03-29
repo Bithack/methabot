@@ -2,17 +2,16 @@
 #include "config.h"
 #include "module.h"
 #include "lmopt.h"
+#include "filetype.h"
 
 struct metha;
 struct worker;
-struct filetype;
 struct crawler;
 struct io;
 
 typedef struct metha metha_t;
 typedef struct crawler crawler_t;
 typedef struct worker worker_t;
-typedef struct filetype filetype_t;
 typedef struct io io_t;
 
 typedef struct iostat {

@@ -398,7 +398,7 @@ unicode_to_utf8(uint16_t v, char *out)
  * character, utf8conv
  **/
 M_CODE
-lm_parser_entityconv(worker_t *w, iobuf_t *buf,
+lm_parser_entityconv(metha_t *m, worker_t *w, iobuf_t *buf,
                      uehandle_t *ue_h, url_t *url,
                      attr_list_t *al)
 {

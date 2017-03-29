@@ -387,6 +387,12 @@ lm_io_save(iohandle_t *h, url_t *url,
     return r;
 }
 
+M_CODE
+lmetha_default_handler(metha_t *m, struct worker *w, struct iohandle *io, struct iobuf *buf, struct iostat *stat, struct url *url)
+{
+    return lm_io_get(io, url);
+}
+
 /** 
  * Download the given URL. This function might be affected 
  * by a previous call to lm_io_provide().

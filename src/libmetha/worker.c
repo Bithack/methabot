@@ -713,6 +713,8 @@ lm_worker_perform(worker_t *w)
     int x;
     filetype_t *ft = w->m->filetypes[w->ue_h->current->bind-1];
 
+    uint8_t ft_binding = w->ue_h->current->bind;
+
     if (lm_crawler_flag_isset(w->crawler, LM_CRFLAG_JAIL)) {
         url_t *url = w->ue_h->current;
         url_t *jail_url = &w->crawler->jail_url;
@@ -761,7 +763,7 @@ lm_worker_perform(worker_t *w)
 #endif
         switch (wf->type) {
             case LM_WFUNCTION_TYPE_NATIVE:
-                r = wf->fn.native_handler(w, w->io_h, w->ue_h->current);
+                r = wf->fn.native_handler(w->m, w, w->io_h, &w->io_h->buf, &w->io_h->transfer, w->ue_h->current);
                 break;
             default:
                 return M_ERROR;
@@ -774,6 +776,15 @@ lm_worker_perform(worker_t *w)
         fprintf(stderr, "* worker:(%p) handler or lm_io_get failed: %s (%d)\n", w, lm_strerror(r), r);
 #endif
         return r;
+    }
+
+
+    if (w->ue_h->current->bind != ft_binding) {
+#ifdef DEBUG
+        fprintf(stderr, "* worker:(%p) filetype binding changed from %d to %d\n", w, ft_binding, w->ue_h->current->bind);
+#endif
+        ft = w->m->filetypes[w->ue_h->current->bind-1];
+        ft_binding = w->ue_h->current->bind;
     }
 
     w->m->status_cb(w->m, w, w->ue_h->current, &w->io_h->transfer);
@@ -837,7 +848,7 @@ lm_worker_perform(worker_t *w)
         /*TODO: error handling */
         switch (p->type) {
             case LM_WFUNCTION_TYPE_NATIVE:
-                p->fn.native_parser(w, &w->io_h->buf, w->ue_h, w->ue_h->current, &w->attributes);
+                p->fn.native_parser(w->m, w, &w->io_h->buf, w->ue_h, w->ue_h->current, &w->attributes);
                 break;
             default:
                 return M_FAILED;

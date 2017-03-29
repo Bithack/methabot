@@ -25,8 +25,9 @@
 #include <stdint.h>
 #include "errors.h"
 #include "wfunction.h"
-#include "umex.h"
 #include "config.h"
+
+struct umex;
 
 #define FT_FLAG_HAS_PARSER    1
 #define FT_FLAG_HAS_HANDLER   2
@@ -77,7 +78,7 @@ typedef struct filetype {
     char   **attributes;
     int      attr_count;
 
-    umex_t *expr;
+    struct umex *expr;
 
     /* parser_str identifies the parser_chain, and will
      * contain the full string as given to the 'parser'

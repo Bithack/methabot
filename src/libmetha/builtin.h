@@ -29,15 +29,15 @@
  **/
 
 /* html.c */
-M_CODE lm_parser_html(struct worker *w, struct iobuf *buf, struct uehandle *ue_h, struct url *url, struct attr_list *al);
-M_CODE lm_parser_xmlconv(struct worker *w, struct iobuf *buf, struct uehandle *ue_h, struct url *url, struct attr_list *al);
+M_CODE lm_parser_html(metha_t *m, struct worker *w, struct iobuf *buf, struct uehandle *ue_h, struct url *url, struct attr_list *al);
+M_CODE lm_parser_xmlconv(metha_t *m, struct worker *w, struct iobuf *buf, struct uehandle *ue_h, struct url *url, struct attr_list *al);
 
 /* builtin.c */
-M_CODE lm_parser_css(struct worker *w, struct iobuf *buf, struct uehandle *ue_h, struct url *url, struct attr_list *al);
-M_CODE lm_parser_ftp(struct worker *w, struct iobuf *buf, struct uehandle *ue_h, struct url *url, struct attr_list *al);
-M_CODE lm_parser_text(struct worker *w, struct iobuf *buf, struct uehandle *ue_h, struct url *url, struct attr_list *al);
+M_CODE lm_parser_css(metha_t *m, struct worker *w, struct iobuf *buf, struct uehandle *ue_h, struct url *url, struct attr_list *al);
+M_CODE lm_parser_ftp(metha_t *m, struct worker *w, struct iobuf *buf, struct uehandle *ue_h, struct url *url, struct attr_list *al);
+M_CODE lm_parser_text(metha_t *m, struct worker *w, struct iobuf *buf, struct uehandle *ue_h, struct url *url, struct attr_list *al);
 M_CODE lm_extract_css_urls(struct uehandle *ue_h, char *p, size_t sz);
 M_CODE lm_extract_text_urls(struct uehandle *ue_h, char *p, size_t sz);
-M_CODE lm_handler_writefile(worker_t *w, iohandle_t *io, url_t *url);
+M_CODE lm_handler_writefile(metha_t *m, worker_t *w, iohandle_t *io, iobuf_t *buf, iostat_t *stat, url_t *url);
 
 #endif

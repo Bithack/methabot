@@ -52,6 +52,7 @@ include_HEADERS = \
 	errors.h	\
 	include/metha.h \
 	module.h    \
+	filetype.h    \
 	lmopt.h  \
 	url.h \
 	attr.h \

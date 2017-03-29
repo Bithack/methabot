@@ -182,6 +182,7 @@ M_CODE lm_get(struct crawler *c, url_t *url, iostat_t *stat);
 M_CODE lm_peek(struct crawler *c, url_t *url, iostat_t *stat);
 M_CODE lm_multipeek_add(iohandle_t *ioh, url_t *url, int id);
 ioprivate_t* lm_multipeek_wait(iohandle_t *ioh);
+M_CODE lmetha_default_handler(metha_t *m, struct worker *w, struct iohandle *io_h, struct iobuf *buf, struct iostat *iostat, struct url *url);
 
 /* errors.c */
 void lm_default_status_reporter(metha_t *, struct worker *, url_t *);

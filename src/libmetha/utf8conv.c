@@ -33,7 +33,7 @@
  * Convert the downloaded data to utf8
  **/
 M_CODE
-lm_parser_utf8conv(worker_t *w, iobuf_t *buf,
+lm_parser_utf8conv(metha_t *m, worker_t *w, iobuf_t *buf,
                    uehandle_t *ue_h, url_t *url,
                    attr_list_t *al)
 {

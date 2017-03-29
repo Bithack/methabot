@@ -513,6 +513,8 @@ lm_worker_sort(worker_t *w)
     if (!(list = lm_utable_top(&ue_h->primary)))
         return M_FAILED;
 
+    int list_index = ue_h->primary.sz-1;
+
     cr     = w->crawler;
     epeek  = (lm_crawler_flag_isset(cr, LM_CRFLAG_EPEEK) && !ue_h->is_peeking)
               ? 1 : 0;
@@ -549,8 +551,13 @@ lm_worker_sort(worker_t *w)
                             match = 1;
                     }
                 }
-            } else if (lm_worker_bind_url(w, url, ft, epeek, &peek_list) == 0)
-                match = 1;
+            } else {
+                if (lm_worker_bind_url(w, url, ft, epeek, &peek_list) == 0) {
+                    match = 1;
+                }
+
+                list = &w->ue_h->primary.row[list_index];
+            }
         }
 
         if (!match) {

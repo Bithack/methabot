@@ -139,8 +139,9 @@ lm_handler_writefile(metha_t *m, worker_t *w, iohandle_t *h,
  * the uehandle.
  **/
 M_CODE
-lm_extract_css_urls(uehandle_t *ue_h, char *p, size_t sz)
+lm_extract_css_urls(uehandle_t *ue_h, char *buf, size_t sz)
 {
+    char *p = buf;
     char *e = p+sz;
     char *t, *s;
     while ((p = memmem(p, e-p, "url", 3))) {
@@ -153,11 +154,12 @@ lm_extract_css_urls(uehandle_t *ue_h, char *p, size_t sz)
             if (*t != ')') {
                 do p++; while (isspace(*p));
             }
-        } else 
-            t = (*p == '"' ? "\""
-                : (*p == '\'' ? "'" : ";"));
-        if (!(s = memmem(p, e-p, t, strlen(t))))
+        } else {
             continue;
+        }
+        if (!(s = memmem(p, e-p, t, strlen(t)))) {
+            continue;
+        }
 
         ue_add(ue_h, p, s-p);
         p = s;

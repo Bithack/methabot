@@ -611,7 +611,7 @@ cleanup:
                     continue;
                 }
                 ft = w->m->filetypes[url->bind-1];
-                if (!FT_FLAG_ISSET(ft, FT_FLAG_IGNORE_DEPTH)) {
+                if (!FT_FLAG_ISSET(ft, FT_FLAG_IGNORE_DEPTH) || ue_h->is_peeking) {
                     lm_url_nullify(url);
                 }
             }

@@ -283,6 +283,10 @@ lmetha_setopt(metha_t *m, LMOPT opt, ...)
             m->io.cookies = va_arg(ap, int);
             break;
 
+        case LMOPT_REPORT_FUNCTION:
+            m->report_cb = va_arg(ap, void*);
+            break;
+
             /** 
              * The status function will be called whenever a worker
              * crawls a new URL.
@@ -375,6 +379,7 @@ lmetha_create(void)
     m->status_cb = lm_default_status_reporter;
     m->target_cb = lm_default_target_reporter;
     m->event_cb = lm_default_event_handler;
+    m->report_cb = 0;
 
     /** 
      * Initialize all pthread mutexes and conditions

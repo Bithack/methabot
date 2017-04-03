@@ -138,6 +138,7 @@ typedef struct metha {
     void   (*error_cb)(struct metha *, const char *s, ...);
     void   (*warning_cb)(struct metha *, const char *s, ...);
     void   (*event_cb)(struct metha *, unsigned ev);
+    void   (*report_cb)(struct metha *, url_t *, LMREPORT rep, ...);
 
     int builtin_parsers;
     int num_threads;

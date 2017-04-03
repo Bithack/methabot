@@ -41,10 +41,15 @@ typedef enum {
     LMOPT_ERROR_FUNCTION,
     LMOPT_WARNING_FUNCTION,
     LMOPT_EV_FUNCTION,
+    LMOPT_REPORT_FUNCTION,
 } LMOPT;
 
 typedef enum {
     LMSTAT_NUM_DISCARDED_URLS = 0,
 } LMSTAT;
+
+typedef enum {
+    LMREPORT_NUM_DISCARDED_URLS = 0,
+} LMREPORT;
 
 #endif

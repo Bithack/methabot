@@ -521,6 +521,8 @@ lm_worker_sort(worker_t *w)
     syn    = w->io_h->io->synchronous;
     lookup = 0;
 
+    url_t *current_url = w->ue_h->current;
+
     /* need to cache these here since invocation of epeek might change them during */
     depth_limit = ue_h->depth_limit;
     depth_counter = ue_h->depth_counter;
@@ -633,7 +635,12 @@ cleanup:
             x++;
     }
 
-    w->num_discarded_urls += num_urls - list->sz;
+    int discarded = num_urls - list->sz;
+    w->num_discarded_urls += discarded;
+
+    if (w->m->report_cb && current_url && (w->io_h->transfer.status_code < 300 || w->io_h->transfer.status_code >= 400)) {
+        w->m->report_cb(w->m, current_url, LMREPORT_NUM_DISCARDED_URLS, discarded);
+    }
 
     return M_OK;
 }

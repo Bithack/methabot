@@ -663,11 +663,19 @@ mb_init(void)
     }
 
     if (!home_conf_sz || !home_scripts_sz) {
-        if (!(p = getenv("HOME")))
+        if (!(p = getenv("HOME"))) {
             fprintf(stderr, "mb: warning: couldn't get home directory from env\n");
             /* even though we couldn't get the users home directory, we are still
              * able to look through the system-wide config */
-        else {
+            if (!home_scripts_sz) {
+                home_scripts = strdup("/tmp/.methabot/scripts");
+                home_scripts_sz = strlen("/tmp/.methabot/scripts");
+            }
+            if (!home_conf_sz) {
+                home_conf = strdup("/tmp/.methabot");
+                home_conf_sz = strlen("/tmp/.methabot");
+            }
+        } else {
             if (!(mbdir = malloc(strlen(p)+1+strlen("/.methabot"))))
                 return 0;
 

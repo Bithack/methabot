@@ -22,7 +22,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
-#include <sys/epoll.h>
+#if !defined(__APPLE__) && !defined(WIN32)
+# include <sys/epoll.h>
+#endif
 #include <errno.h>
 
 #include "metha.h"
@@ -74,7 +76,7 @@ M_CODE
 lm_init_io(io_t *io, metha_t *m)
 {
     io->m = m;
-#ifdef WIN32
+#if defined(WIN32) || defined(__APPLE__)
     io->synchronous = 1;
 #endif
 
@@ -672,6 +674,7 @@ lm_iothr_data_cb(void *ptr, size_t size, size_t nmemb, void *s)
     return nmemb*size;
 }
 
+#ifndef __APPLE__
 /** 
  * called when the epoll() timer has been reached
  **/
@@ -694,6 +697,7 @@ lm_iothr_timer_reached(io_t *io)
 
     return M_OK;
 }
+#endif /* __APPLE__ */
 
 /** 
  * Called by libcurl to set a timeout
@@ -708,6 +712,8 @@ lm_iothr_set_timer_cb(CURLM *m, long timeout, io_t *io)
     io->e_timeout = (int)timeout;
     return 0;
 }
+
+#ifndef __APPLE__
 /** 
  * Check how many transfers that have been completed
  * since the last check, and put all completed 
@@ -770,7 +776,9 @@ lm_iothr_check_completed(io_t *io)
     }
     io->prev_running = io->nrunning;
 }
+#endif
 
+#ifndef __APPLE__
 /**
  * Called by libcurl to inform us about new and removed 
  * sockets.
@@ -805,7 +813,9 @@ lm_iothr_socket_cb(CURL *h, curl_socket_t s, int action,
 
     return 0;
 }
+#endif /* __APPLE__ */
 
+#ifndef __APPLE__
 /** 
  * data is available for read/write on the given file descriptor
  **/
@@ -846,7 +856,9 @@ lm_iothr_fd_event(io_t *io, int fd, int events)
     lm_iothr_check_completed(io);
     return M_OK;
 }
+#endif /* __APPLE__ */
 
+#ifndef __APPLE__
 /** 
  * Call this function to check for pending 
  * transfers. If any pending transfer is found, it
@@ -897,6 +909,7 @@ lm_iothr_check_pending(io_t *io)
 
     return M_OK;
 }
+#endif
 
 /** 
  * Launch the I/O thread used for the multipeek loop. Note that
@@ -905,19 +918,24 @@ lm_iothr_check_pending(io_t *io)
 M_CODE
 lm_iothr_launch(io_t *io)
 {
+#ifndef __APPLE__
     if (!io->synchronous) {
         if (pthread_create(&io->thr, 0, (void *(*)(void*))&lm_iothr_main, io) != 0)
             return M_FAILED;
         io->started = 1;
-    }
-
+    } else {
+#endif
 #ifdef DEBUG
-    else fprintf(stderr, "* io:(%p) timer enabled, no I/O thread launched\n", io);
+        fprintf(stderr, "* io:(%p) timer enabled, no I/O thread launched\n", io);
+#endif
+#ifndef __APPLE__
+    }
 #endif
 
     return M_OK;
 }
 
+#ifndef __APPLE__
 /** 
  * entry point of the IO-thread, will listen for events on sockets
  * connected to libcurl interfaces and also for signals from the main
@@ -990,4 +1008,5 @@ lm_iothr_main(io_t *io)
 #endif
     return 0;
 }
+#endif /* __APPLE__ */
 

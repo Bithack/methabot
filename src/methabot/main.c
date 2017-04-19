@@ -48,7 +48,7 @@ static unsigned int depth_limit         = (unsigned int)1;
 static char        *user_agent          = "Methabot/" VERSION;
 static int          no_duplicates       = 0;
 static char        *proxy               = 0;
-static float        wait                = 0;
+static float        xwait                = 0;
 static int          cookies             = 0;
 static int          jail                = 0;
 static int          robotstxt           = 0;
@@ -217,7 +217,7 @@ main(int argc, char **argv)
             case 't': extensions     = optarg; break;
             case 'x': expr           = optarg; break;
             case 'C': download_dir   = optarg; break;
-            case 'w': wait           = (float)atof(optarg); break;
+            case 'w': xwait          = (float)atof(optarg); break;
             case 'T': type           = optarg; break; 
             case 'k': set_cookie     = optarg; break; 
             case 'N': num_pipelines  = (unsigned int)atoi(optarg); break; 
@@ -517,10 +517,10 @@ mb_configure_crawler(void)
         cr->default_handler.name = strdup(def_handler);
     }
 
-    if (wait < 0.f) {
-        wait = 0.f;
+    if (xwait < 0.f) {
+        xwait = 0.f;
     }
-    cr->wait = wait;
+    cr->wait = xwait;
 
     cr->peek_limit = external_peek;
     cr->depth_limit = depth_limit;

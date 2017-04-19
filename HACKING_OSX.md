@@ -6,4 +6,4 @@ $ brew link --force gettext
 $ ./autogen.sh
 ```
 
-NOTE: Will not fully compile until epoll code is replaced with kqueue code.
+NOTE: Methabot will run in "synchronous" mode until epoll is replaced with kqueue

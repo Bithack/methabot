@@ -613,7 +613,8 @@ cleanup:
                     continue;
                 }
                 ft = w->m->filetypes[url->bind-1];
-                if (!FT_FLAG_ISSET(ft, FT_FLAG_IGNORE_DEPTH) || !epeek) {
+                if (!FT_FLAG_ISSET(ft, FT_FLAG_IGNORE_DEPTH)/* || !epeek*/) {
+                    printf("nulling %s because %d %d \n", url->str, !FT_FLAG_ISSET(ft, FT_FLAG_IGNORE_DEPTH), !epeek);
                     lm_url_nullify(url);
                 }
             }
